@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'theme.dart'; // Import your theme file
+import 'package:firebase_auth/firebase_auth.dart';
+import 'theme.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -9,89 +10,99 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  User? _user;
+  bool _isLoggingOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = FirebaseAuth.instance.currentUser;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BuddyTheme.backgroundPrimaryColor,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Profile Header Section
+      body: Stack(
+        children: [
+          _buildMainContent(),
+          if (_isLoggingOut)
             Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    BuddyTheme.primaryColor,
-                    BuddyTheme.secondaryColor,
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  BuddyTheme.primaryColor,
+                  BuddyTheme.secondaryColor,
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                child: Column(
+                  children: [
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: BuddyTheme.textLightColor,
+                          width: 3,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: Image.network(
+                          'https://via.placeholder.com/100',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: BuddyTheme.spacingMd),
+                    Text(
+                      _user?.displayName ?? 'No Name',
+                      style: const TextStyle(
+                        fontSize: BuddyTheme.fontSizeXl,
+                        fontWeight: FontWeight.bold,
+                        color: BuddyTheme.textLightColor,
+                      ),
+                    ),
+                    const SizedBox(height: BuddyTheme.spacingXs),
+                    Text(
+                      _user?.email ?? 'No Email',
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.textLightColor.withOpacity(0.8),
+                      ),
+                    ),
+                    const SizedBox(height: BuddyTheme.spacingLg),
                   ],
                 ),
               ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: BuddyTheme.spacingLg),
-                      
-                      // Profile Image
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: BuddyTheme.textLightColor,
-                            width: 3,
-                          ),
-                        ),
-                        child: ClipOval(
-                          child: Image.network(
-                            'https://via.placeholder.com/100',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: BuddyTheme.spacingMd),
-                      
-                      // User Name
-                      const Text(
-                        'James Butler',
-                        style: TextStyle(
-                          fontSize: BuddyTheme.fontSizeXl,
-                          fontWeight: FontWeight.bold,
-                          color: BuddyTheme.textLightColor,
-                        ),
-                      ),
-                      
-                      const SizedBox(height: BuddyTheme.spacingXs),
-                      
-                      // User Email
-                      Text(
-                        'test@example.com',
-                        style: TextStyle(
-                          fontSize: BuddyTheme.fontSizeSm,
-                          color: BuddyTheme.textLightColor.withOpacity(0.8),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: BuddyTheme.spacingLg),
-                    ],
-                  ),
-                ),
-              ),
             ),
-            
-            // Stats Section
-            _buildStatsSection(),
-            
-            // Account Settings Section
-            _buildAccountSettingsSection(),
-          ],
-        ),
+          ),
+          _buildStatsSection(),
+          _buildAccountSettingsSection(),
+        ],
       ),
     );
   }
@@ -163,63 +174,43 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
-          
           _buildMenuOption(
             icon: Icons.person_outline,
             iconColor: BuddyTheme.primaryColor,
             title: 'Edit Profile',
-            onTap: () {
-              // Handle edit profile tap
-            },
+            onTap: () {},
           ),
-          
           _buildMenuOption(
             icon: Icons.chat_bubble_outline,
             iconColor: BuddyTheme.secondaryColor,
             title: 'Messages',
-            onTap: () {
-              // Handle messages tap
-            },
+            onTap: () {},
           ),
-          
           _buildMenuOption(
             icon: Icons.notifications_outlined,
             iconColor: Colors.orange,
             title: 'Notifications',
-            onTap: () {
-              // Handle notifications tap
-            },
+            onTap: () {},
           ),
-          
           _buildMenuOption(
             icon: Icons.security_outlined,
             iconColor: BuddyTheme.successColor,
             title: 'Privacy & Security',
-            onTap: () {
-              // Handle privacy & security tap
-            },
+            onTap: () {},
           ),
-          
           _buildMenuOption(
             icon: Icons.favorite_outline,
             iconColor: Colors.amber,
             title: 'My Listings',
-            onTap: () {
-              // Handle my listings tap
-            },
+            onTap: () {},
           ),
-          
           _buildMenuOption(
             icon: Icons.settings_outlined,
             iconColor: BuddyTheme.textSecondaryColor,
             title: 'Settings',
-            onTap: () {
-              // Handle settings tap
-            },
+            onTap: () {},
             isLast: true,
           ),
-          
-          // Logout Button
           Container(
             margin: const EdgeInsets.all(BuddyTheme.spacingMd),
             width: double.infinity,
@@ -314,8 +305,16 @@ class _ProfilePageState extends State<ProfilePage> {
               },
               child: const Text('Cancel'),
             ),
-            ElevatedButton(              onPressed: () {
-                Navigator.of(context).pop();
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close dialog
+                setState(() {
+                  _isLoggingOut = true;
+                });
+                await FirebaseAuth.instance.signOut();
+                setState(() {
+                  _isLoggingOut = false;
+                });
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/login',

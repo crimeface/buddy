@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class BuddyTheme {
   // Primary colors
@@ -22,6 +21,7 @@ class BuddyTheme {
   static const Color successColor = Color(0xFF2ECC71);  // Green for success states
   static const Color warningColor = Color(0xFFF1C40F);  // Yellow for warning states
   static const Color errorColor = Color(0xFFE74C3C);  // Red for error states
+  static const Color infoColor = Color(0xFF3498DB);  // Blue for information states
 
   // Border and divider colors
   static const Color borderColor = Color(0xFFE0E0E0);  // Light gray for borders

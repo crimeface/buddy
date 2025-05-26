@@ -1,5 +1,7 @@
 // signup.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -27,20 +29,51 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  void _handleSignUp() {
+  void _handleSignUp() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
-      
-      // Here you would implement your registration logic
-      // For demo purposes, we'll just navigate to the login page after a delay
-      Future.delayed(const Duration(seconds: 2), () {
+
+      try {
+        // Create user with email and password
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        // Update the user's display name in Firebase Authentication
+        await userCredential.user!.updateDisplayName(_fullNameController.text.trim());
+
         setState(() {
           _isLoading = false;
         });
-        Navigator.pushReplacementNamed(context, '/login');
-      });
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } on FirebaseAuthException catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        String errorMsg = 'Registration failed';
+        if (e.code == 'email-already-in-use') {
+          errorMsg = 'Email already in use';
+        } else if (e.code == 'invalid-email') {
+          errorMsg = 'Invalid email address';
+        } else if (e.code == 'weak-password') {
+          errorMsg = 'Password is too weak';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg)),
+        );
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('An error occurred. Please try again.')),
+        );
+      }
     }
   }
 

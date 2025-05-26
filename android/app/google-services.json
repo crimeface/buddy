@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "608231222196",
+    "project_id": "campusnest-fd6e3",
+    "storage_bucket": "campusnest-fd6e3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:608231222196:android:5c216d6f79757bc30ba0e1",
+        "android_client_info": {
+          "package_name": "com.example.buddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdNwwMWqtHbBImF8smJmxialpARBicReE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

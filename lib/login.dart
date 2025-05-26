@@ -1,5 +1,6 @@
 // login.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,32 +30,33 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       try {
-        // Demo credentials (replace with your desired test credentials)
-        const validEmail = 'test@example.com';
-        const validPassword = 'password123';
-
-        // Simple email validation
         String email = _emailController.text.trim();
-        String password = _passwordController.text.trim();        if (email == validEmail && password == validPassword) {
-          await Future.delayed(const Duration(seconds: 1));
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/home');
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Invalid credentials. Please use:\nEmail: test@example.com\nPassword: password123',
-                ),
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
+        String password = _passwordController.text.trim();
+
+        // Sign in with Firebase Auth
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } on FirebaseAuthException catch (e) {
+        String errorMsg = 'Login failed';
+        if (e.code == 'user-not-found') {
+          errorMsg = 'No user found for that email.';
+        } else if (e.code == 'wrong-password') {
+          errorMsg = 'Incorrect password.';
+        } else if (e.code == 'invalid-email') {
+          errorMsg = 'Invalid email address.';
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg)),
+          );
         }
       } catch (e) {
-        // Print debug info
-        print('Error during login: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('An error occurred')),

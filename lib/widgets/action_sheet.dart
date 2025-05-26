@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import 'list_room_form.dart';
+import 'room_request_form.dart';
 
 class ActionBottomSheet extends StatefulWidget {
   const ActionBottomSheet({Key? key}) : super(key: key);
@@ -111,8 +113,12 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                           ),
                           onTap: () {
                             Navigator.pop(context);
-                            // Navigate to list room page
-                            _showSnackBar(context, 'Navigating to List a Room');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ListRoomForm(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -133,8 +139,12 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                           ),
                           onTap: () {
                             Navigator.pop(context);
-                            // Navigate to ask for room page
-                            _showSnackBar(context, 'Navigating to Ask for Room');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const RoomRequestForm(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -273,16 +283,5 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
     );
   }
 
-  void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: BuddyTheme.primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-        ),
-      ),
-    );
-  }
+
 }
