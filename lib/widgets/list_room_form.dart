@@ -50,7 +50,7 @@ class _ListRoomFormState extends State<ListRoomForm>
     'Parking': false,
     'Power Backup': false,
     'Balcony': false,
-    'Gym / Swimming Pool': false,
+    'Gym': false,
   };
 
   // Preferences
@@ -328,7 +328,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             _buildSelectionCard(
               'Room Type',
               _roomType,
-              ['Private', 'Shared Room', 'Entire Flat'],
+              ['Private', 'Shared Room'],
               (value) => setState(() => _roomType = value),
               Icons.bed_outlined,
             ),
@@ -338,7 +338,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             _buildSelectionCard(
               'Flat Size',
               _flatSize,
-              ['1BHK', '2BHK', '3BHK', '4BHK', '5+ BHK'],
+              ['1RK', '1BHK', '2BHK', '3BHK', '4+ BHK'],
               (value) => setState(() => _flatSize = value),
               Icons.home_outlined,
             ),
@@ -421,7 +421,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             
             _buildAnimatedTextField(
               controller: _depositController,
-              label: 'Security Deposit (₹)',
+              label: 'Security Deposit per person (₹)',
               hint: 'Enter deposit amount',
               icon: Icons.security,
               keyboardType: TextInputType.number,
@@ -1224,14 +1224,6 @@ class _ListRoomFormState extends State<ListRoomForm>
           ['Not Allowed', 'Allowed', 'Occasionally'],
           (value) => setState(() => _drinkingPolicy = value),
           Icons.local_bar_outlined,
-        ),
-        const SizedBox(height: BuddyTheme.spacingLg),
-        _buildSelectionCard(
-          'Pets Policy',
-          _petsPolicy,
-          ['Not Allowed', 'Allowed', 'Small Pets Only'],
-          (value) => setState(() => _petsPolicy = value),
-          Icons.pets_outlined,
         ),
         const SizedBox(height: BuddyTheme.spacingLg),
         _buildSelectionCard(

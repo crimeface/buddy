@@ -401,7 +401,17 @@ class _RoomRequestFormState extends State<RoomRequestForm>
             _buildSelectionCard(
               'Preferred Room Type',
               _preferredRoomType,
-              ['Shared', 'Private', '1BHK', '2BHK'],
+              ['Shared', 'Private'],
+              (value) => setState(() => _preferredRoomType = value),
+              Icons.bed_outlined,
+            ),
+
+            const SizedBox(height: BuddyTheme.spacingLg),
+
+            _buildSelectionCard(
+              'Preferred Room Size',
+              _preferredRoomType,
+              ['1RK', '1BHK', '2+ BHK'],
               (value) => setState(() => _preferredRoomType = value),
               Icons.bed_outlined,
             ),
@@ -468,16 +478,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               ['No', 'Yes', "Don't Mind"],
               (value) => setState(() => _drinkingPreference = value),
               Icons.local_bar_outlined,
-            ),
-            
-            const SizedBox(height: BuddyTheme.spacingLg),
-            
-            _buildSelectionCard(
-              'Pets',
-              _petsPreference,
-              ['No', 'Yes', "Don't Mind"],
-              (value) => setState(() => _petsPreference = value),
-              Icons.pets_outlined,
             ),
             
             const SizedBox(height: BuddyTheme.spacingLg),
