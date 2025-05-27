@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'list_room_form.dart';
 import 'room_request_form.dart';
+import '../list_hostel_form.dart';
 
 class ActionBottomSheet extends StatefulWidget {
   const ActionBottomSheet({Key? key}) : super(key: key);
@@ -166,7 +167,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                 scale: _scaleAnimation.value,
                                 child: _buildActionButton(
                                   context,
-                                  title: 'Add Hostel/PG',
+                                  title: 'List Hostel/PG',
                                   subtitle: 'List your accommodation',
                                   icon: Icons.apartment_outlined,
                                   gradient: const LinearGradient(
@@ -175,8 +176,14 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                     end: Alignment.bottomRight,
                                   ),
                                   onTap: () {
+                                    print('List Hostel/PG button tapped'); // Debug print
                                     Navigator.pop(context);
-                                    // TODO: Navigate to Hostel/PG form
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ListHostelForm(),
+                                      ),
+                                    );
                                   },
                                 ),
                               ),
@@ -187,7 +194,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                 scale: _scaleAnimation.value,
                                 child: _buildActionButton(
                                   context,
-                                  title: 'Add Services',
+                                  title: 'List Services',
                                   subtitle: 'Share your expertise',
                                   icon: Icons.miscellaneous_services_outlined,
                                   gradient: const LinearGradient(
@@ -242,10 +249,11 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
   required Gradient gradient,
   required VoidCallback onTap,
 }) {
-  return GestureDetector(
+  return InkWell(
     onTap: onTap,
+    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
     child: Container(
-  height: 173, // Reduced from 175
+      height: 173, // Reduced from 175
   decoration: BoxDecoration(
     gradient: gradient,
     borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
