@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme.dart';
-import 'models/room_type.dart';
+import '../../theme.dart';
+import '../models/room_type.dart';
 
 class ListHostelForm extends StatefulWidget {
   ListHostelForm({Key? key}) : super(key: key) {
