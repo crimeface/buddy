@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'list_room_form.dart';
 import 'room_request_form.dart';
-import '../list_hostel_form.dart';
+import 'list_hostel_form.dart';
+import 'list_service_form.dart';
 
 class ActionBottomSheet extends StatefulWidget {
   const ActionBottomSheet({Key? key}) : super(key: key);
@@ -204,7 +205,12 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                   ),
                                   onTap: () {
                                     Navigator.pop(context);
-                                    // TODO: Navigate to Services form
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ListServiceForm(),
+                                      ),
+                                    );
                                   },
                                 ),
                               ),
