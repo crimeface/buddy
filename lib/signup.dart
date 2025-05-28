@@ -46,11 +46,21 @@ class _SignUpPageState extends State<SignUpPage> {
         // Update the user's display name in Firebase Authentication
         await userCredential.user!.updateDisplayName(_fullNameController.text.trim());
 
+        // Store user data in Firebase Realtime Database
+        final userId = userCredential.user!.uid;
+        await FirebaseDatabase.instance.ref().child('users').child(userId).set({
+          'username': _fullNameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+
         setState(() {
           _isLoading = false;
         });
-
-        Navigator.pushReplacementNamed(context, '/home');
+        
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        }
       } on FirebaseAuthException catch (e) {
         setState(() {
           _isLoading = false;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../theme.dart';
 
 class RoomRequestForm extends StatefulWidget {
@@ -20,16 +21,18 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   late Animation<double> _fabAnimation;
 
   int _currentStep = 0;
-  final int _totalSteps = 4; // Basic Info, Room Requirements, Additional Preferences, Contact Details
+  final int _totalSteps =
+      4; // Basic Info, Room Requirements, Additional Preferences, Contact Details
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
-  
+
   // Basic Info
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   String _gender = 'Male';
   String _occupation = 'Student';
+  String _imageUrl = 'https://randomuser.me/api/portraits';
 
   // Room Requirements
   final _locationController = TextEditingController();
@@ -39,6 +42,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   String _preferredRoomType = 'Private';
   int _preferredFlatmates = 1;
   String _preferredFlatmateGender = 'Any';
+  String _preferredRoomSize = '1RK';
 
   // Additional Preferences
   String _foodPreference = 'Veg';
@@ -53,16 +57,22 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   final _emailController = TextEditingController();
   final _bioController = TextEditingController();
 
+  late ThemeData theme;
+  late Color scaffoldBg;
+  late Color cardColor;
+  late Color textPrimary;
+  late Color textSecondary;
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    
+
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
+
     _slideAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -73,29 +83,29 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       vsync: this,
     );
 
-    _progressAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _progressAnimationController,
-      curve: Curves.easeInOut,
-    ));
+    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _progressAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
 
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _slideAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
-    _fabAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fabAnimationController,
-      curve: Curves.elasticOut,
-    ));
+    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fabAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
 
     _progressAnimationController.forward();
     _slideAnimationController.forward();
@@ -159,33 +169,90 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     _slideAnimationController.forward();
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // Add form submission logic here
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Room request submitted successfully!'),
-          backgroundColor: BuddyTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+      // Prepare data to store in Firebase
+      final data = {
+        'name': _nameController.text,
+        'age': _ageController.text,
+        'gender': _gender,
+        'occupation': _occupation,
+        'preferredLocation': _locationController.text,
+        'minBudget': _minBudgetController.text,
+        'maxBudget': _maxBudgetController.text,
+        'moveInDate': _moveInDate?.toIso8601String(),
+        'preferredRoomType': _preferredRoomType,
+        'preferredRoomSize': _preferredRoomSize,
+        'preferredFlatmates': _preferredFlatmates,
+        'preferredFlatmateGender': _preferredFlatmateGender,
+        'foodPreference': _foodPreference,
+        'smokingPreference': _smokingPreference,
+        'drinkingPreference': _drinkingPreference,
+        'petsPreference': _petsPreference,
+        'internetRequired': _internetRequired,
+        'furnishingPreference': _furnishingPreference,
+        'phone': _phoneController.text,
+        'email': _emailController.text,
+        'bio': _bioController.text,
+        'createdAt': DateTime.now().toIso8601String(),
+        'imageUrl':
+            'https://randomuser.me/api/portraits/men/33.jpg', // Placeholder for image URL
+      };
+
+      try {
+        final dbRef = FirebaseDatabase.instance.ref().child('room_requests');
+        await dbRef.push().set(data);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Room request submitted successfully!'),
+            backgroundColor: BuddyTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+            ),
           ),
-        ),
-      );
-      Navigator.pop(context);
+        );
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    theme = Theme.of(context);
+    scaffoldBg = theme.scaffoldBackgroundColor;
+
+    // Custom card color for better contrast
+    cardColor =
+        theme.brightness == Brightness.dark
+            ? const Color(0xFF23262F) // a bit lighter than pure black
+            : const Color.fromARGB(
+              255,
+              226,
+              227,
+              231,
+            ); // a bit darker than pure white
+
+    textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
+
     return Scaffold(
-      backgroundColor: BuddyTheme.backgroundSecondaryColor,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
         title: const Text('Request a Room'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: scaffoldBg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: Icon(Icons.close, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -199,11 +266,13 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 ),
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusSm,
+                  ),
                 ),
                 child: Text(
                   'Step ${_currentStep + 1}/$_totalSteps',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: BuddyTheme.primaryColor,
                     fontWeight: FontWeight.bold,
                   ),
@@ -217,7 +286,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         key: _formKey,
         child: Column(
           children: [
-            _buildProgressIndicator(),
+            _buildProgressIndicator(theme, textSecondary),
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -237,7 +306,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildProgressIndicator(ThemeData theme, Color textSecondary) {
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingLg),
       child: Column(
@@ -247,8 +316,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
             children: [
               Text(
                 'Step ${_currentStep + 1} of $_totalSteps',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: BuddyTheme.textSecondaryColor,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: textSecondary,
                 ),
               ),
               AnimatedBuilder(
@@ -256,7 +325,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 builder: (context, child) {
                   return Text(
                     '${((_currentStep + _progressAnimation.value) / _totalSteps * 100).round()}%',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: BuddyTheme.primaryColor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -271,8 +340,10 @@ class _RoomRequestFormState extends State<RoomRequestForm>
             builder: (context, child) {
               return LinearProgressIndicator(
                 value: (_currentStep + _progressAnimation.value) / _totalSteps,
-                backgroundColor: BuddyTheme.dividerColor,
-                valueColor: AlwaysStoppedAnimation<Color>(BuddyTheme.primaryColor),
+                backgroundColor: theme.dividerColor,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  BuddyTheme.primaryColor,
+                ),
                 minHeight: 6,
               );
             },
@@ -298,21 +369,18 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepHeader(
-              '👤 Basic Information',
-              'Tell us about yourself',
-            ),
+            _buildStepHeader('👤 Basic Information', 'Tell us about yourself'),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildAnimatedTextField(
               controller: _nameController,
               label: 'Full Name',
               hint: 'Enter your full name',
               icon: Icons.person_outline,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _ageController,
               label: 'Age',
@@ -320,9 +388,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               icon: Icons.calendar_today_outlined,
               keyboardType: TextInputType.number,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Gender',
               _gender,
@@ -330,9 +398,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _gender = value),
               Icons.people_outline,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Occupation',
               _occupation,
@@ -357,7 +425,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               'What are you looking for?',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildAnimatedTextField(
               controller: _locationController,
               label: 'Preferred Location(s)',
@@ -365,9 +433,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               icon: Icons.location_on_outlined,
               maxLines: 2,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             Row(
               children: [
                 Expanded(
@@ -391,13 +459,13 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 ),
               ],
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildDateSelector(),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Preferred Room Type',
               _preferredRoomType,
@@ -410,23 +478,23 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             _buildSelectionCard(
               'Preferred Room Size',
-              _preferredRoomType,
+              _preferredRoomSize,
               ['1RK', '1BHK', '2+ BHK'],
-              (value) => setState(() => _preferredRoomType = value),
+              (value) => setState(() => _preferredRoomSize = value),
               Icons.bed_outlined,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildCounterCard(
               'Preferred Number of Flatmates',
               _preferredFlatmates,
               (value) => setState(() => _preferredFlatmates = value),
               Icons.people_outline,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Preferred Flatmate Gender',
               _preferredFlatmateGender,
@@ -451,7 +519,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               'Set your preferences',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildSelectionCard(
               'Food Preference',
               _foodPreference,
@@ -459,9 +527,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _foodPreference = value),
               Icons.restaurant_outlined,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Smoking',
               _smokingPreference,
@@ -469,9 +537,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _smokingPreference = value),
               Icons.smoke_free,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Drinking',
               _drinkingPreference,
@@ -479,9 +547,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _drinkingPreference = value),
               Icons.local_bar_outlined,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSwitchCard(
               'Internet Required',
               'Do you need high-speed internet?',
@@ -489,9 +557,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _internetRequired = value),
               Icons.wifi,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Furnishing Preference',
               _furnishingPreference,
@@ -511,12 +579,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepHeader(
-              '📞 Contact Details',
-              'How can people reach you?',
-            ),
+            _buildStepHeader('📞 Contact Details', 'How can people reach you?'),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildAnimatedTextField(
               controller: _phoneController,
               label: 'Phone Number',
@@ -524,9 +589,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _emailController,
               label: 'Email Address',
@@ -534,9 +599,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _bioController,
               label: 'About You (Optional)',
@@ -556,9 +621,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: BuddyTheme.spacingXs),
         Text(
@@ -581,7 +646,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         boxShadow: [
           BoxShadow(
@@ -595,6 +660,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        style: TextStyle(color: textPrimary),
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
@@ -604,7 +670,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: cardColor,
         ),
       ),
     );
@@ -620,7 +686,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         boxShadow: [
           BoxShadow(
@@ -639,8 +705,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: textPrimary,
                 ),
               ),
             ],
@@ -649,38 +716,49 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           Wrap(
             spacing: BuddyTheme.spacingSm,
             runSpacing: BuddyTheme.spacingSm,
-            children: options.map((option) => GestureDetector(
-              onTap: () => onChanged(option),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BuddyTheme.spacingMd,
-                  vertical: BuddyTheme.spacingSm,
-                ),
-                decoration: BoxDecoration(
-                  color: selectedValue == option
-                      ? BuddyTheme.primaryColor
-                      : BuddyTheme.backgroundSecondaryColor,
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                  border: Border.all(
-                    color: selectedValue == option
-                        ? BuddyTheme.primaryColor
-                        : BuddyTheme.borderColor,
-                  ),
-                ),
-                child: Text(
-                  option,
-                  style: TextStyle(
-                    color: selectedValue == option
-                        ? Colors.white
-                        : BuddyTheme.textPrimaryColor,
-                    fontWeight: selectedValue == option
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                  ),
-                ),
-              ),
-            )).toList(),
+            children:
+                options
+                    .map(
+                      (option) => GestureDetector(
+                        onTap: () => onChanged(option),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: BuddyTheme.spacingMd,
+                            vertical: BuddyTheme.spacingSm,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                selectedValue == option
+                                    ? BuddyTheme.primaryColor
+                                    : theme.scaffoldBackgroundColor,
+                            borderRadius: BorderRadius.circular(
+                              BuddyTheme.borderRadiusSm,
+                            ),
+                            border: Border.all(
+                              color:
+                                  selectedValue == option
+                                      ? BuddyTheme.primaryColor
+                                      : theme.dividerColor,
+                            ),
+                          ),
+                          child: Text(
+                            option,
+                            style: TextStyle(
+                              color:
+                                  selectedValue == option
+                                      ? Colors.white
+                                      : textPrimary,
+                              fontWeight:
+                                  selectedValue == option
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
           ),
         ],
       ),
@@ -692,12 +770,24 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     String subtitle,
     bool value,
     Function(bool) onChanged,
-    IconData icon,
-  ) {
+    IconData icon, [
+    ThemeData? theme,
+    Color? cardColor,
+    Color? textPrimary,
+    Color? textSecondary,
+  ]) {
+    final t = theme ?? Theme.of(context);
+    final c = cardColor ?? t.cardColor;
+    final tp = textPrimary ?? t.textTheme.bodyLarge?.color ?? Colors.black;
+    final ts =
+        textSecondary ??
+        t.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+        Colors.black54;
+
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         boxShadow: [
           BoxShadow(
@@ -717,15 +807,14 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: t.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: tp,
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: BuddyTheme.textSecondaryColor,
-                  ),
+                  style: t.textTheme.bodySmall?.copyWith(color: ts),
                 ),
               ],
             ),
@@ -744,12 +833,19 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     String title,
     int value,
     Function(int) onChanged,
-    IconData icon,
-  ) {
+    IconData icon, [
+    ThemeData? theme,
+    Color? cardColor,
+    Color? textPrimary,
+  ]) {
+    final t = theme ?? Theme.of(context);
+    final c = cardColor ?? t.cardColor;
+    final tp = textPrimary ?? t.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         boxShadow: [
           BoxShadow(
@@ -766,8 +862,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           Expanded(
             child: Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: t.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: tp,
               ),
             ),
           ),
@@ -776,7 +873,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               IconButton(
                 onPressed: value > 0 ? () => onChanged(value - 1) : null,
                 icon: const Icon(Icons.remove_circle_outline),
-                color: value > 0 ? BuddyTheme.primaryColor : BuddyTheme.textSecondaryColor,
+                color: value > 0 ? BuddyTheme.primaryColor : t.disabledColor,
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -785,7 +882,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 ),
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusSm,
+                  ),
                 ),
                 child: Text(
                   value.toString(),
@@ -807,11 +906,19 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     );
   }
 
-  Widget _buildDateSelector() {
+  Widget _buildDateSelector([
+    ThemeData? theme,
+    Color? cardColor,
+    Color? textPrimary,
+  ]) {
+    final t = theme ?? Theme.of(context);
+    final c = cardColor ?? t.cardColor;
+    final tp = textPrimary ?? t.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         boxShadow: [
           BoxShadow(
@@ -826,12 +933,16 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         children: [
           Row(
             children: [
-              Icon(Icons.calendar_today_outlined, color: BuddyTheme.primaryColor),
+              Icon(
+                Icons.calendar_today_outlined,
+                color: BuddyTheme.primaryColor,
+              ),
               const SizedBox(width: BuddyTheme.spacingMd),
               Text(
                 'Move-in Date',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: t.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: tp,
                 ),
               ),
             ],
@@ -855,7 +966,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 vertical: BuddyTheme.spacingSm,
               ),
               decoration: BoxDecoration(
-                border: Border.all(color: BuddyTheme.borderColor),
+                border: Border.all(color: t.dividerColor),
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
               ),
               child: Row(
@@ -865,13 +976,14 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                     _moveInDate == null
                         ? 'Select Date'
                         : '${_moveInDate!.day}/${_moveInDate!.month}/${_moveInDate!.year}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: _moveInDate == null
-                          ? BuddyTheme.textSecondaryColor
-                          : BuddyTheme.textPrimaryColor,
+                    style: t.textTheme.bodyMedium?.copyWith(
+                      color: _moveInDate == null ? t.hintColor : tp,
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down, color: BuddyTheme.textSecondaryColor),
+                  const Icon(
+                    Icons.arrow_drop_down,
+                    color: BuddyTheme.textSecondaryColor,
+                  ),
                 ],
               ),
             ),
@@ -885,7 +997,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingLg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -900,8 +1012,11 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           if (_currentStep > 0)
             TextButton.icon(
               onPressed: _previousStep,
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Previous'),
+              icon: Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
+              label: Text(
+                'Previous',
+                style: TextStyle(color: BuddyTheme.primaryColor),
+              ),
               style: TextButton.styleFrom(
                 foregroundColor: BuddyTheme.primaryColor,
               ),

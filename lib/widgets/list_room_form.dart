@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -24,10 +25,12 @@ class _ListRoomFormState extends State<ListRoomForm>
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
-  
+
   // Flat Details
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
+  final _locationUrlController =
+      TextEditingController(); // Not used in this example
   final _rentController = TextEditingController();
   final _depositController = TextEditingController();
   DateTime? _availableFromDate;
@@ -38,6 +41,7 @@ class _ListRoomFormState extends State<ListRoomForm>
 
   // Current Flatmate Details
   int _currentFlatmates = 1;
+  int _maxFlatmates = 2; // Assuming max 2 flatmates for simplicity
   String _genderComposition = 'Mixed';
   String _occupation = 'Mixed';
 
@@ -63,23 +67,35 @@ class _ListRoomFormState extends State<ListRoomForm>
 
   // Photos
   List<String> _uploadedPhotos = [];
-  final List<String> _requiredPhotoTypes = ['Room', 'Washroom', 'Kitchen', 'Building'];
+  final List<String> _requiredPhotoTypes = [
+    'Room',
+    'Washroom',
+    'Kitchen',
+    'Building',
+  ];
 
   // Contact Details
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _notesController = TextEditingController();
 
+  // Add these theme variables
+  late ThemeData theme;
+  late Color scaffoldBg;
+  late Color cardColor;
+  late Color textPrimary;
+  late Color textSecondary;
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    
+
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
+
     _slideAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -90,29 +106,29 @@ class _ListRoomFormState extends State<ListRoomForm>
       vsync: this,
     );
 
-    _progressAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _progressAnimationController,
-      curve: Curves.easeInOut,
-    ));
+    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _progressAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
 
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _slideAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
-    _fabAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fabAnimationController,
-      curve: Curves.elasticOut,
-    ));
+    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fabAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
 
     _progressAnimationController.forward();
     _slideAnimationController.forward();
@@ -173,28 +189,86 @@ class _ListRoomFormState extends State<ListRoomForm>
     _slideAnimationController.forward();
   }
 
-  void _submitForm() {
-    // Add form validation and submission logic here
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Room listing submitted successfully!'),
-        backgroundColor: BuddyTheme.successColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+  void _submitForm() async {
+    // Validate form if needed
+    // if (!_formKey.currentState!.validate()) return;
+
+    // Prepare data
+    final data = {
+      'title': _titleController.text,
+      'location': _locationController.text,
+      'locationUrl': _locationUrlController.text,
+      'rent': _rentController.text,
+      'deposit': _depositController.text,
+      'availableFromDate': _availableFromDate?.toIso8601String(),
+      'roomType': _roomType,
+      'flatSize': _flatSize,
+      'furnishing': _furnishing,
+      'hasAttachedBathroom': _hasAttachedBathroom,
+      'currentFlatmates': _currentFlatmates,
+      'maxFlatmates': _maxFlatmates,
+      'genderComposition': _genderComposition,
+      'occupation': _occupation,
+      'facilities': _facilities,
+      'lookingFor': _lookingFor,
+      'foodPreference': _foodPreference,
+      'smokingPolicy': _smokingPolicy,
+      'drinkingPolicy': _drinkingPolicy,
+      'petsPolicy': _petsPolicy,
+      'guestsPolicy': _guestsPolicy,
+      'uploadedPhotos': _uploadedPhotos,
+      'phone': _phoneController.text,
+      'email': _emailController.text,
+      'notes': _notesController.text,
+      'createdAt': DateTime.now().toIso8601String(),
+      'imageUrl':
+          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
+      // Not used in this example
+    };
+
+    try {
+      final dbRef = FirebaseDatabase.instance.ref().child('room_listings');
+      await dbRef.push().set(data);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Room listing submitted successfully!'),
+          backgroundColor: BuddyTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+          ),
         ),
-      ),
-    );
-    Navigator.pop(context);
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to submit: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    theme = Theme.of(context);
+    scaffoldBg = theme.scaffoldBackgroundColor;
+    // Custom card color for better contrast
+    cardColor =
+        theme.brightness == Brightness.dark
+            ? const Color(0xFF23262F)
+            : const Color.fromARGB(255, 226, 227, 231);
+    textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
+
     return Scaffold(
-      backgroundColor: BuddyTheme.backgroundSecondaryColor,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
         title: const Text('List Your Room'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: scaffoldBg,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -211,11 +285,13 @@ class _ListRoomFormState extends State<ListRoomForm>
                 ),
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusSm,
+                  ),
                 ),
                 child: Text(
                   'Step ${_currentStep + 1}/$_totalSteps',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: BuddyTheme.primaryColor,
                     fontWeight: FontWeight.bold,
                   ),
@@ -284,7 +360,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               return LinearProgressIndicator(
                 value: (_currentStep + _progressAnimation.value) / _totalSteps,
                 backgroundColor: BuddyTheme.dividerColor,
-                valueColor: AlwaysStoppedAnimation<Color>(BuddyTheme.primaryColor),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  BuddyTheme.primaryColor,
+                ),
                 minHeight: 6,
               );
             },
@@ -310,21 +388,18 @@ class _ListRoomFormState extends State<ListRoomForm>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepHeader(
-              '🏠 Flat Details',
-              'Tell us about your property',
-            ),
+            _buildStepHeader('🏠 Flat Details', 'Tell us about your property'),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildAnimatedTextField(
               controller: _titleController,
               label: 'Listing Title',
               hint: 'e.g., 1 BHK Flat in Kothrud, Pune – One Room Available',
               icon: Icons.title,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Room Type',
               _roomType,
@@ -332,9 +407,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _roomType = value),
               Icons.bed_outlined,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Flat Size',
               _flatSize,
@@ -342,9 +417,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _flatSize = value),
               Icons.home_outlined,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Furnishing',
               _furnishing,
@@ -352,9 +427,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _furnishing = value),
               Icons.chair_outlined,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSwitchCard(
               'Attached Bathroom',
               'Does the room have an attached bathroom?',
@@ -379,7 +454,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               'Where is your property located?',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildAnimatedTextField(
               controller: _locationController,
               label: 'Location',
@@ -387,9 +462,18 @@ class _ListRoomFormState extends State<ListRoomForm>
               icon: Icons.location_on_outlined,
               maxLines: 2,
             ),
-            
+
+            const SizedBox(height: BuddyTheme.spacingXl),
+
+            _buildAnimatedTextField(
+              controller: _locationUrlController,
+              label: 'Location URL (Optional)',
+              hint: 'Enter Location link from Google Maps',
+              icon: Icons.location_on_outlined,
+              maxLines: 2,
+            ),
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildDatePickerCard(),
           ],
         ),
@@ -403,12 +487,9 @@ class _ListRoomFormState extends State<ListRoomForm>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepHeader(
-              '💰 Pricing Details',
-              'Set your rental terms',
-            ),
+            _buildStepHeader('💰 Pricing Details', 'Set your rental terms'),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildAnimatedTextField(
               controller: _rentController,
               label: 'Monthly Rent (₹)',
@@ -416,9 +497,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               icon: Icons.currency_rupee,
               keyboardType: TextInputType.number,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _depositController,
               label: 'Security Deposit per person (₹)',
@@ -426,9 +507,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               icon: Icons.security,
               keyboardType: TextInputType.number,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildPricingTipCard(),
           ],
         ),
@@ -447,16 +528,25 @@ class _ListRoomFormState extends State<ListRoomForm>
               'Tell us about your current flatmates',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildCounterCard(
               'Number of Current Flatmates',
               _currentFlatmates,
               (value) => setState(() => _currentFlatmates = value),
               Icons.people_outline,
             ),
-            
+
+            const SizedBox(height: BuddyTheme.spacingXl),
+
+            _buildCounterCard(
+              'Number of Max Flatmates',
+              _maxFlatmates,
+              (value) => setState(() => _maxFlatmates = value),
+              Icons.people_outline,
+            ),
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Gender Composition',
               _genderComposition,
@@ -464,9 +554,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _genderComposition = value),
               Icons.people,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Occupation',
               _occupation,
@@ -491,7 +581,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               'What facilities are available?',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildFacilitiesGrid(),
           ],
         ),
@@ -510,7 +600,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               'Set your flatmate preferences',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildSelectionCard(
               'Looking For',
               _lookingFor,
@@ -518,9 +608,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _lookingFor = value),
               Icons.search,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Food Preference',
               _foodPreference,
@@ -528,9 +618,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _foodPreference = value),
               Icons.restaurant,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildPolicySection(),
           ],
         ),
@@ -549,19 +639,20 @@ class _ListRoomFormState extends State<ListRoomForm>
               'Add photos and contact details',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildPhotoUploadSection(),
-            
+
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             Text(
               'Contact Details',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: textPrimary,
               ),
             ),
             const SizedBox(height: BuddyTheme.spacingMd),
-            
+
             _buildAnimatedTextField(
               controller: _phoneController,
               label: 'Phone Number',
@@ -569,9 +660,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _emailController,
               label: 'Email ID',
@@ -579,9 +670,9 @@ class _ListRoomFormState extends State<ListRoomForm>
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _notesController,
               label: 'Additional Notes (Optional)',
@@ -646,7 +737,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             opacity: value,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
                 boxShadow: [
                   BoxShadow(
@@ -660,16 +751,19 @@ class _ListRoomFormState extends State<ListRoomForm>
                 controller: controller,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
+                style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   labelText: label,
                   hintText: hint,
                   prefixIcon: Icon(icon, color: BuddyTheme.primaryColor),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: cardColor,
                 ),
               ),
             ),
@@ -697,7 +791,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
                 boxShadow: [
                   BoxShadow(
@@ -716,8 +810,9 @@ class _ListRoomFormState extends State<ListRoomForm>
                       const SizedBox(width: BuddyTheme.spacingSm),
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: textPrimary,
                         ),
                       ),
                     ],
@@ -726,38 +821,49 @@ class _ListRoomFormState extends State<ListRoomForm>
                   Wrap(
                     spacing: BuddyTheme.spacingSm,
                     runSpacing: BuddyTheme.spacingSm,
-                    children: options.map((option) => GestureDetector(
-                      onTap: () => onChanged(option),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: BuddyTheme.spacingMd,
-                          vertical: BuddyTheme.spacingSm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selectedValue == option
-                              ? BuddyTheme.primaryColor
-                              : BuddyTheme.backgroundSecondaryColor,
-                          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                          border: Border.all(
-                            color: selectedValue == option
-                                ? BuddyTheme.primaryColor
-                                : BuddyTheme.borderColor,
-                          ),
-                        ),
-                        child: Text(
-                          option,
-                          style: TextStyle(
-                            color: selectedValue == option
-                                ? Colors.white
-                                : BuddyTheme.textPrimaryColor,
-                            fontWeight: selectedValue == option
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    )).toList(),
+                    children:
+                        options
+                            .map(
+                              (option) => GestureDetector(
+                                onTap: () => onChanged(option),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: BuddyTheme.spacingMd,
+                                    vertical: BuddyTheme.spacingSm,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        selectedValue == option
+                                            ? BuddyTheme.primaryColor
+                                            : scaffoldBg,
+                                    borderRadius: BorderRadius.circular(
+                                      BuddyTheme.borderRadiusSm,
+                                    ),
+                                    border: Border.all(
+                                      color:
+                                          selectedValue == option
+                                              ? BuddyTheme.primaryColor
+                                              : BuddyTheme.borderColor,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    option,
+                                    style: TextStyle(
+                                      color:
+                                          selectedValue == option
+                                              ? Colors.white
+                                              : textPrimary,
+                                      fontWeight:
+                                          selectedValue == option
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
                   ),
                 ],
               ),
@@ -786,7 +892,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
                 boxShadow: [
                   BoxShadow(
@@ -806,14 +912,15 @@ class _ListRoomFormState extends State<ListRoomForm>
                       children: [
                         Text(
                           title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
+                            color: textPrimary,
                           ),
                         ),
                         Text(
                           subtitle,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: BuddyTheme.textSecondaryColor,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: textSecondary,
                           ),
                         ),
                       ],
@@ -850,7 +957,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
                 boxShadow: [
                   BoxShadow(
@@ -867,8 +974,9 @@ class _ListRoomFormState extends State<ListRoomForm>
                   Expanded(
                     child: Text(
                       title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: textPrimary,
                       ),
                     ),
                   ),
@@ -883,7 +991,10 @@ class _ListRoomFormState extends State<ListRoomForm>
                             padding: const EdgeInsets.all(BuddyTheme.spacingXs),
                             child: Icon(
                               Icons.remove_circle_outline,
-                              color: value > 0 ? BuddyTheme.primaryColor : BuddyTheme.textSecondaryColor,
+                              color:
+                                  value > 0
+                                      ? BuddyTheme.primaryColor
+                                      : textSecondary,
                             ),
                           ),
                         ),
@@ -895,11 +1006,13 @@ class _ListRoomFormState extends State<ListRoomForm>
                         ),
                         decoration: BoxDecoration(
                           color: BuddyTheme.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusSm,
+                          ),
                         ),
                         child: Text(
                           value.toString(),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: BuddyTheme.primaryColor,
                           ),
@@ -944,7 +1057,7 @@ class _ListRoomFormState extends State<ListRoomForm>
       itemBuilder: (context, index) {
         String facility = _facilities.keys.elementAt(index);
         bool isSelected = _facilities[facility]!;
-        
+
         return TweenAnimationBuilder<double>(
           duration: Duration(milliseconds: 400 + (index * 100)),
           tween: Tween(begin: 0.0, end: 1.0),
@@ -961,19 +1074,25 @@ class _ListRoomFormState extends State<ListRoomForm>
                         _facilities[facility] = !isSelected;
                       });
                     },
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.all(BuddyTheme.spacingSm),
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? BuddyTheme.primaryColor.withOpacity(0.1)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                        color:
+                            isSelected
+                                ? BuddyTheme.primaryColor.withOpacity(0.1)
+                                : cardColor,
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusMd,
+                        ),
                         border: Border.all(
-                          color: isSelected
-                              ? BuddyTheme.primaryColor
-                              : BuddyTheme.borderColor,
+                          color:
+                              isSelected
+                                  ? BuddyTheme.primaryColor
+                                  : BuddyTheme.borderColor,
                           width: isSelected ? 2 : 1,
                         ),
                         boxShadow: [
@@ -991,35 +1110,40 @@ class _ListRoomFormState extends State<ListRoomForm>
                             width: 20,
                             height: 20,
                             decoration: BoxDecoration(
-                              color: isSelected
-                                  ? BuddyTheme.primaryColor
-                                  : Colors.transparent,
+                              color:
+                                  isSelected
+                                      ? BuddyTheme.primaryColor
+                                      : Colors.transparent,
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.borderColor,
+                                color:
+                                    isSelected
+                                        ? BuddyTheme.primaryColor
+                                        : BuddyTheme.borderColor,
                               ),
                             ),
-                            child: isSelected
-                                ? const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 14,
-                                  )
-                                : null,
+                            child:
+                                isSelected
+                                    ? const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 14,
+                                    )
+                                    : null,
                           ),
                           const SizedBox(width: BuddyTheme.spacingSm),
                           Expanded(
                             child: Text(
                               facility,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.textPrimaryColor,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color:
+                                    isSelected
+                                        ? BuddyTheme.primaryColor
+                                        : textPrimary,
+                                fontWeight:
+                                    isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
                               ),
                             ),
                           ),
@@ -1048,7 +1172,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
                 boxShadow: [
                   BoxShadow(
@@ -1063,12 +1187,16 @@ class _ListRoomFormState extends State<ListRoomForm>
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_outlined, color: BuddyTheme.primaryColor),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        color: BuddyTheme.primaryColor,
+                      ),
                       const SizedBox(width: BuddyTheme.spacingSm),
                       Text(
                         'Available From',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: textPrimary,
                         ),
                       ),
                     ],
@@ -1082,11 +1210,13 @@ class _ListRoomFormState extends State<ListRoomForm>
                           context: context,
                           initialDate: _availableFromDate ?? DateTime.now(),
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
                           builder: (context, child) {
                             return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: Theme.of(context).colorScheme.copyWith(
+                              data: theme.copyWith(
+                                colorScheme: theme.colorScheme.copyWith(
                                   primary: BuddyTheme.primaryColor,
                                 ),
                               ),
@@ -1100,36 +1230,35 @@ class _ListRoomFormState extends State<ListRoomForm>
                           });
                         }
                       },
-                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
                       child: Container(
                         padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                         decoration: BoxDecoration(
-                          color: BuddyTheme.backgroundSecondaryColor,
-                          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                          color: scaffoldBg,
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusSm,
+                          ),
                           border: Border.all(color: BuddyTheme.borderColor),
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.event,
-                              color: BuddyTheme.primaryColor,
-                            ),
+                            Icon(Icons.event, color: BuddyTheme.primaryColor),
                             const SizedBox(width: BuddyTheme.spacingSm),
                             Text(
                               _availableFromDate != null
                                   ? '${_availableFromDate!.day}/${_availableFromDate!.month}/${_availableFromDate!.year}'
                                   : 'Select Date',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: _availableFromDate != null
-                                    ? BuddyTheme.textPrimaryColor
-                                    : BuddyTheme.textSecondaryColor,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color:
+                                    _availableFromDate != null
+                                        ? textPrimary
+                                        : textSecondary,
                               ),
                             ),
                             const Spacer(),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: BuddyTheme.textSecondaryColor,
-                            ),
+                            Icon(Icons.arrow_drop_down, color: textSecondary),
                           ],
                         ),
                       ),
@@ -1243,19 +1372,18 @@ class _ListRoomFormState extends State<ListRoomForm>
       children: [
         Text(
           'Property Photos',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingSm),
         Text(
           'Add photos of different areas (${_uploadedPhotos.length} uploaded)',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: BuddyTheme.textSecondaryColor,
-          ),
+          style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
-        
+
         // Photo upload grid
         GridView.builder(
           shrinkWrap: true,
@@ -1270,7 +1398,7 @@ class _ListRoomFormState extends State<ListRoomForm>
           itemBuilder: (context, index) {
             String photoType = _requiredPhotoTypes[index];
             bool hasPhoto = _uploadedPhotos.contains(photoType);
-            
+
             return TweenAnimationBuilder<double>(
               duration: Duration(milliseconds: 300 + (index * 100)),
               tween: Tween(begin: 0.0, end: 1.0),
@@ -1292,18 +1420,27 @@ class _ListRoomFormState extends State<ListRoomForm>
                             }
                           });
                         },
-                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusMd,
+                        ),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: hasPhoto
-                                ? BuddyTheme.primaryColor.withOpacity(0.1)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                            color:
+                                hasPhoto
+                                    ? BuddyTheme.primaryColor.withOpacity(0.1)
+                                    : cardColor,
+                            borderRadius: BorderRadius.circular(
+                              BuddyTheme.borderRadiusMd,
+                            ),
                             border: Border.all(
-                              color: hasPhoto
-                                  ? BuddyTheme.primaryColor
-                                  : BuddyTheme.borderColor,
-                              style: hasPhoto ? BorderStyle.solid : BorderStyle.none,
+                              color:
+                                  hasPhoto
+                                      ? BuddyTheme.primaryColor
+                                      : BuddyTheme.borderColor,
+                              style:
+                                  hasPhoto
+                                      ? BorderStyle.solid
+                                      : BorderStyle.none,
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -1319,32 +1456,37 @@ class _ListRoomFormState extends State<ListRoomForm>
                               AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 200),
                                 child: Icon(
-                                  hasPhoto ? Icons.check_circle : Icons.add_a_photo_outlined,
+                                  hasPhoto
+                                      ? Icons.check_circle
+                                      : Icons.add_a_photo_outlined,
                                   key: ValueKey(hasPhoto),
                                   size: 32,
-                                  color: hasPhoto
-                                      ? BuddyTheme.primaryColor
-                                      : BuddyTheme.textSecondaryColor,
+                                  color:
+                                      hasPhoto
+                                          ? BuddyTheme.primaryColor
+                                          : textSecondary,
                                 ),
                               ),
                               const SizedBox(height: BuddyTheme.spacingSm),
                               Text(
                                 photoType,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: hasPhoto
-                                      ? BuddyTheme.primaryColor
-                                      : BuddyTheme.textSecondaryColor,
-                                  fontWeight: hasPhoto
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color:
+                                      hasPhoto
+                                          ? BuddyTheme.primaryColor
+                                          : textSecondary,
+                                  fontWeight:
+                                      hasPhoto
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
                                 ),
                               ),
                               if (hasPhoto) ...[
                                 const SizedBox(height: BuddyTheme.spacingXs),
                                 Text(
                                   'Tap to remove',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: BuddyTheme.textSecondaryColor,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: textSecondary,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -1368,7 +1510,7 @@ class _ListRoomFormState extends State<ListRoomForm>
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingLg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -1384,10 +1526,14 @@ class _ListRoomFormState extends State<ListRoomForm>
               child: OutlinedButton(
                 onPressed: _previousStep,
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: BuddyTheme.spacingMd),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: BuddyTheme.spacingMd,
+                  ),
                   side: BorderSide(color: BuddyTheme.primaryColor),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                   ),
                 ),
                 child: Row(
@@ -1410,13 +1556,18 @@ class _ListRoomFormState extends State<ListRoomForm>
             child: ScaleTransition(
               scale: _fabAnimation,
               child: ElevatedButton(
-                onPressed: _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
+                onPressed:
+                    _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: BuddyTheme.primaryColor,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: BuddyTheme.spacingMd),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: BuddyTheme.spacingMd,
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                   ),
                   elevation: 2,
                 ),
@@ -1424,7 +1575,9 @@ class _ListRoomFormState extends State<ListRoomForm>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _currentStep == _totalSteps - 1 ? 'Submit Listing' : 'Next',
+                      _currentStep == _totalSteps - 1
+                          ? 'Submit Listing'
+                          : 'Next',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -1432,7 +1585,9 @@ class _ListRoomFormState extends State<ListRoomForm>
                     ),
                     const SizedBox(width: BuddyTheme.spacingSm),
                     Icon(
-                      _currentStep == _totalSteps - 1 ? Icons.check : Icons.arrow_forward,
+                      _currentStep == _totalSteps - 1
+                          ? Icons.check
+                          : Icons.arrow_forward,
                     ),
                   ],
                 ),

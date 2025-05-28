@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
@@ -25,7 +26,7 @@ class _ListServiceFormState extends State<ListServiceForm>
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
-  
+
   // Basic Service Details
   String _serviceType = 'Library';
   final _serviceNameController = TextEditingController();
@@ -34,7 +35,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   final _contactController = TextEditingController();
   final _emailController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   // Timings
   TimeOfDay? _openingTime;
   TimeOfDay? _closingTime;
@@ -73,7 +74,12 @@ class _ListServiceFormState extends State<ListServiceForm>
   final _usefulnessController = TextEditingController();
 
   // Photo fields
-  final _requiredPhotoTypes = ['Cover Photo', 'Inside', 'Outside', 'Special Features'];
+  final _requiredPhotoTypes = [
+    'Cover Photo',
+    'Inside',
+    'Outside',
+    'Special Features',
+  ];
   final _uploadedPhotoUrls = <String>[];
 
   // Photos
@@ -81,18 +87,33 @@ class _ListServiceFormState extends State<ListServiceForm>
   bool _hasCoverPhoto = false;
 
   final List<String> _serviceTypes = ['Library', 'Café', 'Mess', 'Other'];
-  final List<String> _offDays = ['None', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  final List<String> _offDays = [
+    'None',
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ];
+
+  late ThemeData theme;
+  late Color scaffoldBg;
+  late Color cardColor;
+  late Color textPrimary;
+  late Color textSecondary;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    
+
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
+
     _slideAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -103,29 +124,29 @@ class _ListServiceFormState extends State<ListServiceForm>
       vsync: this,
     );
 
-    _progressAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _progressAnimationController,
-      curve: Curves.easeInOut,
-    ));
+    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _progressAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
 
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _slideAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
-    _fabAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fabAnimationController,
-      curve: Curves.elasticOut,
-    ));
+    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fabAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
 
     _progressAnimationController.forward();
     _slideAnimationController.forward();
@@ -193,24 +214,100 @@ class _ListServiceFormState extends State<ListServiceForm>
     _slideAnimationController.forward();
   }
 
-  void _submitForm() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Service listing submitted successfully!'),
-        backgroundColor: BuddyTheme.successColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+  void _submitForm() async {
+    // Prepare the data map based on your form fields and service type
+    final data = {
+      'serviceType': _serviceType,
+      'serviceName': _serviceNameController.text,
+      'location': _locationController.text,
+      'mapLink': _mapLinkController.text,
+      'description': _descriptionController.text,
+      'contact': _contactController.text,
+      'email': _emailController.text,
+      'openingTime':
+          _openingTime != null ? _openingTime!.format(context) : null,
+      'closingTime':
+          _closingTime != null ? _closingTime!.format(context) : null,
+      'offDay': _offDay,
+      'createdAt': DateTime.now().toIso8601String(),
+      // Library-specific
+      if (_serviceType == 'Library') ...{
+        'libraryType': _libraryType,
+        'seatingCapacity': _seatingCapacityController.text,
+        'acStatus': _acStatus,
+        'charges': _chargesController.text,
+        'chargeType': _chargeType,
+        'hasInternet': _hasInternet,
+        'hasStudyCabin': _hasStudyCabin,
+      },
+      // Café-specific
+      if (_serviceType == 'Café') ...{
+        'cuisineType': _cuisineType,
+        'hasSeating': _hasSeating,
+        'priceRange': _priceRangeController.text,
+        'hasWifi': _hasWifi,
+        'hasPowerSockets': _hasPowerSockets,
+      },
+      // Mess-specific
+      if (_serviceType == 'Mess') ...{
+        'foodType': _foodType,
+        'monthlyPrice': _monthlyPriceController.text,
+        'mealTimings': _mealTimings,
+        'hasHomeDelivery': _hasHomeDelivery,
+        'hasTiffinService': _hasTiffinService,
+      },
+      // Other
+      if (_serviceType == 'Other') ...{
+        'shortDescription': _shortDescriptionController.text,
+        'pricing': _pricingController.text,
+        'serviceTypeOther': _serviceTypeOtherController.text,
+        'usefulness': _usefulnessController.text,
+      },
+      // Photos
+      'coverPhoto': _uploadedPhotos.isNotEmpty ? _uploadedPhotos.first : null,
+      'additionalPhotos':
+          _uploadedPhotos.length > 1 ? _uploadedPhotos.sublist(1) : [],
+    };
+
+    try {
+      final dbRef = FirebaseDatabase.instance.ref().child('service_listings');
+      await dbRef.push().set(data);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Service listing submitted successfully!'),
+          backgroundColor: BuddyTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+          ),
         ),
-      ),
-    );
-    Navigator.pop(context);
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to submit: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    theme = Theme.of(context);
+    scaffoldBg = theme.scaffoldBackgroundColor;
+    cardColor =
+        theme.brightness == Brightness.dark
+            ? const Color(0xFF23262F)
+            : const Color(0xFFF7F8FA);
+    textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
+
     return Scaffold(
-      backgroundColor: BuddyTheme.backgroundSecondaryColor,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
         title: const Text('List Your Service'),
         backgroundColor: Colors.transparent,
@@ -230,7 +327,9 @@ class _ListServiceFormState extends State<ListServiceForm>
                 ),
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusSm,
+                  ),
                 ),
                 child: Text(
                   'Step ${_currentStep + 1}/$_totalSteps',
@@ -301,7 +400,9 @@ class _ListServiceFormState extends State<ListServiceForm>
               return LinearProgressIndicator(
                 value: (_currentStep + _progressAnimation.value) / _totalSteps,
                 backgroundColor: BuddyTheme.dividerColor,
-                valueColor: AlwaysStoppedAnimation<Color>(BuddyTheme.primaryColor),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  BuddyTheme.primaryColor,
+                ),
                 minHeight: 6,
               );
             },
@@ -332,11 +433,11 @@ class _ListServiceFormState extends State<ListServiceForm>
               'What type of service are you listing?',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildServiceTypeCards(),
-            
+
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildServiceTypeInfo(),
           ],
         ),
@@ -355,16 +456,16 @@ class _ListServiceFormState extends State<ListServiceForm>
               'Tell us about your ${_serviceType.toLowerCase()}',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildAnimatedTextField(
               controller: _serviceNameController,
               label: 'Service Name',
               hint: 'Enter the name of your ${_serviceType.toLowerCase()}',
               icon: Icons.business,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _locationController,
               label: 'Location',
@@ -372,18 +473,18 @@ class _ListServiceFormState extends State<ListServiceForm>
               icon: Icons.location_on_outlined,
               maxLines: 2,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _mapLinkController,
               label: 'Google Maps Link (Optional)',
               hint: 'Paste Google Maps link for easy navigation',
               icon: Icons.map_outlined,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _descriptionController,
               label: 'Description',
@@ -408,11 +509,11 @@ class _ListServiceFormState extends State<ListServiceForm>
               'When are you open and how to reach you?',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildTimingsCard(),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildSelectionCard(
               'Off Day',
               _offDay,
@@ -420,9 +521,9 @@ class _ListServiceFormState extends State<ListServiceForm>
               (value) => setState(() => _offDay = value),
               Icons.event_busy,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _contactController,
               label: 'Contact Number',
@@ -430,9 +531,9 @@ class _ListServiceFormState extends State<ListServiceForm>
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
             ),
-            
+
             const SizedBox(height: BuddyTheme.spacingLg),
-            
+
             _buildAnimatedTextField(
               controller: _emailController,
               label: 'Email ID',
@@ -457,7 +558,7 @@ class _ListServiceFormState extends State<ListServiceForm>
               'Provide ${_serviceType.toLowerCase()}-specific information',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildSpecificDetailsForm(),
           ],
         ),
@@ -476,7 +577,7 @@ class _ListServiceFormState extends State<ListServiceForm>
               'Add photos to showcase your service',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
+
             _buildPhotoUploadSection(),
           ],
         ),
@@ -518,91 +619,100 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   Widget _buildServiceTypeCards() {
-  return GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      childAspectRatio: 1.1,
-      crossAxisSpacing: BuddyTheme.spacingSm,
-      mainAxisSpacing: BuddyTheme.spacingSm,
-    ),
-    itemCount: _serviceTypes.length,
-    itemBuilder: (context, index) {
-      String serviceType = _serviceTypes[index];
-      bool isSelected = _serviceType == serviceType;
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.1,
+        crossAxisSpacing: BuddyTheme.spacingSm,
+        mainAxisSpacing: BuddyTheme.spacingSm,
+      ),
+      itemCount: _serviceTypes.length,
+      itemBuilder: (context, index) {
+        String serviceType = _serviceTypes[index];
+        bool isSelected = _serviceType == serviceType;
 
-      return TweenAnimationBuilder<double>(
-        duration: Duration(milliseconds: 400 + (index * 100)),
-        tween: Tween(begin: 0.0, end: 1.0),
-        builder: (context, value, child) {
-          return Transform.scale(
-            scale: 0.8 + (0.2 * value),
-            child: Opacity(
-              opacity: value,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _serviceType = serviceType;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? BuddyTheme.primaryColor.withOpacity(0.1)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                      border: Border.all(
-                        color: isSelected
-                            ? BuddyTheme.primaryColor
-                            : BuddyTheme.borderColor,
-                        width: isSelected ? 2 : 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+        return TweenAnimationBuilder<double>(
+          duration: Duration(milliseconds: 400 + (index * 100)),
+          tween: Tween(begin: 0.0, end: 1.0),
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: 0.8 + (0.2 * value),
+              child: Opacity(
+                opacity: value,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _serviceType = serviceType;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _getServiceTypeIcon(serviceType),
-                          style: const TextStyle(fontSize: 32),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected
+                                ? BuddyTheme.primaryColor.withOpacity(0.1)
+                                : Colors.white,
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusMd,
                         ),
-                        const SizedBox(height: BuddyTheme.spacingSm),
-                        Text(
-                          serviceType,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.textPrimaryColor,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
+                        border: Border.all(
+                          color:
+                              isSelected
+                                  ? BuddyTheme.primaryColor
+                                  : BuddyTheme.borderColor,
+                          width: isSelected ? 2 : 1,
                         ),
-                      ],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _getServiceTypeIcon(serviceType),
+                            style: const TextStyle(fontSize: 32),
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingSm),
+                          Text(
+                            serviceType,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(
+                              color:
+                                  isSelected
+                                      ? BuddyTheme.primaryColor
+                                      : BuddyTheme.textPrimaryColor,
+                              fontWeight:
+                                  isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
-
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildServiceTypeInfo() {
     return Container(
@@ -617,19 +727,14 @@ class _ListServiceFormState extends State<ListServiceForm>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-        border: Border.all(
-          color: BuddyTheme.primaryColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: BuddyTheme.primaryColor.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: BuddyTheme.primaryColor,
-              ),
+              Icon(Icons.info_outline, color: BuddyTheme.primaryColor),
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 'Selected: $_serviceType',
@@ -656,7 +761,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         boxShadow: [
           BoxShadow(
@@ -675,9 +780,9 @@ class _ListServiceFormState extends State<ListServiceForm>
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 'Operating Hours',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -706,7 +811,11 @@ class _ListServiceFormState extends State<ListServiceForm>
     );
   }
 
-  Widget _buildTimePickerButton(String label, TimeOfDay? time, Function(TimeOfDay) onTimeSelected) {
+  Widget _buildTimePickerButton(
+    String label,
+    TimeOfDay? time,
+    Function(TimeOfDay) onTimeSelected,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -717,9 +826,9 @@ class _ListServiceFormState extends State<ListServiceForm>
             builder: (context, child) {
               return Theme(
                 data: Theme.of(context).copyWith(
-                  colorScheme: Theme.of(context).colorScheme.copyWith(
-                    primary: BuddyTheme.primaryColor,
-                  ),
+                  colorScheme: Theme.of(
+                    context,
+                  ).colorScheme.copyWith(primary: BuddyTheme.primaryColor),
                 ),
                 child: child!,
               );
@@ -750,10 +859,12 @@ class _ListServiceFormState extends State<ListServiceForm>
               Text(
                 time != null ? time.format(context) : 'Select Time',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: time != null
-                      ? BuddyTheme.textPrimaryColor
-                      : BuddyTheme.textSecondaryColor,
-                  fontWeight: time != null ? FontWeight.w600 : FontWeight.normal,
+                  color:
+                      time != null
+                          ? BuddyTheme.textPrimaryColor
+                          : BuddyTheme.textSecondaryColor,
+                  fontWeight:
+                      time != null ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],
@@ -779,59 +890,58 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   Widget _buildLibraryDetails() {
-  return Column(
-    children: [
-      _buildSelectionCard(
-        'Library Type',
-        _libraryType,
-        ['Public', 'Private', 'Subscription-based'],
-        (value) => setState(() => _libraryType = value),
-        Icons.library_books,
-      ),
-      const SizedBox(height: BuddyTheme.spacingLg),
-      _buildAnimatedTextField(
-        controller: _seatingCapacityController,
-        label: 'Seating Capacity',
-        hint: 'Number of seats available',
-        icon: Icons.event_seat,
-        keyboardType: TextInputType.number,
-      ),
-      const SizedBox(height: BuddyTheme.spacingLg),
-      _buildSelectionCard(
-        'AC Status',
-        _acStatus,
-        ['AC', 'Non-AC', 'Both'],
-        (value) => setState(() => _acStatus = value),
-        Icons.ac_unit,
-      ),
-      const SizedBox(height: BuddyTheme.spacingLg),
-      _buildAnimatedTextField(
-        controller: _chargesController,
-        label: 'Monthly Charges (₹)',
-        hint: 'Enter monthly amount',
-        icon: Icons.currency_rupee,
-        keyboardType: TextInputType.number,
-      ),
-      const SizedBox(height: BuddyTheme.spacingLg),
-      _buildSwitchCard(
-        'Internet Facility',
-        'WiFi available for users',
-        _hasInternet,
-        (value) => setState(() => _hasInternet = value),
-        Icons.wifi,
-      ),
-      const SizedBox(height: BuddyTheme.spacingLg),
-      _buildSwitchCard(
-        'Study Cabin',
-        'Private study cabins available',
-        _hasStudyCabin,
-        (value) => setState(() => _hasStudyCabin = value),
-        Icons.meeting_room,
-      ),
-    ],
-  );
-}
-
+    return Column(
+      children: [
+        _buildSelectionCard(
+          'Library Type',
+          _libraryType,
+          ['Public', 'Private', 'Subscription-based'],
+          (value) => setState(() => _libraryType = value),
+          Icons.library_books,
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
+        _buildAnimatedTextField(
+          controller: _seatingCapacityController,
+          label: 'Seating Capacity',
+          hint: 'Number of seats available',
+          icon: Icons.event_seat,
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
+        _buildSelectionCard(
+          'AC Status',
+          _acStatus,
+          ['AC', 'Non-AC', 'Both'],
+          (value) => setState(() => _acStatus = value),
+          Icons.ac_unit,
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
+        _buildAnimatedTextField(
+          controller: _chargesController,
+          label: 'Monthly Charges (₹)',
+          hint: 'Enter monthly amount',
+          icon: Icons.currency_rupee,
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
+        _buildSwitchCard(
+          'Internet Facility',
+          'WiFi available for users',
+          _hasInternet,
+          (value) => setState(() => _hasInternet = value),
+          Icons.wifi,
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
+        _buildSwitchCard(
+          'Study Cabin',
+          'Private study cabins available',
+          _hasStudyCabin,
+          (value) => setState(() => _hasStudyCabin = value),
+          Icons.meeting_room,
+        ),
+      ],
+    );
+  }
 
   Widget _buildCafeDetails() {
     return Column(
@@ -972,16 +1082,16 @@ class _ListServiceFormState extends State<ListServiceForm>
       children: [
         Text(
           'Cover Photo',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: BuddyTheme.spacingSm),
         Text(
           'This will be the main photo displayed',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: BuddyTheme.textSecondaryColor,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: BuddyTheme.textSecondaryColor),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         InkWell(
@@ -990,7 +1100,7 @@ class _ListServiceFormState extends State<ListServiceForm>
             height: 200,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
               border: Border.all(color: BuddyTheme.borderColor),
             ),
@@ -1025,16 +1135,16 @@ class _ListServiceFormState extends State<ListServiceForm>
       children: [
         Text(
           'Additional Photos',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: BuddyTheme.spacingSm),
         Text(
           'Add more photos of your service',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: BuddyTheme.textSecondaryColor,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: BuddyTheme.textSecondaryColor),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         GridView.builder(
@@ -1062,7 +1172,7 @@ class _ListServiceFormState extends State<ListServiceForm>
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
             border: Border.all(color: BuddyTheme.borderColor),
             image: DecorationImage(
@@ -1082,11 +1192,7 @@ class _ListServiceFormState extends State<ListServiceForm>
                 color: Colors.black.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.close,
-                size: 16,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.close, size: 16, color: Colors.white),
             ),
           ),
         ),
@@ -1099,7 +1205,7 @@ class _ListServiceFormState extends State<ListServiceForm>
       onTap: _selectAdditionalPhoto,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
           border: Border.all(color: BuddyTheme.borderColor),
         ),
@@ -1158,9 +1264,9 @@ class _ListServiceFormState extends State<ListServiceForm>
       ),
       child: Text(
         'Submit Listing',
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -1169,7 +1275,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         boxShadow: [
           BoxShadow(
@@ -1188,9 +1294,9 @@ class _ListServiceFormState extends State<ListServiceForm>
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 'Meal Timings',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -1198,43 +1304,48 @@ class _ListServiceFormState extends State<ListServiceForm>
           Wrap(
             spacing: BuddyTheme.spacingSm,
             runSpacing: BuddyTheme.spacingSm,
-            children: _mealTimings.entries.map((entry) {
-              return InkWell(
-                onTap: () {
-                  setState(() {
-                    _mealTimings[entry.key] = !entry.value;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: BuddyTheme.spacingSm,
-                    vertical: BuddyTheme.spacingXs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: entry.value
-                      ? BuddyTheme.primaryColor
-                      : Colors.transparent,
-                    border: Border.all(
-                      color: entry.value
-                        ? BuddyTheme.primaryColor
-                        : BuddyTheme.borderColor,
+            children:
+                _mealTimings.entries.map((entry) {
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _mealTimings[entry.key] = !entry.value;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: BuddyTheme.spacingSm,
+                        vertical: BuddyTheme.spacingXs,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            entry.value
+                                ? BuddyTheme.primaryColor
+                                : Colors.transparent,
+                        border: Border.all(
+                          color:
+                              entry.value
+                                  ? BuddyTheme.primaryColor
+                                  : BuddyTheme.borderColor,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusSm,
+                        ),
+                      ),
+                      child: Text(
+                        entry.key,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color:
+                              entry.value
+                                  ? Colors.white
+                                  : BuddyTheme.textPrimaryColor,
+                          fontWeight:
+                              entry.value ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                  ),
-                  child: Text(
-                    entry.key,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: entry.value
-                        ? Colors.white
-                        : BuddyTheme.textPrimaryColor,
-                      fontWeight: entry.value
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+                  );
+                }).toList(),
           ),
         ],
       ),
@@ -1245,7 +1356,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -1266,7 +1377,9 @@ class _ListServiceFormState extends State<ListServiceForm>
                   ),
                   side: BorderSide(color: BuddyTheme.primaryColor),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusSm,
+                    ),
                   ),
                 ),
                 child: Text(
@@ -1278,17 +1391,17 @@ class _ListServiceFormState extends State<ListServiceForm>
                 ),
               ),
             ),
-          if (_currentStep > 0)
-            const SizedBox(width: BuddyTheme.spacingMd),
+          if (_currentStep > 0) const SizedBox(width: BuddyTheme.spacingMd),
           Expanded(
             child: ElevatedButton(
-              onPressed: _currentStep == _totalSteps - 1
-                  ? () {
-                      if (_formKey.currentState?.validate() ?? false) {
-                        _submitForm();
+              onPressed:
+                  _currentStep == _totalSteps - 1
+                      ? () {
+                        if (_formKey.currentState?.validate() ?? false) {
+                          _submitForm();
+                        }
                       }
-                    }
-                  : _nextStep,
+                      : _nextStep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: BuddyTheme.primaryColor,
                 foregroundColor: Colors.white,
@@ -1296,13 +1409,15 @@ class _ListServiceFormState extends State<ListServiceForm>
                   vertical: BuddyTheme.spacingMd,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusSm,
+                  ),
                 ),
               ),
               child: Text(
                 _currentStep == _totalSteps - 1 ? 'Submit' : 'Next',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                  color: cardColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1331,20 +1446,15 @@ class _ListServiceFormState extends State<ListServiceForm>
             opacity: value,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(color: BuddyTheme.borderColor),
               ),
               child: TextFormField(
                 controller: controller,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
+                style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   labelText: label,
                   hintText: hint,
@@ -1356,7 +1466,7 @@ class _ListServiceFormState extends State<ListServiceForm>
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: cardColor,
                 ),
               ),
             ),
@@ -1367,7 +1477,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   Widget _buildSwitchCard(
-    String title, 
+    String title,
     String subtitle,
     bool value,
     Function(bool) onChanged,
@@ -1375,22 +1485,21 @@ class _ListServiceFormState extends State<ListServiceForm>
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         border: Border.all(color: BuddyTheme.borderColor),
       ),
       child: SwitchListTile(
         title: Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
+            color: textPrimary,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: BuddyTheme.textSecondaryColor,
-          ),
+          style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
         ),
         value: value,
         onChanged: onChanged,
@@ -1409,7 +1518,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         border: Border.all(color: BuddyTheme.borderColor),
       ),
@@ -1422,8 +1531,9 @@ class _ListServiceFormState extends State<ListServiceForm>
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 label,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
                 ),
               ),
             ],
@@ -1433,12 +1543,13 @@ class _ListServiceFormState extends State<ListServiceForm>
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              items: options.map((option) {
-                return DropdownMenuItem<String>(
-                  value: option,
-                  child: Text(option),
-                );
-              }).toList(),
+              items:
+                  options.map((option) {
+                    return DropdownMenuItem<String>(
+                      value: option,
+                      child: Text(option),
+                    );
+                  }).toList(),
               onChanged: (newValue) {
                 if (newValue != null) {
                   onChanged(newValue);

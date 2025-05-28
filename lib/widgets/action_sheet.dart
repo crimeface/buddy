@@ -26,21 +26,13 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.elasticOut,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
 
-    _slideAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
 
     _animationController.forward();
   }
@@ -89,16 +81,15 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                     // Title
                     Text(
                       'What would you like to do?',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
                       'Choose an option to get started',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: BuddyTheme.textSecondaryColor,
-                          ),
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXl),
 
@@ -116,7 +107,10 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                   subtitle: 'Share your space',
                                   icon: Icons.home_outlined,
                                   gradient: const LinearGradient(
-                                    colors: [BuddyTheme.primaryColor, BuddyTheme.secondaryColor],
+                                    colors: [
+                                      BuddyTheme.primaryColor,
+                                      BuddyTheme.secondaryColor,
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
@@ -125,7 +119,8 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => const ListRoomForm(),
+                                        builder:
+                                            (context) => const ListRoomForm(),
                                       ),
                                     );
                                   },
@@ -142,7 +137,10 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                   subtitle: 'Find your place',
                                   icon: Icons.search_outlined,
                                   gradient: const LinearGradient(
-                                    colors: [BuddyTheme.accentColor, BuddyTheme.successColor],
+                                    colors: [
+                                      BuddyTheme.accentColor,
+                                      BuddyTheme.successColor,
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
@@ -151,7 +149,9 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => const RoomRequestForm(),
+                                        builder:
+                                            (context) =>
+                                                const RoomRequestForm(),
                                       ),
                                     );
                                   },
@@ -172,12 +172,17 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                   subtitle: 'List your accommodation',
                                   icon: Icons.apartment_outlined,
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFF9C27B0), Color(0xFFE91E63)],
+                                    colors: [
+                                      Color(0xFF9C27B0),
+                                      Color(0xFFE91E63),
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                   onTap: () {
-                                    print('List Hostel/PG button tapped'); // Debug print
+                                    print(
+                                      'List Hostel/PG button tapped',
+                                    ); // Debug print
                                     Navigator.pop(context);
                                     Navigator.push(
                                       context,
@@ -199,7 +204,10 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                   subtitle: 'Share your expertise',
                                   icon: Icons.miscellaneous_services_outlined,
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFF00BCD4), Color(0xFF03A9F4)],
+                                    colors: [
+                                      Color(0xFF00BCD4),
+                                      Color(0xFF03A9F4),
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
@@ -229,9 +237,8 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                         onPressed: () => Navigator.pop(context),
                         child: Text(
                           'Cancel',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: BuddyTheme.textSecondaryColor,
-                              ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: BuddyTheme.textSecondaryColor),
                         ),
                       ),
                     ),
@@ -248,88 +255,90 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
   }
 
   Widget _buildActionButton(
-  BuildContext context, {
-  required String title,
-  required String subtitle,
-  required IconData icon,
-  required Gradient gradient,
-  required VoidCallback onTap,
-}) {
-  return InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
-    child: Container(
-      height: 173, // Reduced from 175
-  decoration: BoxDecoration(
-    gradient: gradient,
-    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
-    boxShadow: [
-      BoxShadow(
-        color: gradient.colors.first.withOpacity(0.3),
-        blurRadius: 15,
-        offset: const Offset(0, 8),
-      ),
-    ],
-  ),
-  child: Stack(
-    children: [
-      // Decorative circles (unchanged)...
-
-      // Content
-      Padding(
-        padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Gradient gradient,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
+      child: Container(
+        height: 173, // Reduced from 175
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
+          boxShadow: [
+            BoxShadow(
+              color: gradient.colors.first.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Stack(
           children: [
-            // Icon
-            Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingSm),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-              ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: BuddyTheme.iconSizeLg,
-              ),
-            ),
+            // Decorative circles (unchanged)...
 
-            const Spacer(),
-
-            // Text content
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Icon
+                  Container(
+                    padding: const EdgeInsets.all(BuddyTheme.spacingSm),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: BuddyTheme.iconSizeLg,
+                    ),
                   ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: BuddyTheme.spacingXxs),
-            Text(
-              subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+
+                  const Spacer(),
+
+                  // Text content
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingXxs),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12, // Slightly reduced font size
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingXs),
+                  Icon(
+                    Icons.arrow_forward,
                     color: Colors.white.withOpacity(0.8),
-                    fontSize: 12, // Slightly reduced font size
+                    size: 20,
                   ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              softWrap: true,
-            ),
-            const SizedBox(height: BuddyTheme.spacingXs),
-            Icon(
-              Icons.arrow_forward,
-              color: Colors.white.withOpacity(0.8),
-              size: 20,
+                ],
+              ),
             ),
           ],
         ),
       ),
-    ],
-  ),
-),
-  );
-}
+    );
+  }
 }
