@@ -279,10 +279,11 @@ class _ListHostelFormState extends State<ListHostelForm>
   Widget build(BuildContext context) {
     theme = Theme.of(context);
     scaffoldBg = theme.scaffoldBackgroundColor;
+    // Custom card color for better contrast
     cardColor =
         theme.brightness == Brightness.dark
             ? const Color(0xFF23262F)
-            : const Color(0xFFF7F8FA);
+            : const Color.fromARGB(255, 226, 227, 231);
     textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
     textSecondary =
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
@@ -775,6 +776,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                 controller: controller,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
+                style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   labelText: label,
                   hintText: hint,
@@ -786,9 +788,8 @@ class _ListHostelFormState extends State<ListHostelForm>
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: cardColor, // <-- FIXED
+                  fillColor: cardColor,
                 ),
-                style: TextStyle(color: textPrimary), // <-- FIXED
               ),
             ),
           ),

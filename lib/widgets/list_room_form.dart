@@ -1044,117 +1044,168 @@ class _ListRoomFormState extends State<ListRoomForm>
   }
 
   Widget _buildFacilitiesGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 3,
-        crossAxisSpacing: BuddyTheme.spacingSm,
-        mainAxisSpacing: BuddyTheme.spacingSm,
-      ),
-      itemCount: _facilities.length,
-      itemBuilder: (context, index) {
-        String facility = _facilities.keys.elementAt(index);
-        bool isSelected = _facilities[facility]!;
+    List<Widget> rows = [];
+    List<String> keys = _facilities.keys.toList();
 
-        return TweenAnimationBuilder<double>(
-          duration: Duration(milliseconds: 400 + (index * 100)),
-          tween: Tween(begin: 0.0, end: 1.0),
-          builder: (context, value, child) {
-            return Transform.scale(
-              scale: 0.8 + (0.2 * value),
-              child: Opacity(
-                opacity: value,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _facilities[facility] = !isSelected;
-                      });
-                    },
+    int i = 0;
+    while (i < keys.length) {
+      String facility = keys[i];
+      bool isLongName = facility.length > 12;
+
+      if (isLongName) {
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
+            child: _buildFacilityItem(
+              facility,
+              _facilities[facility]!,
+              fullWidth: true,
+            ),
+          ),
+        );
+        i++;
+      } else {
+        final String facility1 = keys[i];
+        final Widget firstItem = _buildFacilityItem(
+          facility1,
+          _facilities[facility1]!,
+        );
+        i++;
+        if (i < keys.length) {
+          final String facility2 = keys[i];
+          final Widget secondItem = _buildFacilityItem(
+            facility2,
+            _facilities[facility2]!,
+          );
+
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
+              child: Row(
+                children: [
+                  Expanded(child: firstItem),
+                  SizedBox(width: BuddyTheme.spacingSm),
+                  Expanded(child: secondItem),
+                ],
+              ),
+            ),
+          );
+          i++;
+        } else {
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
+              child: Row(children: [Expanded(child: firstItem)]),
+            ),
+          );
+        }
+      }
+    }
+
+    return Column(children: rows);
+  }
+
+  Widget _buildFacilityItem(
+    String facility,
+    bool isSelected, {
+    bool fullWidth = false,
+  }) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 400),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          child: Opacity(
+            opacity: value,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _facilities[facility] = !isSelected;
+                  });
+                },
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingSm),
+                  width: fullWidth ? double.infinity : null,
+                  decoration: BoxDecoration(
+                    color:
+                        isSelected
+                            ? BuddyTheme.primaryColor.withOpacity(0.1)
+                            : Colors.white,
                     borderRadius: BorderRadius.circular(
                       BuddyTheme.borderRadiusMd,
                     ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(BuddyTheme.spacingSm),
-                      decoration: BoxDecoration(
-                        color:
-                            isSelected
-                                ? BuddyTheme.primaryColor.withOpacity(0.1)
-                                : cardColor,
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
-                        ),
-                        border: Border.all(
+                    border: Border.all(
+                      color:
+                          isSelected
+                              ? BuddyTheme.primaryColor
+                              : BuddyTheme.borderColor,
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
                           color:
                               isSelected
                                   ? BuddyTheme.primaryColor
-                                  : BuddyTheme.borderColor,
-                          width: isSelected ? 2 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 5,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color:
-                                  isSelected
-                                      ? BuddyTheme.primaryColor
-                                      : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color:
-                                    isSelected
-                                        ? BuddyTheme.primaryColor
-                                        : BuddyTheme.borderColor,
-                              ),
-                            ),
-                            child:
+                                  : Colors.transparent,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color:
                                 isSelected
-                                    ? const Icon(
-                                      Icons.check,
-                                      color: Colors.white,
-                                      size: 14,
-                                    )
-                                    : null,
+                                    ? BuddyTheme.primaryColor
+                                    : BuddyTheme.borderColor,
                           ),
-                          const SizedBox(width: BuddyTheme.spacingSm),
-                          Expanded(
-                            child: Text(
-                              facility,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color:
-                                    isSelected
-                                        ? BuddyTheme.primaryColor
-                                        : textPrimary,
-                                fontWeight:
-                                    isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
+                        child:
+                            isSelected
+                                ? const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 14,
+                                )
+                                : null,
                       ),
-                    ),
+                      const SizedBox(width: BuddyTheme.spacingSm),
+                      Expanded(
+                        child: Text(
+                          facility,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color:
+                                isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : BuddyTheme.textPrimaryColor,
+                            fontWeight:
+                                isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );

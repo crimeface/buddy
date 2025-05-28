@@ -298,10 +298,11 @@ class _ListServiceFormState extends State<ListServiceForm>
   Widget build(BuildContext context) {
     theme = Theme.of(context);
     scaffoldBg = theme.scaffoldBackgroundColor;
+    // Custom card color for better contrast
     cardColor =
         theme.brightness == Brightness.dark
             ? const Color(0xFF23262F)
-            : const Color(0xFFF7F8FA);
+            : const Color.fromARGB(255, 226, 227, 231);
     textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
     textSecondary =
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
@@ -1448,7 +1449,13 @@ class _ListServiceFormState extends State<ListServiceForm>
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                border: Border.all(color: BuddyTheme.borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: TextFormField(
                 controller: controller,
