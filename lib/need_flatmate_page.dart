@@ -615,16 +615,18 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
               ],
             ),
             const SizedBox(height: BuddyTheme.spacingMd),
-            // Bio
-            Text(
-              flatmate['bio'] ?? '',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium!.copyWith(color: labelColor),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: BuddyTheme.spacingSm),
+            // Bio only if available
+            if (flatmate['bio']?.isNotEmpty ?? false) ...[
+              Text(
+                flatmate['bio']!,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium!.copyWith(color: labelColor),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: BuddyTheme.spacingSm),
+            ],
             // Interests (if you store them as a list)
             if (flatmate['interests'] != null)
               Column(
@@ -675,9 +677,46 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                             )
                             .toList(),
                   ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
                 ],
               ),
-            // ...add more fields as needed...
+            // View Detail Button
+            const SizedBox(height: BuddyTheme.spacingSm),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _viewFlatmateDetails(flatmate),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BuddyTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: BuddyTheme.spacingSm,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.visibility,
+                      size: BuddyTheme.iconSizeSm,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingXs),
+                    Text(
+                      'View Details',
+                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -696,6 +735,26 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       SnackBar(
         content: Text('Added $flatmateName to favorites!'),
         backgroundColor: BuddyTheme.successColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _viewFlatmateDetails(Map<String, dynamic> flatmate) {
+    // TODO: Navigate to flatmate detail page
+    // Example navigation:
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (context) => FlatmateDetailPage(flatmate: flatmate),
+    //   ),
+    // );
+    
+    // For now, show a snackbar to indicate the button works
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Viewing details for ${flatmate['name'] ?? 'Unknown'}'),
+        backgroundColor: BuddyTheme.primaryColor,
         duration: const Duration(seconds: 2),
       ),
     );
