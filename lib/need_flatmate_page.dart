@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'theme.dart';
+import 'display pages/flatmate_details.dart';
 
 class NeedFlatmatePage extends StatefulWidget {
   const NeedFlatmatePage({super.key});
@@ -741,21 +742,10 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   }
 
   void _viewFlatmateDetails(Map<String, dynamic> flatmate) {
-    // TODO: Navigate to flatmate detail page
-    // Example navigation:
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => FlatmateDetailPage(flatmate: flatmate),
-    //   ),
-    // );
-    
-    // For now, show a snackbar to indicate the button works
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Viewing details for ${flatmate['name'] ?? 'Unknown'}'),
-        backgroundColor: BuddyTheme.primaryColor,
-        duration: const Duration(seconds: 2),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FlatmateDetailsPage(flatmateData: flatmate),
       ),
     );
   }

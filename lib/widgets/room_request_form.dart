@@ -427,28 +427,22 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
-            Row(
-              children: [
-                Expanded(
-                  child: _buildAnimatedTextField(
-                    controller: _minBudgetController,
-                    label: 'Min Budget (₹)',
-                    hint: 'Minimum',
-                    icon: Icons.currency_rupee,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: BuddyTheme.spacingMd),
-                Expanded(
-                  child: _buildAnimatedTextField(
-                    controller: _maxBudgetController,
-                    label: 'Max Budget (₹)',
-                    hint: 'Maximum',
-                    icon: Icons.currency_rupee,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
+            _buildAnimatedTextField(
+              controller: _minBudgetController,
+              label: 'Min Budget (₹)',
+              hint: 'Minimum',
+              icon: Icons.currency_rupee,
+              keyboardType: TextInputType.number,
+            ),
+
+            const SizedBox(height: BuddyTheme.spacingLg),
+
+            _buildAnimatedTextField(
+              controller: _maxBudgetController,
+              label: 'Max Budget (₹)',
+              hint: 'Maximum',
+              icon: Icons.currency_rupee,
+              keyboardType: TextInputType.number,
             ),
 
             const SizedBox(height: BuddyTheme.spacingLg),
@@ -537,16 +531,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               ['No', 'Yes', "Don't Mind"],
               (value) => setState(() => _drinkingPreference = value),
               Icons.local_bar_outlined,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildSwitchCard(
-              'Internet Required',
-              'Do you need high-speed internet?',
-              _internetRequired,
-              (value) => setState(() => _internetRequired = value),
-              Icons.wifi,
             ),
 
             const SizedBox(height: BuddyTheme.spacingLg),
