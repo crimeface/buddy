@@ -905,7 +905,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Owner Information',
+          'Listed By',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
             fontWeight: FontWeight.bold,
@@ -945,43 +945,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Row(
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          size: BuddyTheme.iconSizeSm,
-                          color: Colors.amber,
-                        ),
-                        const SizedBox(width: BuddyTheme.spacingXxs),
-                        Text(
-                          propertyData.ownerRating > 0 
-                              ? '${propertyData.ownerRating.toStringAsFixed(1)} Rating'
-                              : 'New Owner',
-                          style: const TextStyle(
-                            fontSize: BuddyTheme.fontSizeSm,
-                            color: BuddyTheme.textSecondaryColor,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BuddyTheme.spacingSm,
-                  vertical: BuddyTheme.spacingXs,
-                ),
-                decoration: BoxDecoration(
-                  color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                ),
-                child: const Text(
-                  'Verified',
-                  style: TextStyle(
-                    fontSize: BuddyTheme.fontSizeXs,
-                    color: BuddyTheme.primaryColor,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
               ),
             ],
