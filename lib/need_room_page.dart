@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'display pages/property_details.dart';
 import 'main.dart'; // Add this import
 
 class NeedRoomPage extends StatefulWidget {
@@ -265,15 +262,6 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                             accentColor,
                             borderColor,
                           ),
-                          const SizedBox(height: BuddyTheme.spacingMd),
-                          _buildQuickStats(
-                            cardColor,
-                            accentColor,
-                            successColor,
-                            warningColor,
-                            borderColor,
-                            textSecondary,
-                          ),
                           const SizedBox(height: BuddyTheme.spacingLg),
                           _buildSectionHeader(
                             'Available Properties',
@@ -496,80 +484,6 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildQuickStats(
-    Color cardColor,
-    Color accentColor,
-    Color successColor,
-    Color warningColor,
-    Color borderColor,
-    Color textSecondary,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(
-            '247',
-            'Available\nProperties',
-            accentColor,
-            textSecondary,
-          ),
-          Container(width: 1, height: 40, color: borderColor),
-          _buildStatItem('89', 'New This\nWeek', successColor, textSecondary),
-          Container(width: 1, height: 40, color: borderColor),
-          _buildStatItem(
-            '156',
-            'Verified\nListings',
-            warningColor,
-            textSecondary,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    String number,
-    String label,
-    Color color,
-    Color textSecondary,
-  ) {
-    return Column(
-      children: [
-        Text(
-          number,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
     );
   }
 
