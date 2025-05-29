@@ -58,8 +58,14 @@ class PropertyData {
     String formatAvailableDate(String? dateStr) {
       if (dateStr == null || dateStr.isEmpty) return '';
       try {
-        final date = DateTime.parse(dateStr);
-        return '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+        if (dateStr.contains('T')) {
+          String date = dateStr.split('T')[0];
+          final parts = date.split('-');
+          if (parts.length == 3) {
+            return '${parts[2]}-${parts[1]}-${parts[0]}'; // DD-MM-YYYY
+          }
+        }
+        return dateStr;
       } catch (e) {
         return dateStr;
       }
@@ -119,6 +125,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     _fetchPropertyDetails();
   }
 
+  String _formatDate(String dateString) {
+    if (dateString.isEmpty) return '';
+    final parts = dateString.split('T')[0].split('-');
+    if (parts.length != 3) return dateString;
+    return '${parts[2]}-${parts[1]}-${parts[0]}'; // DD-MM-YYYY
+  }
+
   Future<void> _fetchPropertyDetails() async {
     try {
       final snapshot = await _database
@@ -146,7 +159,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         final convertedData = {
           'title': data['title'],
           'location': data['location'],
-          'availableFrom': data['availableFromDate'],
+          'availableFromDate': data['availableFromDate']?.toString() ?? '',
           'roomType': data['roomType'],
           'flatSize': data['flatSize'],
           'furnishing': data['furnishing'],
@@ -493,12 +506,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   horizontal: BuddyTheme.spacingXs,
                   vertical: BuddyTheme.spacingXxs,
                 ),
-                decoration: BuddyTheme.roomAvailableTagDecoration,
+                decoration: BoxDecoration(
+                  color: BuddyTheme.primaryColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
                 child: Text(
-                  'Available from ${propertyData.availableFrom}',
+                  propertyData.availableFrom.isEmpty
+                      ? 'Available Now'
+                      : 'Available from: ${propertyData.availableFrom}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
+                    color: BuddyTheme.primaryColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

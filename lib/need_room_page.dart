@@ -21,6 +21,13 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   String _selectedGenderPreference = 'All';
   String _searchQuery = '';
 
+  String _formatDate(String dateString) {
+    if (dateString.isEmpty) return '';
+    final parts = dateString.split('T')[0].split('-');
+    if (parts.length != 3) return dateString;
+    return '${parts[2]}-${parts[1]}-${parts[0]}'; // DD-MM-YYYY
+  }
+
   final List<String> _locations = [
     'All Cities',
     'Manhattan, New York',
@@ -692,7 +699,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                 const SizedBox(height: 4),
                 Text(
                   room['availableFromDate'] != null
-                      ? 'Available from ${room['availableFromDate'].toString().split('T').first}'
+                      ? 'Available from ${_formatDate(room['availableFromDate'].toString())}'
                       : '',
                   style: TextStyle(
                     fontSize: 13,
@@ -862,6 +869,13 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
   Map<String, dynamic>? _roomDetails;
   bool _isLoading = true;
 
+  String _formatDate(String dateString) {
+    if (dateString.isEmpty) return '';
+    final parts = dateString.split('T')[0].split('-');
+    if (parts.length != 3) return dateString;
+    return '${parts[2]}-${parts[1]}-${parts[0]}'; // DD-MM-YYYY
+  }
+
   @override
   void initState() {
     super.initState();
@@ -937,7 +951,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                     if (_roomDetails!['availableFromDate']?.isNotEmpty ?? false) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Available from ${_roomDetails!['availableFromDate'].toString().split('T').first}',
+                        'Available from ${_formatDate(_roomDetails!['availableFromDate'].toString())}',
                         style: TextStyle(
                           fontSize: 13,
                           color: textLight,
