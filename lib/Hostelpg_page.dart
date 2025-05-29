@@ -806,28 +806,12 @@ class _HostelPgPageState extends State<HostelPgPage> {
                           ),
                         ),
                         child: Text(
-                          'Contact Owner',
+                          'View Details',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: borderColor),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: Icon(
-                          Icons.favorite_border_rounded,
-                          color: textSecondary,
-                          size: 20,
-                        ),
-                        padding: const EdgeInsets.all(12),
                       ),
                     ),
                   ],

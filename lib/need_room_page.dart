@@ -509,188 +509,262 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   // Removed unused _buildRoomListings method
 
   Widget _buildRoomCard(
-    Map<String, dynamic> room,
-    Color cardColor,
-    Color borderColor,
-    Color textLight,
-    Color textPrimary,
-    Color textSecondary,
-    Color accentColor,
-    Color primaryColor,
-    Color backgroundColor,
-    Color successColor,
-    Color warningColor,
-  ) {
-    // Use data fields from your Firebase structure
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // If you have image URLs, use them; else show a placeholder
-          if (room['imageUrl'] != null &&
-              room['imageUrl'].toString().isNotEmpty)
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              child: Image.network(
-                room['imageUrl'],
-                height: 220,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder:
-                    (context, error, stackTrace) => Container(
-                      color: borderColor,
-                      height: 220,
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: textLight,
-                        size: 48,
-                      ),
-                    ),
-              ),
-            )
-          else
-            Container(
-              height: 220,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: borderColor,
+  Map<String, dynamic> room,
+  Color cardColor,
+  Color borderColor,
+  Color textLight,
+  Color textPrimary,
+  Color textSecondary,
+  Color accentColor,
+  Color primaryColor,
+  Color backgroundColor,
+  Color successColor,
+  Color warningColor,
+) {
+  return Container(
+    decoration: BoxDecoration(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Image section with availability badge
+        Stack(
+          children: [
+            // Property image
+            if (room['imageUrl'] != null &&
+                room['imageUrl'].toString().isNotEmpty)
+              ClipRRect(
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
-              ),
-              child: Icon(Icons.image, color: textLight, size: 48),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  room['title'] ?? '',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: textPrimary,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
+                child: Image.network(
+                  room['imageUrl'],
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: borderColor,
+                    height: 200,
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
                       color: textLight,
-                      size: 16,
+                      size: 48,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        room['location'] ?? '',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  room['availableFromDate'] != null
-                      ? 'Available from ${_formatDate(room['availableFromDate'].toString())}'
-                      : '',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: textSecondary,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      '₹${room['rent'] ?? '-'}',
+              )
+            else
+              Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: borderColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Icon(Icons.image, color: textLight, size: 48),
+              ),
+            
+            // Available Now badge
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                
+              ),
+            ),
+          ],
+        ),
+        
+        // Content section
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and Price row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Property name
+                  Expanded(
+                    child: Text(
+                      room['title'] ?? 'Property Name',
                       style: TextStyle(
                         fontSize: 20,
-                        color: primaryColor,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
+                        color: textPrimary,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      room['roomType'] ?? '',
+                  ),
+                  const SizedBox(width: 12),
+                  // Price
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '\₹${room['rent'] ?? '120'}',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: textPrimary,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '/mo',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Location
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    color: textSecondary,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      room['location'] ?? 'Location',
                       style: TextStyle(
-                        color: accentColor,
-                        fontSize: 13,
+                        fontSize: 14,
+                        color: textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+                              
+              const SizedBox(height: 16),
+              
+              Row(
+                children: [
+                  // Room type tag
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: BorderRadius.circular(4), // Changed from 16 to 4 for rectangular shape
+                    ),
+                    child: Text(
+                      room['roomType'] ?? 'Shared',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      room['flatSize'] ?? '',
+                  ),
+                  
+                  const SizedBox(width: 8),
+                  
+                  // Flat size tag
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: textSecondary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4), // Changed from 16 to 4 for rectangular shape
+                      border: Border.all(
+                        color: textSecondary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text(
+                      room['flatSize'] ?? '2 Beds',
                       style: TextStyle(
                         color: textSecondary,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/propertyDetails',
-                            arguments: {'propertyId': room['id']},
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accentColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'View Details',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+                      
+              
+              const SizedBox(height: 16),
+              
+              // View Details button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/propertyDetails',
+                      arguments: {'propertyId': room['id']},
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accentColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
+                  ),
+                  child: const Text(
+                    'View Details',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   void _showFilterBottomSheet(
     BuildContext context,
