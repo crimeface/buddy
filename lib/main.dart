@@ -10,6 +10,9 @@ import 'service_page.dart';
 import 'display pages/property_details.dart';
 import './display pages/property_details.dart' as property_details;
 import './display pages/flatmate_details.dart';
+import 'edit_profile.dart';
+import 'my_listings.dart';
+
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -39,6 +42,8 @@ class BuddyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/hostelpg': (context) => const HostelPgPage(),
         '/services': (context) => const ServicesPage(),
+        '/editProfile': (context) => const EditProfilePage(),
+        '/myListings': (context) => const MyListingsPage(),
         '/propertyDetails': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
           final propertyId = args?['propertyId'] as String? ?? '';

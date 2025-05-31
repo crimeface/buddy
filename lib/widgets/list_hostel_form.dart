@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme.dart';
 import '../models/room_type.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Add this import at the top
 
 class ListHostelForm extends StatefulWidget {
   ListHostelForm({Key? key}) : super(key: key) {
@@ -55,7 +56,7 @@ class _ListHostelFormState extends State<ListHostelForm>
   Map<String, bool> _facilities = {
     'WiFi': false,
     'Laundry': false,
-    'Mess / Food': false,
+    'Mess': false,
     'Study Table': false,
     'Cupboard': false,
     'Geyser': false,
@@ -210,7 +211,10 @@ class _ListHostelFormState extends State<ListHostelForm>
 
   void _submitForm() async {
     // Prepare data to store in Firebase
+    final userId =
+        FirebaseAuth.instance.currentUser?.uid; // Get current user ID
     final data = {
+      'uid': userId,
       'title': _titleController.text,
       'hostelType': _hostelType,
       'hostelFor': _hostelFor,

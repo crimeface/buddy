@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'theme.dart';
+import 'edit_profile.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -202,7 +203,14 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.person_outline,
             iconColor: BuddyTheme.primaryColor,
             title: 'Edit Profile',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EditProfilePage(),
+                ),
+              );
+            },
             isDark: isDark,
           ),
           _buildMenuOption(
@@ -230,7 +238,9 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.favorite_outline,
             iconColor: Colors.amber,
             title: 'My Listings',
-            onTap: () {},
+            onTap: () {
+              Navigator.pushNamed(context, '/myListings');
+            },
             isDark: isDark,
           ),
           _buildMenuOption(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ListServiceForm extends StatefulWidget {
   const ListServiceForm({Key? key}) : super(key: key);
@@ -216,7 +217,11 @@ class _ListServiceFormState extends State<ListServiceForm>
 
   void _submitForm() async {
     // Prepare the data map based on your form fields and service type
+
+    final userId =
+        FirebaseAuth.instance.currentUser?.uid; // Get current user ID
     final data = {
+      'userId': userId,
       'serviceType': _serviceType,
       'serviceName': _serviceNameController.text,
       'location': _locationController.text,
@@ -283,7 +288,11 @@ class _ListServiceFormState extends State<ListServiceForm>
           ),
         ),
       );
-      Navigator.pop(context);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+        (route) => false, // This clears the navigation stack
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -344,24 +353,27 @@ class _ListServiceFormState extends State<ListServiceForm>
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildProgressIndicator(),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildServiceTypeStep(),
-                _buildBasicDetailsStep(),
-                _buildTimingsAndContactStep(),
-                _buildSpecificDetailsStep(),
-                _buildPhotosStep(),
-              ],
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            _buildProgressIndicator(),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildServiceTypeStep(),
+                  _buildBasicDetailsStep(),
+                  _buildTimingsAndContactStep(),
+                  _buildSpecificDetailsStep(),
+                  _buildPhotosStep(),
+                ],
+              ),
             ),
-          ),
-          _buildNavigationButtons(),
-        ],
+            _buildNavigationButtons(),
+          ],
+        ),
       ),
     );
   }
@@ -1395,14 +1407,22 @@ class _ListServiceFormState extends State<ListServiceForm>
           if (_currentStep > 0) const SizedBox(width: BuddyTheme.spacingMd),
           Expanded(
             child: ElevatedButton(
-              onPressed:
-                  _currentStep == _totalSteps - 1
-                      ? () {
-                        if (_formKey.currentState?.validate() ?? false) {
-                          _submitForm();
-                        }
-                      }
-                      : _nextStep,
+              onPressed: () {
+                if (_currentStep == _totalSteps - 1) {
+                  if (_formKey.currentState?.validate() ?? false) {
+                    _submitForm(); // This submits to Firebase
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please fill in all required fields'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } else {
+                  _nextStep();
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: BuddyTheme.primaryColor,
                 foregroundColor: Colors.white,
@@ -1415,13 +1435,27 @@ class _ListServiceFormState extends State<ListServiceForm>
                   ),
                 ),
               ),
-              child: Text(
-                _currentStep == _totalSteps - 1 ? 'Submit' : 'Next',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: cardColor,
-                  fontWeight: FontWeight.w600,
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _currentStep == _totalSteps - 1
+                          ? 'Submit Listing'
+                          : 'Next',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingXs),
+                    Icon(
+                      _currentStep == _totalSteps - 1
+                          ? Icons.check
+                          : Icons.arrow_forward,
+                      color: cardColor,
+                    ),
+                  ],
                 ),
-              ),
             ),
           ),
         ],
@@ -1461,6 +1495,12 @@ class _ListServiceFormState extends State<ListServiceForm>
                 controller: controller,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field is required';
+                  }
+                  return null;
+                },
                 style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   labelText: label,

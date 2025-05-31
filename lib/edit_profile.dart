@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -10,19 +12,20 @@ class EditProfilePage extends StatefulWidget {
   State<EditProfilePage> createState() => _EditProfilePageState();
 }
 
-class _EditProfilePageState extends State<EditProfilePage> with TickerProviderStateMixin {
+class _EditProfilePageState extends State<EditProfilePage>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _bioController = TextEditingController();
   final _websiteController = TextEditingController();
   final _locationController = TextEditingController();
-  
+
   File? _profileImage;
   bool _isLoading = false;
 
@@ -36,7 +39,10 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
     _animationController.forward();
@@ -59,22 +65,22 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
 
   void _loadUserData() {
     // Simulate loading existing user data
-    _nameController.text = 'John Doe';
-    _emailController.text = 'name.12@example,com';
-    _phoneController.text = '+91 0123456789';
-    _bioController.text = 'A freshman in MIT WPU';
+    _nameController.text = '';
+    _emailController.text = '';
+    _phoneController.text = '';
+    _bioController.text = '';
   }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    
+
     // Show image source selection
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => _buildImageSourceSheet(),
     );
-    
+
     if (source != null) {
       final picked = await picker.pickImage(source: source, imageQuality: 85);
       if (picked != null) {
@@ -87,7 +93,7 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
 
   Widget _buildImageSourceSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -144,14 +150,36 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
-    
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-    
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User not logged in!')));
+      return;
+    }
+
+    final data = {
+      'username': _nameController.text,
+      'email': _emailController.text,
+      'phone': _phoneController.text,
+    };
+
+    // Remove null values (e.g., if image not updated)
+    data.removeWhere((key, value) => value == null);
+
+    // Save to Firebase Realtime Database
+    await FirebaseDatabase.instance
+        .ref()
+        .child('users')
+        .child(user.uid)
+        .update(data);
+
     setState(() => _isLoading = false);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -164,7 +192,9 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
           ),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       Navigator.pop(context);
@@ -174,11 +204,11 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-     if (_fadeAnimation == null || _slideAnimation == null) {
-    // Return a placeholder while animations are not ready
-    return const SizedBox.shrink();
-  }
-    
+    if (_fadeAnimation == null || _slideAnimation == null) {
+      // Return a placeholder while animations are not ready
+      return const SizedBox.shrink();
+    }
+
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.grey[50],
       appBar: _buildAppBar(context, isDark),
@@ -271,9 +301,13 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
-                  backgroundImage: _profileImage != null
-                      ? FileImage(_profileImage!)
-                      : const NetworkImage('https://randomuser.me/api/portraits/men/32.jpg') as ImageProvider,
+                  backgroundImage:
+                      _profileImage != null
+                          ? FileImage(_profileImage!)
+                          : const NetworkImage(
+                                'https://randomuser.me/api/portraits/men/32.jpg',
+                              )
+                              as ImageProvider,
                 ),
               ),
               Positioned(
@@ -285,10 +319,16 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [BuddyTheme.primaryColor, BuddyTheme.primaryColor.withOpacity(0.8)],
+                        colors: [
+                          BuddyTheme.primaryColor,
+                          BuddyTheme.primaryColor.withOpacity(0.8),
+                        ],
                       ),
                       shape: BoxShape.circle,
-                      border: Border.all(color: isDark ? Colors.black : Colors.white, width: 3),
+                      border: Border.all(
+                        color: isDark ? Colors.black : Colors.white,
+                        width: 3,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.2),
@@ -377,7 +417,6 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
       ],
     );
   }
-
 
   Widget _buildSection({
     required String title,
@@ -489,7 +528,10 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
       ),
     );
   }
@@ -500,7 +542,10 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
       height: 56,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [BuddyTheme.primaryColor, BuddyTheme.primaryColor.withOpacity(0.8)],
+          colors: [
+            BuddyTheme.primaryColor,
+            BuddyTheme.primaryColor.withOpacity(0.8),
+          ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
@@ -519,30 +564,31 @@ class _EditProfilePageState extends State<EditProfilePage> with TickerProviderSt
           onTap: _isLoading ? null : _saveProfile,
           borderRadius: BorderRadius.circular(16),
           child: Center(
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.save, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+            child:
+                _isLoading
+                    ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
                       ),
-                    ],
-                  ),
+                    )
+                    : const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.save, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
           ),
         ),
       ),

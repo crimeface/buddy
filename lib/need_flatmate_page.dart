@@ -204,8 +204,13 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
             style: TextStyle(color: labelColor),
             decoration: InputDecoration(
               hintText: 'Search by name, interests, profession...',
-              hintStyle: TextStyle(color: labelColor), // Updated to use labelColor instead of hintColor
-              prefixIcon: Icon(Icons.search, color: Colors.grey), // Updated to use grey color
+              hintStyle: TextStyle(
+                color: labelColor,
+              ), // Updated to use labelColor instead of hintColor
+              prefixIcon: Icon(
+                Icons.search,
+                color: Colors.grey,
+              ), // Updated to use grey color
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(BuddyTheme.spacingMd),
             ),
@@ -601,7 +606,9 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                     vertical: BuddyTheme.spacingSm,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusSm,
+                    ),
                   ),
                 ),
                 child: Row(

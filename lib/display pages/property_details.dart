@@ -100,10 +100,8 @@ class PropertyData {
 class PropertyDetailsScreen extends StatefulWidget {
   final String propertyId;
 
-  const PropertyDetailsScreen({
-    Key? key,
-    required this.propertyId,
-  }) : super(key: key);
+  const PropertyDetailsScreen({Key? key, required this.propertyId})
+    : super(key: key);
 
   @override
   _PropertyDetailsScreenState createState() => _PropertyDetailsScreenState();
@@ -133,18 +131,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   Future<void> _fetchPropertyDetails() async {
     try {
-      final snapshot = await _database
-          .child('room_listings')
-          .child(widget.propertyId)
-          .get();
+      final snapshot =
+          await _database.child('room_listings').child(widget.propertyId).get();
 
       if (snapshot.exists) {
         final data = Map<String, dynamic>.from(snapshot.value as Map);
-        
+
         final ownerEmail = data['email'];
         final usersSnapshot = await _database.child('users').get();
         String ownerName = 'Unknown';
-        
+
         if (usersSnapshot.exists) {
           final users = Map<String, dynamic>.from(usersSnapshot.value as Map);
           users.forEach((key, value) {
@@ -168,7 +164,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           'maxFlatmates': data['maxFlatmates'],
           'gender': data['genderComposition'],
           'occupation': data['occupation'],
-          'images': data['uploadedPhotos'] != null ? List<String>.from(data['uploadedPhotos']) : [data['imageUrl'] ?? ''],
+          'images':
+              data['uploadedPhotos'] != null
+                  ? List<String>.from(data['uploadedPhotos'])
+                  : [data['imageUrl'] ?? ''],
           'amenities': _getFacilities(data['facilities'] as Map?),
           'description': data['notes'] ?? '',
           'ownerName': ownerName,
@@ -181,8 +180,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             'foodPreference': data['foodPreference'] ?? '',
             'smokingPolicy': data['smokingPolicy'] ?? '',
             'drinkingPolicy': data['drinkingPolicy'] ?? '',
-            'guestPolicy': data['guestsPolicy'] ?? ''
-          }
+            'guestPolicy': data['guestsPolicy'] ?? '',
+          },
         };
 
         setState(() {
@@ -212,7 +211,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Future<void> _openGoogleMaps() async {
-    if (propertyData.googleMapsLink == null || propertyData.googleMapsLink!.isEmpty) {
+    if (propertyData.googleMapsLink == null ||
+        propertyData.googleMapsLink!.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -225,14 +225,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
 
     String url = propertyData.googleMapsLink!.trim();
-    
-    if (url.startsWith('maps.google.com') || url.startsWith('www.google.com/maps')) {
+
+    if (url.startsWith('maps.google.com') ||
+        url.startsWith('www.google.com/maps')) {
       url = 'https://' + url;
     } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
       if (url.contains('maps.google.com') || url.contains('goo.gl/maps')) {
         url = 'https://' + url;
       } else {
-        url = 'https://www.google.com/maps/search/?api=1&query=' + Uri.encodeComponent(url);
+        url =
+            'https://www.google.com/maps/search/?api=1&query=' +
+            Uri.encodeComponent(url);
       }
     }
 
@@ -242,16 +245,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         mapsUri,
         mode: LaunchMode.externalApplication,
       );
-      
+
       if (!launched) {
-        final String googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(propertyData.location)}';
+        final String googleMapsUrl =
+            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(propertyData.location)}';
         final Uri gmapsUri = Uri.parse(googleMapsUrl);
         launched = await launchUrl(
           gmapsUri,
           mode: LaunchMode.externalApplication,
         );
       }
-      
+
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -285,24 +289,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (error != null) {
-      return Scaffold(
-        body: Center(
-          child: Text(error!),
-        ),
-      );
+      return Scaffold(body: Center(child: Text(error!)));
     }
 
     return Scaffold(
-      backgroundColor: BuddyTheme.backgroundPrimaryColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
@@ -318,32 +315,31 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   const SizedBox(height: BuddyTheme.spacingLg),
                   _buildPropertyDetails(),
                   const SizedBox(height: BuddyTheme.spacingLg),
-                  if (propertyData.currentFlatmates > 0 || propertyData.maxFlatmates > 0 || 
-                      propertyData.gender.isNotEmpty || propertyData.occupation.isNotEmpty)
-                    ...[
-                      _buildFlatmateInfo(),
-                      const SizedBox(height: BuddyTheme.spacingLg),
-                    ],
-                  if (propertyData.preferences.values.any((value) => value.isNotEmpty))
-                    ...[
-                      _buildLifestylePreferences(),
-                      const SizedBox(height: BuddyTheme.spacingLg),
-                    ],
-                  if (amenities.isNotEmpty)
-                    ...[
-                      _buildAmenities(),
-                      const SizedBox(height: BuddyTheme.spacingLg),
-                    ],
-                  if (propertyData.description.isNotEmpty)
-                    ...[
-                      _buildDescription(),
-                      const SizedBox(height: BuddyTheme.spacingLg),
-                    ],
-                  if (propertyData.ownerName.isNotEmpty)
-                    ...[
-                      _buildOwnerInfo(),
-                      const SizedBox(height: BuddyTheme.spacingXl),
-                    ],
+                  if (propertyData.currentFlatmates > 0 ||
+                      propertyData.maxFlatmates > 0 ||
+                      propertyData.gender.isNotEmpty ||
+                      propertyData.occupation.isNotEmpty) ...[
+                    _buildFlatmateInfo(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (propertyData.preferences.values.any(
+                    (value) => value.isNotEmpty,
+                  )) ...[
+                    _buildLifestylePreferences(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (amenities.isNotEmpty) ...[
+                    _buildAmenities(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (propertyData.description.isNotEmpty) ...[
+                    _buildDescription(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (propertyData.ownerName.isNotEmpty) ...[
+                    _buildOwnerInfo(),
+                    const SizedBox(height: BuddyTheme.spacingXl),
+                  ],
                 ],
               ),
             ),
@@ -355,10 +351,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
-      backgroundColor: BuddyTheme.backgroundPrimaryColor,
+      backgroundColor: cardColor,
       elevation: 0,
       leading: Container(
         margin: const EdgeInsets.all(BuddyTheme.spacingXs),
@@ -367,7 +370,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           shape: BoxShape.circle,
         ),
         child: IconButton(
-          icon: const Icon(Icons.arrow_back, color: BuddyTheme.textPrimaryColor),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: BuddyTheme.textPrimaryColor,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -381,7 +387,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           child: IconButton(
             icon: Icon(
               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              color: isBookmarked ? BuddyTheme.primaryColor : BuddyTheme.textPrimaryColor,
+              color:
+                  isBookmarked
+                      ? BuddyTheme.primaryColor
+                      : BuddyTheme.textPrimaryColor,
             ),
             onPressed: () {
               setState(() {
@@ -433,19 +442,21 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               right: 0,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: propertyImages.asMap().entries.map((entry) {
-                  return Container(
-                    width: 8.0,
-                    height: 8.0,
-                    margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: currentImageIndex == entry.key
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.4),
-                    ),
-                  );
-                }).toList(),
+                children:
+                    propertyImages.asMap().entries.map((entry) {
+                      return Container(
+                        width: 8.0,
+                        height: 8.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              currentImageIndex == entry.key
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.4),
+                        ),
+                      );
+                    }).toList(),
               ),
             ),
           ],
@@ -455,39 +466,54 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildPropertyHeader() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
     return Container(
-      decoration: BuddyTheme.cardDecoration,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+        ),
+      ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             propertyData.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: BuddyTheme.fontSizeXl,
               fontWeight: FontWeight.bold,
-              color: BuddyTheme.textPrimaryColor,
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: BuddyTheme.spacingXs),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.location_on,
                 size: BuddyTheme.iconSizeSm,
-                color: BuddyTheme.textSecondaryColor,
+                color: textSecondary,
               ),
               const SizedBox(width: BuddyTheme.spacingXs),
               Expanded(
                 child: Text(
                   propertyData.location,
-                  style: const TextStyle(
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: textSecondary,
                     fontSize: BuddyTheme.fontSizeMd,
-                    color: BuddyTheme.textSecondaryColor,
                   ),
                 ),
               ),
-              if (propertyData.googleMapsLink != null && propertyData.googleMapsLink!.isNotEmpty)
+              if (propertyData.googleMapsLink != null &&
+                  propertyData.googleMapsLink!.isNotEmpty)
                 GestureDetector(
                   onTap: _openGoogleMaps,
                   child: Container(
@@ -497,7 +523,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: BuddyTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -536,7 +564,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               propertyData.availableFrom.isEmpty
                   ? 'Available Now'
                   : 'Available from: ${propertyData.availableFrom}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: BuddyTheme.fontSizeSm,
                 color: BuddyTheme.successColor,
                 fontWeight: FontWeight.w600,
@@ -567,7 +595,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
@@ -598,7 +628,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
@@ -631,15 +663,22 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildPropertyDetails() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1A1A1A) : theme.cardColor;
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Property Details',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
@@ -654,7 +693,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   iconColor: BuddyTheme.primaryColor,
                 ),
               ),
-            if (propertyData.roomType.isNotEmpty && propertyData.flatSize.isNotEmpty)
+            if (propertyData.roomType.isNotEmpty &&
+                propertyData.flatSize.isNotEmpty)
               const SizedBox(width: BuddyTheme.spacingMd),
             if (propertyData.flatSize.isNotEmpty)
               Expanded(
@@ -679,7 +719,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   iconColor: BuddyTheme.secondaryColor,
                 ),
               ),
-            if (propertyData.furnishing.isNotEmpty && propertyData.bathroom.isNotEmpty)
+            if (propertyData.furnishing.isNotEmpty &&
+                propertyData.bathroom.isNotEmpty)
               const SizedBox(width: BuddyTheme.spacingMd),
             if (propertyData.bathroom.isNotEmpty)
               Expanded(
@@ -697,15 +738,22 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildFlatmateInfo() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1A1A1A) : theme.cardColor;
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Flatmate Information',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
@@ -742,7 +790,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   iconColor: BuddyTheme.secondaryColor,
                 ),
               ),
-            if (propertyData.gender.isNotEmpty && propertyData.occupation.isNotEmpty)
+            if (propertyData.gender.isNotEmpty &&
+                propertyData.occupation.isNotEmpty)
               const SizedBox(width: BuddyTheme.spacingMd),
             if (propertyData.occupation.isNotEmpty)
               Expanded(
@@ -760,20 +809,33 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildLifestylePreferences() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Lifestyle Preferences',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Container(
-          decoration: BuddyTheme.cardDecoration,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
           child: Column(
             children: [
@@ -784,37 +846,40 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   propertyData.preferences['lookingFor']!,
                 ),
               if (propertyData.preferences['lookingFor']?.isNotEmpty ?? false)
-                const Divider(height: BuddyTheme.spacingLg),
-              if (propertyData.preferences['foodPreference']?.isNotEmpty ?? false)
-                _buildPreferenceRow(
-                  Icons.restaurant,
-                  'Food Preference',
-                  propertyData.preferences['foodPreference']!,
-                ),
-              if (propertyData.preferences['foodPreference']?.isNotEmpty ?? false)
-                const Divider(height: BuddyTheme.spacingLg),
-              if (propertyData.preferences['smokingPolicy']?.isNotEmpty ?? false)
-                _buildPreferenceRow(
-                  Icons.smoking_rooms,
-                  'Smoking Policy',
-                  propertyData.preferences['smokingPolicy']!,
-                ),
-              if (propertyData.preferences['smokingPolicy']?.isNotEmpty ?? false)
-                const Divider(height: BuddyTheme.spacingLg),
-              if (propertyData.preferences['drinkingPolicy']?.isNotEmpty ?? false)
-                _buildPreferenceRow(
-                  Icons.local_bar,
-                  'Drinking Policy',
-                  propertyData.preferences['drinkingPolicy']!,
-                ),
-              if (propertyData.preferences['drinkingPolicy']?.isNotEmpty ?? false)
-                const Divider(height: BuddyTheme.spacingLg),
-              if (propertyData.preferences['guestPolicy']?.isNotEmpty ?? false)
-                _buildPreferenceRow(
-                  Icons.people_outline,
-                  'Guest Policy',
-                  propertyData.preferences['guestPolicy']!,
-                ),
+                if (propertyData.preferences['foodPreference']?.isNotEmpty ??
+                    false)
+                  _buildPreferenceRow(
+                    Icons.restaurant,
+                    'Food Preference',
+                    propertyData.preferences['foodPreference']!,
+                  ),
+              if (propertyData.preferences['foodPreference']?.isNotEmpty ??
+                  false)
+                if (propertyData.preferences['smokingPolicy']?.isNotEmpty ??
+                    false)
+                  _buildPreferenceRow(
+                    Icons.smoking_rooms,
+                    'Smoking Policy',
+                    propertyData.preferences['smokingPolicy']!,
+                  ),
+              if (propertyData.preferences['smokingPolicy']?.isNotEmpty ??
+                  false)
+                if (propertyData.preferences['drinkingPolicy']?.isNotEmpty ??
+                    false)
+                  _buildPreferenceRow(
+                    Icons.local_bar,
+                    'Drinking Policy',
+                    propertyData.preferences['drinkingPolicy']!,
+                  ),
+              if (propertyData.preferences['drinkingPolicy']?.isNotEmpty ??
+                  false)
+                if (propertyData.preferences['guestPolicy']?.isNotEmpty ??
+                    false)
+                  _buildPreferenceRow(
+                    Icons.people_outline,
+                    'Guest Policy',
+                    propertyData.preferences['guestPolicy']!,
+                  ),
             ],
           ),
         ),
@@ -823,47 +888,64 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildAmenities() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Facilities & Amenities',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Container(
-          decoration: BuddyTheme.cardDecoration,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
           child: Wrap(
             spacing: BuddyTheme.spacingXs,
             runSpacing: BuddyTheme.spacingXs,
-            children: amenities.map((amenity) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BuddyTheme.spacingSm,
-                  vertical: BuddyTheme.spacingXs,
-                ),
-                decoration: BoxDecoration(
-                  color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                  border: Border.all(
-                    color: BuddyTheme.primaryColor.withOpacity(0.2),
-                  ),
-                ),
-                child: Text(
-                  amenity,
-                  style: const TextStyle(
-                    fontSize: BuddyTheme.fontSizeSm,
-                    color: BuddyTheme.primaryColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }).toList(),
+            children:
+                amenities.map((amenity) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BuddyTheme.spacingSm,
+                      vertical: BuddyTheme.spacingXs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                      border: Border.all(
+                        color: BuddyTheme.primaryColor.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Text(
+                      amenity,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
           ),
         ),
       ],
@@ -871,27 +953,40 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildDescription() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Description',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Container(
-          decoration: BuddyTheme.cardDecoration,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
           width: double.infinity,
           child: Text(
             propertyData.description,
-            style: const TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: BuddyTheme.fontSizeMd,
-              color: BuddyTheme.textPrimaryColor,
+              color: textPrimary,
               height: 1.5,
             ),
           ),
@@ -901,53 +996,95 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildOwnerInfo() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Listed By',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Container(
-          decoration: BuddyTheme.cardDecoration,
+          width: double.infinity,
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: BuddyTheme.secondaryColor,
-                child: Text(
-                  _getInitials(propertyData.ownerName),
-                  style: const TextStyle(
-                    fontSize: BuddyTheme.fontSizeLg,
-                    fontWeight: FontWeight.bold,
-                    color: BuddyTheme.textLightColor,
-                  ),
-                ),
+          margin: const EdgeInsets.all(BuddyTheme.spacingMd),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.18 : 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
-              const SizedBox(width: BuddyTheme.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      propertyData.ownerName,
-                      style: const TextStyle(
-                        fontSize: BuddyTheme.fontSizeLg,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: BuddyTheme.spacingSm),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: BuddyTheme.primaryColor,
+                    child: Text(
+                      _getInitials(propertyData.ownerName),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        color: BuddyTheme.textPrimaryColor,
                       ),
                     ),
-                    const SizedBox(height: BuddyTheme.spacingXs),
-                    Row(
+                  ),
+                  const SizedBox(width: BuddyTheme.spacingSm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          propertyData.ownerName,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  if (propertyData.ownerRating > 0)
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          size: BuddyTheme.iconSizeSm,
+                          color: Colors.amber,
+                        ),
+                        Text(
+                          propertyData.ownerRating.toString(),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ],
           ),
@@ -956,97 +1093,19 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color iconColor,
-  }) {
-    return Container(
-      decoration: BuddyTheme.cardDecoration,
-      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(BuddyTheme.spacingXs),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: BuddyTheme.iconSizeMd,
-            ),
-          ),
-          const SizedBox(height: BuddyTheme.spacingXs),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeXs,
-              color: BuddyTheme.textSecondaryColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: BuddyTheme.spacingXxs),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeSm,
-              fontWeight: FontWeight.w600,
-              color: BuddyTheme.textPrimaryColor,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPreferenceRow(IconData icon, String title, String value) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          color: BuddyTheme.primaryColor,
-          size: BuddyTheme.iconSizeMd,
-        ),
-        const SizedBox(width: BuddyTheme.spacingMd),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeMd,
-              color: BuddyTheme.textPrimaryColor,
-            ),
-          ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeMd,
-              color: BuddyTheme.textSecondaryColor,
-            ),
-            textAlign: TextAlign.right,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildBottomActions() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-      decoration: const BoxDecoration(
-        color: BuddyTheme.backgroundPrimaryColor,
-        border: Border(
-          top: BorderSide(color: BuddyTheme.dividerColor),
-        ),
+      decoration: BoxDecoration(
+        color: cardColor,
+        border: Border.all(color: borderColor),
       ),
       child: SafeArea(
         child: Row(
@@ -1093,7 +1152,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 icon: const Icon(Icons.phone),
                 label: const Text('Call'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: BuddyTheme.spacingSm),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: BuddyTheme.spacingSm,
+                  ),
                   side: const BorderSide(color: BuddyTheme.primaryColor),
                   foregroundColor: BuddyTheme.primaryColor,
                 ),
@@ -1122,7 +1183,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Error sending message: ${e.toString()}'),
+                            content: Text(
+                              'Error sending message: ${e.toString()}',
+                            ),
                             duration: const Duration(seconds: 2),
                           ),
                         );
@@ -1142,7 +1205,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 icon: const Icon(Icons.message),
                 label: const Text('Message'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: BuddyTheme.spacingSm),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: BuddyTheme.spacingSm,
+                  ),
                   backgroundColor: BuddyTheme.primaryColor,
                   foregroundColor: Colors.white,
                 ),
@@ -1161,23 +1226,112 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Interest shown! Owner will be notified.'),
+                        content: Text(
+                          'Interest shown! Owner will be notified.',
+                        ),
                         duration: Duration(seconds: 3),
                         backgroundColor: BuddyTheme.successColor,
                       ),
                     );
                   }
                 },
-                icon: const Icon(
-                  Icons.favorite,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.favorite, color: Colors.white),
                 tooltip: 'Show Interest',
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color iconColor,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+        ),
+      ),
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingXs),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+            ),
+            child: Icon(icon, color: iconColor, size: BuddyTheme.iconSizeMd),
+          ),
+          const SizedBox(height: BuddyTheme.spacingXs),
+          Text(
+            title,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: BuddyTheme.fontSizeXs,
+              color: textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: BuddyTheme.spacingXxs),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreferenceRow(IconData icon, String title, String value) {
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
+    return Row(
+      children: [
+        Icon(icon, color: BuddyTheme.primaryColor, size: BuddyTheme.iconSizeMd),
+        const SizedBox(width: BuddyTheme.spacingMd),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(color: textSecondary),
+            textAlign: TextAlign.right,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 

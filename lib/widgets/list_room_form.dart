@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -192,9 +193,12 @@ class _ListRoomFormState extends State<ListRoomForm>
   void _submitForm() async {
     // Validate form if needed
     // if (!_formKey.currentState!.validate()) return;
+    final userId =
+        FirebaseAuth.instance.currentUser?.uid; // Get current user ID
 
     // Prepare data
     final data = {
+      'userId': userId ?? 'anonymous', // Use anonymous if not logged in
       'title': _titleController.text,
       'location': _locationController.text,
       'locationUrl': _locationUrlController.text,
@@ -1630,15 +1634,16 @@ class _ListRoomFormState extends State<ListRoomForm>
                           ? 'Submit Listing'
                           : 'Next',
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(width: BuddyTheme.spacingSm),
+                    const SizedBox(width: BuddyTheme.spacingXs),
                     Icon(
                       _currentStep == _totalSteps - 1
                           ? Icons.check
                           : Icons.arrow_forward,
+                      color: cardColor,
                     ),
                   ],
                 ),

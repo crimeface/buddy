@@ -5,10 +5,8 @@ import '../theme.dart';
 class FlatmateDetailsPage extends StatelessWidget {
   final Map<String, dynamic> flatmateData;
 
-  const FlatmateDetailsPage({
-    Key? key,
-    required this.flatmateData,
-  }) : super(key: key);
+  const FlatmateDetailsPage({Key? key, required this.flatmateData})
+    : super(key: key);
 
   String _formatDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) return 'Flexible';
@@ -25,13 +23,16 @@ class FlatmateDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Scaffold(
-      backgroundColor: BuddyTheme.backgroundPrimaryColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: BuddyTheme.backgroundPrimaryColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: BuddyTheme.textPrimaryColor),
+          icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -40,51 +41,92 @@ class FlatmateDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildProfileHeader(),
+            _buildProfileHeader(theme),
             const SizedBox(height: BuddyTheme.spacingLg),
-            _buildBasicInformation(),
+            _buildSectionHeader(theme, 'Basic Information'),
+            _buildBasicInformation(theme),
             const SizedBox(height: BuddyTheme.spacingLg),
-            _buildBudgetAndMoveIn(),
+            _buildSectionHeader(theme, 'Budget & Timeline'),
+            _buildBudgetAndMoveIn(theme),
             const SizedBox(height: BuddyTheme.spacingLg),
-            _buildRoomPreferences(),
+            _buildSectionHeader(theme, 'Room Preferences'),
+            _buildRoomPreferences(theme),
             const SizedBox(height: BuddyTheme.spacingLg),
-            _buildFlatmatePreferences(),
+            _buildSectionHeader(theme, 'Flatmate Preferences'),
+            _buildFlatmatePreferences(theme),
             const SizedBox(height: BuddyTheme.spacingLg),
-            _buildLifestylePreferences(),
+            _buildSectionHeader(theme, 'Lifestyle Preferences'),
+            _buildLifestylePreferences(theme),
             const SizedBox(height: BuddyTheme.spacingLg),
             if (flatmateData['bio']?.isNotEmpty ?? false) ...[
-              _buildAboutSection(),
+              _buildSectionHeader(theme, 'About'),
+              _buildAboutSection(theme),
               const SizedBox(height: BuddyTheme.spacingXl),
             ],
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomActions(context),
+      bottomNavigationBar: _buildBottomActions(context, theme),
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildSectionHeader(ThemeData theme, String title) {
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
+      child: Text(
+        title,
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(ThemeData theme) {
+    // Use this for all cardColor assignments in your widgets
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(
+              Colors.white.withOpacity(0.06),
+              theme.cardColor,
+            ) // lighter in dark mode
+            : Color.alphaBlend(
+              Colors.black.withOpacity(0.04),
+              theme.cardColor,
+            ); // darker in light mode
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
     return Container(
-      decoration: BuddyTheme.cardDecoration,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+      ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: Row(
         children: [
           CircleAvatar(
             radius: 40,
             backgroundColor: BuddyTheme.secondaryColor,
-            backgroundImage: flatmateData['imageUrl'] != null
-                ? NetworkImage(flatmateData['imageUrl'])
-                : null,
-            child: flatmateData['imageUrl'] == null
-                ? Text(
-                    flatmateData['name']?.substring(0, 1).toUpperCase() ?? 'U',
-                    style: const TextStyle(
-                      fontSize: BuddyTheme.fontSizeXl,
-                      fontWeight: FontWeight.bold,
-                      color: BuddyTheme.textLightColor,
-                    ),
-                  )
-                : null,
+            backgroundImage:
+                flatmateData['imageUrl'] != null
+                    ? NetworkImage(flatmateData['imageUrl'])
+                    : null,
+            child:
+                flatmateData['imageUrl'] == null
+                    ? Text(
+                      flatmateData['name']?.substring(0, 1).toUpperCase() ??
+                          'U',
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeXl,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSecondary,
+                      ),
+                    )
+                    : null,
           ),
           const SizedBox(width: BuddyTheme.spacingMd),
           Expanded(
@@ -93,36 +135,35 @@ class FlatmateDetailsPage extends StatelessWidget {
               children: [
                 Text(
                   flatmateData['name'] ?? 'Unknown',
-                  style: const TextStyle(
-                    fontSize: BuddyTheme.fontSizeXl,
+                  style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: BuddyTheme.textPrimaryColor,
+                    color: textPrimary,
                   ),
                 ),
                 const SizedBox(height: BuddyTheme.spacingXxs),
                 Text(
                   '${flatmateData['age'] ?? 'N/A'} • ${flatmateData['occupation'] ?? 'N/A'}',
-                  style: const TextStyle(
-                    fontSize: BuddyTheme.fontSizeMd,
-                    color: BuddyTheme.textSecondaryColor,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: textSecondary,
                   ),
                 ),
                 const SizedBox(height: BuddyTheme.spacingXs),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.location_on,
                       size: BuddyTheme.iconSizeSm,
-                      color: BuddyTheme.textSecondaryColor,
+                      color: textSecondary,
                     ),
                     const SizedBox(width: BuddyTheme.spacingXxs),
                     Expanded(
                       child: Text(
-                        flatmateData['preferredLocation'] ?? 'Location not specified',
-                        style: const TextStyle(
-                          fontSize: BuddyTheme.fontSizeSm,
-                          color: BuddyTheme.textSecondaryColor,
+                        flatmateData['preferredLocation'] ??
+                            'Location not specified',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: textSecondary,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -135,286 +176,246 @@ class FlatmateDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBasicInformation() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBasicInformation(ThemeData theme) {
+    return Row(
       children: [
-        const Text(
-          'Basic Information',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+        Expanded(
+          child: _buildInfoCard(
+            theme: theme,
+            icon: Icons.person,
+            title: 'Gender',
+            value: flatmateData['gender'] ?? 'Not specified',
+            iconColor: BuddyTheme.primaryColor,
           ),
         ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Row(
-          children: [
-            Expanded(
-              child: _buildInfoCard(
-                icon: Icons.person,
-                title: 'Gender',
-                value: flatmateData['gender'] ?? 'Not specified',
-                iconColor: BuddyTheme.primaryColor,
-              ),
-            ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-            Expanded(
-              child: _buildInfoCard(
-                icon: Icons.work,
-                title: 'Occupation',
-                value: flatmateData['occupation'] ?? 'Not specified',
-                iconColor: BuddyTheme.accentColor,
-              ),
-            ),
-          ],
+        const SizedBox(width: BuddyTheme.spacingMd),
+        Expanded(
+          child: _buildInfoCard(
+            theme: theme,
+            icon: Icons.work,
+            title: 'Occupation',
+            value: flatmateData['occupation'] ?? 'Not specified',
+            iconColor: BuddyTheme.accentColor,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildBudgetAndMoveIn() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBudgetAndMoveIn(ThemeData theme) {
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
+    return Row(
       children: [
-        const Text(
-          'Budget & Timeline',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: BuddyTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            ),
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Budget Range',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: textSecondary,
+                  ),
                 ),
-                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Budget Range',
-                      style: TextStyle(
-                        fontSize: BuddyTheme.fontSizeSm,
-                        color: BuddyTheme.textSecondaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: BuddyTheme.spacingXs),
-                    Text(
-                      '₹${flatmateData['minBudget'] ?? '0'} - ₹${flatmateData['maxBudget'] ?? '0'}',
-                      style: const TextStyle(
-                        fontSize: BuddyTheme.fontSizeLg,
-                        fontWeight: FontWeight.bold,
-                        color: BuddyTheme.primaryColor,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: BuddyTheme.spacingXs),
+                Text(
+                  '₹${flatmateData['minBudget'] ?? '0'} - ₹${flatmateData['maxBudget'] ?? '0'}',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: BuddyTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: BuddyTheme.successColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+          ),
+        ),
+        const SizedBox(width: BuddyTheme.spacingMd),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: BuddyTheme.successColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            ),
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Move-in Date',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: textSecondary,
+                  ),
                 ),
-                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Move-in Date',
-                      style: TextStyle(
-                        fontSize: BuddyTheme.fontSizeSm,
-                        color: BuddyTheme.textSecondaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: BuddyTheme.spacingXs),
-                    Text(
-                      _formatDate(flatmateData['moveInDate']),
-                      style: const TextStyle(
-                        fontSize: BuddyTheme.fontSizeLg,
-                        fontWeight: FontWeight.bold,
-                        color: BuddyTheme.successColor,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: BuddyTheme.spacingXs),
+                Text(
+                  _formatDate(flatmateData['moveInDate']),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: BuddyTheme.successColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRoomPreferences() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Room Preferences',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Row(
-          children: [
-            Expanded(
-              child: _buildInfoCard(
-                icon: Icons.bed,
-                title: 'Room Type',
-                value: flatmateData['preferredRoomType'] ?? 'Any',
-                iconColor: BuddyTheme.primaryColor,
-              ),
-            ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-            Expanded(
-              child: _buildInfoCard(
-                icon: Icons.chair,
-                title: 'Furnishing',
-                value: flatmateData['furnishingPreference'] ?? 'Any',
-                iconColor: BuddyTheme.accentColor,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFlatmatePreferences() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Flatmate Preferences',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Row(
-          children: [
-            Expanded(
-              child: _buildInfoCard(
-                icon: Icons.group,
-                title: 'Number of Flatmates',
-                value: flatmateData['preferredFlatmates']?.toString() ?? 'Any',
-                iconColor: BuddyTheme.primaryColor,
-              ),
-            ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-            Expanded(
-              child: _buildInfoCard(
-                icon: Icons.people,
-                title: 'Flatmate Gender',
-                value: flatmateData['preferredFlatmateGender'] ?? 'Any',
-                iconColor: BuddyTheme.secondaryColor,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLifestylePreferences() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Lifestyle Preferences',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Container(
-          decoration: BuddyTheme.cardDecoration,
-          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-          child: Column(
-            children: [
-              _buildPreferenceRow(
-                Icons.restaurant,
-                'Food Preference',
-                flatmateData['foodPreference'] ?? 'No preference',
-              ),
-              const Divider(height: BuddyTheme.spacingLg),
-              _buildPreferenceRow(
-                Icons.smoking_rooms,
-                'Smoking',
-                flatmateData['smokingPreference'] ?? 'No preference',
-              ),
-              const Divider(height: BuddyTheme.spacingLg),
-              _buildPreferenceRow(
-                Icons.local_bar,
-                'Drinking',
-                flatmateData['drinkingPreference'] ?? 'No preference',
-              ),
-            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAboutSection() {
-    if (flatmateData['bio']?.isEmpty ?? true) {
-      return const SizedBox.shrink();
-    }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildRoomPreferences(ThemeData theme) {
+    return Row(
       children: [
-        const Text(
-          'About',
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeLg,
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+        Expanded(
+          child: _buildInfoCard(
+            theme: theme,
+            icon: Icons.bed,
+            title: 'Room Type',
+            value: flatmateData['preferredRoomType'] ?? 'Any',
+            iconColor: BuddyTheme.primaryColor,
           ),
         ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Container(
-          decoration: BuddyTheme.cardDecoration,
-          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-          width: double.infinity,
-          child: Text(
-            flatmateData['bio']!,
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeMd,
-              color: BuddyTheme.textPrimaryColor,
-              height: 1.5,
-            ),
+        const SizedBox(width: BuddyTheme.spacingMd),
+        Expanded(
+          child: _buildInfoCard(
+            theme: theme,
+            icon: Icons.chair,
+            title: 'Furnishing',
+            value: flatmateData['furnishingPreference'] ?? 'Any',
+            iconColor: BuddyTheme.accentColor,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFlatmatePreferences(ThemeData theme) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildInfoCard(
+            theme: theme,
+            icon: Icons.group,
+            title: 'Number of Flatmates',
+            value: flatmateData['preferredFlatmates']?.toString() ?? 'Any',
+            iconColor: BuddyTheme.primaryColor,
+          ),
+        ),
+        const SizedBox(width: BuddyTheme.spacingMd),
+        Expanded(
+          child: _buildInfoCard(
+            theme: theme,
+            icon: Icons.people,
+            title: 'Flatmate Gender',
+            value: flatmateData['preferredFlatmateGender'] ?? 'Any',
+            iconColor: BuddyTheme.secondaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLifestylePreferences(ThemeData theme) {
+    // Use this for all cardColor assignments in your widgets
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(
+              Colors.white.withOpacity(0.06),
+              theme.cardColor,
+            ) // lighter in dark mode
+            : Color.alphaBlend(
+              Colors.black.withOpacity(0.04),
+              theme.cardColor,
+            ); // darker in light mode
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+      ),
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      child: Column(
+        children: [
+          _buildPreferenceRow(
+            theme,
+            Icons.restaurant,
+            'Food Preference',
+            flatmateData['foodPreference'] ?? 'No preference',
+          ),
+          Divider(height: BuddyTheme.spacingLg),
+          _buildPreferenceRow(
+            theme,
+            Icons.smoking_rooms,
+            'Smoking',
+            flatmateData['smokingPreference'] ?? 'No preference',
+          ),
+          Divider(height: BuddyTheme.spacingLg),
+          _buildPreferenceRow(
+            theme,
+            Icons.local_bar,
+            'Drinking',
+            flatmateData['drinkingPreference'] ?? 'No preference',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutSection(ThemeData theme) {
+    final cardColor = theme.cardColor;
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      width: double.infinity,
+      child: Text(
+        flatmateData['bio']!,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: textPrimary,
+          height: 1.5,
+        ),
+      ),
     );
   }
 
   Widget _buildInfoCard({
+    required ThemeData theme,
     required IconData icon,
     required String title,
     required String value,
     required Color iconColor,
   }) {
+    // Use this for all cardColor assignments in your widgets
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(
+              Colors.white.withOpacity(0.06),
+              theme.cardColor,
+            ) // lighter in dark mode
+            : Color.alphaBlend(
+              Colors.black.withOpacity(0.04),
+              theme.cardColor,
+            ); // darker in light mode
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
     return Container(
-      decoration: BuddyTheme.cardDecoration,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+      ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: Column(
         children: [
@@ -424,28 +425,23 @@ class FlatmateDetailsPage extends StatelessWidget {
               color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
             ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: BuddyTheme.iconSizeMd,
-            ),
+            child: Icon(icon, color: iconColor, size: BuddyTheme.iconSizeMd),
           ),
           const SizedBox(height: BuddyTheme.spacingXs),
           Text(
             title,
-            style: const TextStyle(
+            style: theme.textTheme.bodySmall?.copyWith(
               fontSize: BuddyTheme.fontSizeXs,
-              color: BuddyTheme.textSecondaryColor,
+              color: textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: BuddyTheme.spacingXxs),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeSm,
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: BuddyTheme.textPrimaryColor,
+              color: textPrimary,
             ),
             textAlign: TextAlign.center,
             maxLines: 2,
@@ -456,44 +452,53 @@ class FlatmateDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildPreferenceRow(IconData icon, String title, String value) {
+  Widget _buildPreferenceRow(
+    ThemeData theme,
+    IconData icon,
+    String title,
+    String value,
+  ) {
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
     return Row(
       children: [
-        Icon(
-          icon,
-          color: BuddyTheme.primaryColor,
-          size: BuddyTheme.iconSizeMd,
-        ),
+        Icon(icon, color: BuddyTheme.primaryColor, size: BuddyTheme.iconSizeMd),
         const SizedBox(width: BuddyTheme.spacingMd),
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeMd,
-              color: BuddyTheme.textPrimaryColor,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
             ),
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: BuddyTheme.fontSizeMd,
-            color: BuddyTheme.textSecondaryColor,
-          ),
+          style: theme.textTheme.bodyMedium?.copyWith(color: textSecondary),
         ),
       ],
     );
   }
 
-  Widget _buildBottomActions(BuildContext context) {
+  Widget _buildBottomActions(BuildContext context, ThemeData theme) {
+    // Use this for all cardColor assignments in your widgets
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(
+              Colors.white.withOpacity(0.06),
+              theme.cardColor,
+            ) // lighter in dark mode
+            : Color.alphaBlend(
+              Colors.black.withOpacity(0.04),
+              theme.cardColor,
+            ); // darker in light mode
+
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-      decoration: const BoxDecoration(
-        color: BuddyTheme.backgroundPrimaryColor,
-        border: Border(
-          top: BorderSide(color: BuddyTheme.dividerColor),
-        ),
-      ),
+      decoration: BoxDecoration(color: cardColor),
       child: Row(
         children: [
           Expanded(
@@ -507,7 +512,9 @@ class FlatmateDetailsPage extends StatelessWidget {
               icon: const Icon(Icons.phone),
               label: const Text('Call'),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: BuddyTheme.spacingSm),
+                padding: const EdgeInsets.symmetric(
+                  vertical: BuddyTheme.spacingSm,
+                ),
               ),
             ),
           ),
@@ -523,7 +530,9 @@ class FlatmateDetailsPage extends StatelessWidget {
               icon: const Icon(Icons.message),
               label: const Text('Message'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: BuddyTheme.spacingSm),
+                padding: const EdgeInsets.symmetric(
+                  vertical: BuddyTheme.spacingSm,
+                ),
               ),
             ),
           ),

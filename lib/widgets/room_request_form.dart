@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme.dart';
 
 class RoomRequestForm extends StatefulWidget {
@@ -172,7 +173,10 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   void _submitForm() async {
     if (_formKey.currentState?.validate() ?? false) {
       // Prepare data to store in Firebase
+      final userId =
+          FirebaseAuth.instance.currentUser?.uid; // Get current user ID
       final data = {
+        'userId': userId ?? 'anonymous', // Use anonymous if not logged in
         'name': _nameController.text,
         'age': _ageController.text,
         'gender': _gender,
@@ -276,27 +280,27 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         ],
       ),
       body: Column(
-          children: [
-            _buildProgressIndicator(),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildBasicInfoStep(),
-                  _buildRoomRequirementsStep(),
-                  _buildAdditionalPreferencesStep(),
-                  _buildContactDetailsStep(),
-                ],
-              ),
+        children: [
+          _buildProgressIndicator(),
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildBasicInfoStep(),
+                _buildRoomRequirementsStep(),
+                _buildAdditionalPreferencesStep(),
+                _buildContactDetailsStep(),
+              ],
             ),
-            _buildNavigationButtons(),
-          ],
-        ),
-      );
+          ),
+          _buildNavigationButtons(),
+        ],
+      ),
+    );
   }
 
-   Widget _buildProgressIndicator() {
+  Widget _buildProgressIndicator() {
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingLg),
       child: Column(
@@ -342,7 +346,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       ),
     );
   }
-
 
   Widget _buildStepContainer({required Widget child}) {
     return SlideTransition(
@@ -994,44 +997,79 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (_currentStep > 0)
-            TextButton.icon(
-              onPressed: _previousStep,
-              icon: Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
-              label: Text(
-                'Previous',
-                style: TextStyle(color: BuddyTheme.primaryColor),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: BuddyTheme.primaryColor,
-              ),
-            )
-          else
-            const SizedBox.shrink(),
-          ElevatedButton(
-            onPressed: _nextStep,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: BuddyTheme.primaryColor,
-              padding: const EdgeInsets.symmetric(
-                horizontal: BuddyTheme.spacingLg,
-                vertical: BuddyTheme.spacingMd,
-              ),
-              elevation: 0,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _currentStep == _totalSteps - 1 ? 'Submit' : 'Next',
-                  style: const TextStyle(color: Colors.white),
+          if (_currentStep > 0) ...[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _previousStep,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: BuddyTheme.spacingMd,
+                  ),
+                  side: BorderSide(color: BuddyTheme.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
+                  ),
                 ),
-                if (_currentStep < _totalSteps - 1) ...[
-                  const SizedBox(width: BuddyTheme.spacingSm),
-                  const Icon(Icons.arrow_forward, color: Colors.white),
-                ],
-              ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
+                    const SizedBox(width: BuddyTheme.spacingSm),
+                    Text(
+                      'Previous',
+                      style: TextStyle(color: BuddyTheme.primaryColor),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: BuddyTheme.spacingMd),
+          ],
+          Expanded(
+            flex: _currentStep == 0 ? 1 : 1,
+            child: ScaleTransition(
+              scale: _fabAnimation,
+              child: ElevatedButton(
+                onPressed:
+                    _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BuddyTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: BuddyTheme.spacingMd,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
+                  ),
+                  elevation: 2,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _currentStep == _totalSteps - 1
+                          ? 'Submit Listing'
+                          : 'Next',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingXs),
+                    Icon(
+                      _currentStep == _totalSteps - 1
+                          ? Icons.check
+                          : Icons.arrow_forward,
+                      color: cardColor,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

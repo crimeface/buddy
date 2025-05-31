@@ -45,6 +45,19 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final sheetColor =
+        isDark
+            ? Color.alphaBlend(
+              Colors.white.withOpacity(0.06),
+              theme.colorScheme.surface,
+            )
+            : Color.alphaBlend(
+              Colors.black.withOpacity(0.04),
+              theme.colorScheme.surface,
+            );
+
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, _) {
@@ -56,9 +69,9 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
             ),
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-              decoration: const BoxDecoration(
-                color: BuddyTheme.backgroundPrimaryColor,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: sheetColor,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(BuddyTheme.borderRadiusXl),
                   topRight: Radius.circular(BuddyTheme.borderRadiusXl),
                 ),
@@ -72,7 +85,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: BuddyTheme.dividerColor,
+                        color: theme.dividerColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -81,14 +94,18 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                     // Title
                     Text(
                       'What would you like to do?',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.textTheme.headlineSmall?.color,
+                      ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
                       'Choose an option to get started',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: BuddyTheme.textSecondaryColor,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                          0.7,
+                        ),
                       ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXl),
@@ -262,11 +279,13 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
     required Gradient gradient,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
       child: Container(
-        height: 173, // Reduced from 175
+        height: 173,
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
@@ -309,7 +328,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                   // Text content
                   Text(
                     title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
@@ -319,7 +338,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                   const SizedBox(height: BuddyTheme.spacingXxs),
                   Text(
                     subtitle,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: Colors.white.withOpacity(0.8),
                       fontSize: 12, // Slightly reduced font size
                     ),
