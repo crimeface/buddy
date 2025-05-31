@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class HostelPgPage extends StatefulWidget {
   const HostelPgPage({Key? key}) : super(key: key);
@@ -37,56 +38,75 @@ class _HostelPgPageState extends State<HostelPgPage> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _hostels = [
-    {
-      'imageUrl':
-          'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80',
-      'title': 'Sunrise Hostel',
-      'price': '\$120',
-      'period': '/mo',
-      'location': 'Downtown, NY',
-      'type': 'Shared',
-      'size': '2 Beds',
-      'available': 'Available Now',
-      'amenities': ['WiFi', 'Laundry', 'Furnished'],
-      'rating': '4.7',
-      'reviews': '18',
-      'verified': true,
-      'distance': 'Near Subway',
-    },
-    {
-      'imageUrl':
-          'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80',
-      'title': 'Sunset PG',
-      'price': '\$150',
-      'period': '/mo',
-      'location': 'Uptown, NY',
-      'type': 'Private',
-      'size': '1 Bed',
-      'available': 'Available Mar 1',
-      'amenities': ['AC', 'Kitchen', 'Parking'],
-      'rating': '4.9',
-      'reviews': '12',
-      'verified': true,
-      'distance': '5 min to Park',
-    },
-    {
-      'imageUrl':
-          'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80',
-      'title': 'Moonlight Hostel',
-      'price': '\$100',
-      'period': '/mo',
-      'location': 'Brooklyn, NY',
-      'type': 'Shared',
-      'size': '4 Beds',
-      'available': 'Available Now',
-      'amenities': ['WiFi', 'Gym', 'Cafeteria'],
-      'rating': '4.5',
-      'reviews': '9',
-      'verified': false,
-      'distance': 'Near Metro',
-    },
-  ];
+  List<Map<String, dynamic>> _hostels = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHostels();
+  }
+
+  Future<void> _fetchHostels() async {
+    setState(() => _isLoading = true);
+    final ref = FirebaseDatabase.instance.ref().child('hostel_listings');
+    final snapshot = await ref.get();
+    final List<Map<String, dynamic>> loadedHostels = [];
+    if (snapshot.exists) {
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      data.forEach((key, value) {
+        final v = Map<String, dynamic>.from(value);
+        loadedHostels.add({
+          ...v,
+          'key': key,
+          // Aliases for filtering and display
+          'location': v['address'] ?? '', // for search/filter
+          'type': v['hostelType'] ?? '', // for filter
+          'amenities': v['facilities'] ?? [], // for filter
+          'imageUrl':
+              (v['uploadedPhotos'] is List &&
+                      (v['uploadedPhotos'] as List).isNotEmpty)
+                  ? v['uploadedPhotos'][0]
+                  : '',
+          'price':
+              (v['roomTypes'] is List && (v['roomTypes'] as List).isNotEmpty)
+                  ? (v['roomTypes'][0]['rentPerPerson']?.toString() ?? '')
+                  : '',
+          // The rest are your original fields
+          'title': v['title'] ?? '',
+          'hostelType': v['hostelType'] ?? '',
+          'hostelFor': v['hostelFor'] ?? '',
+          'contactPerson': v['contactPerson'] ?? '',
+          'phone': v['phone'] ?? '',
+          'email': v['email'] ?? '',
+          'address': v['address'] ?? '',
+          'landmark': v['landmark'] ?? '',
+          'mapLink': v['mapLink'] ?? '',
+          'roomTypes': v['roomTypes'] ?? [],
+          'facilities': v['facilities'] ?? [],
+          'hasEntryTimings': v['hasEntryTimings'] ?? false,
+          'entryTime': v['entryTime'] ?? '',
+          'smokingPolicy': v['smokingPolicy'] ?? '',
+          'drinkingPolicy': v['drinkingPolicy'] ?? '',
+          'guestsPolicy': v['guestsPolicy'] ?? '',
+          'petsPolicy': v['petsPolicy'] ?? '',
+          'foodType': v['foodType'] ?? '',
+          'availableFromDate': v['availableFromDate'] ?? '',
+          'minimumStay': v['minimumStay'] ?? '',
+          'bookingMode': v['bookingMode'] ?? '',
+          'uploadedPhotos': v['uploadedPhotos'] ?? [],
+          'description': v['description'] ?? '',
+          'offers': v['offers'] ?? '',
+          'specialFeatures': v['specialFeatures'] ?? '',
+          'createdAt': v['createdAt'] ?? '',
+        });
+      });
+    }
+    setState(() {
+      _hostels = loadedHostels;
+      _isLoading = false;
+    });
+  }
 
   List<Map<String, dynamic>> get _filteredHostels {
     return _hostels.where((hostel) {
@@ -189,28 +209,37 @@ class _HostelPgPageState extends State<HostelPgPage> {
                     accentColor,
                   ),
                   const SizedBox(height: BuddyTheme.spacingMd),
-                  ..._filteredHostels
-                      .map(
-                        (hostel) => Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: BuddyTheme.spacingMd,
-                          ),
-                          child: _buildHostelCard(
-                            hostel,
-                            cardColor,
-                            borderColor,
-                            textLight,
-                            textPrimary,
-                            textSecondary,
-                            accentColor,
-                            primaryColor,
-                            Theme.of(context).scaffoldBackgroundColor,
-                            successColor,
-                            warningColor,
-                          ),
+                  if (_isLoading)
+                    Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          BuddyTheme.primaryColor,
                         ),
-                      )
-                      .toList(),
+                      ),
+                    )
+                  else
+                    ..._filteredHostels
+                        .map(
+                          (hostel) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: BuddyTheme.spacingMd,
+                            ),
+                            child: _buildHostelCard(
+                              hostel,
+                              cardColor,
+                              borderColor,
+                              textLight,
+                              textPrimary,
+                              textSecondary,
+                              accentColor,
+                              primaryColor,
+                              Theme.of(context).scaffoldBackgroundColor,
+                              successColor,
+                              warningColor,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   const SizedBox(height: BuddyTheme.spacingMd),
                 ],
               ),
@@ -497,6 +526,26 @@ class _HostelPgPageState extends State<HostelPgPage> {
     Color successColor,
     Color warningColor,
   ) {
+    final facilities =
+        (hostel['facilities'] is List)
+            ? hostel['facilities'] as List
+            : (hostel['facilities'] is Map
+                ? (hostel['facilities'] as Map).entries
+                    .where((e) => e.value == true)
+                    .map((e) => e.key)
+                    .toList()
+                : <dynamic>[]);
+
+    final specialFeatures =
+        (hostel['specialFeatures'] is List)
+            ? hostel['specialFeatures'] as List
+            : (hostel['specialFeatures'] is Map
+                ? (hostel['specialFeatures'] as Map).entries
+                    .where((e) => e.value == true)
+                    .map((e) => e.key)
+                    .toList()
+                : <dynamic>[]);
+
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -520,7 +569,7 @@ class _HostelPgPageState extends State<HostelPgPage> {
                   topRight: Radius.circular(16),
                 ),
                 child: CachedNetworkImage(
-                  imageUrl: hostel['imageUrl'],
+                  imageUrl: hostel['imageUrl'] ?? '',
                   height: 220,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -541,100 +590,6 @@ class _HostelPgPageState extends State<HostelPgPage> {
                       ),
                 ),
               ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (hostel['verified'])
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: successColor,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.verified_rounded,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Verified',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.star_rounded,
-                            color: Colors.amber,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${hostel['rating']} (${hostel['reviews']})',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                bottom: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        hostel['available'] == 'Available Now'
-                            ? successColor
-                            : warningColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    hostel['available'],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
           Padding(
@@ -642,160 +597,80 @@ class _HostelPgPageState extends State<HostelPgPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            hostel['title'],
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: textPrimary,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on_outlined,
-                                color: textLight,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
+                Text(
+                  hostel['title'] ?? '',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  hostel['address'] ?? '',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Type: ${hostel['hostelType'] ?? ''} | For: ${hostel['hostelFor'] ?? ''}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: textLight,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (facilities.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children:
+                        facilities
+                            .map<Widget>(
+                              (facility) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: backgroundColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: borderColor),
+                                ),
                                 child: Text(
-                                  hostel['location'],
+                                  facility.toString(),
                                   style: TextStyle(
-                                    fontSize: 14,
                                     color: textSecondary,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hostel['distance'],
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: textLight,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            text: hostel['price'],
-                            style: TextStyle(
-                              fontSize: 24,
-                              color: primaryColor,
-                              fontWeight: FontWeight.w800,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: hostel['period'],
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                hostel['type'],
-                                style: TextStyle(
-                                  color: accentColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: textLight.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                hostel['size'],
-                                style: TextStyle(
-                                  color: textSecondary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                            )
+                            .toList(),
+                  ),
+                const SizedBox(height: 12),
+                Text(
+                  'Rent: ₹${hostel['price']}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: primaryColor,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children:
-                      (hostel['amenities'] as List<String>)
-                          .map(
-                            (amenity) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: backgroundColor,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: borderColor),
-                              ),
-                              child: Text(
-                                amenity,
-                                style: TextStyle(
-                                  color: textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          // TODO: Navigate to details page with hostel['key']
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accentColor,
                           foregroundColor: Colors.white,

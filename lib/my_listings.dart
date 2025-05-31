@@ -36,7 +36,7 @@ class _MyListingsPageState extends State<MyListingsPage> {
       data.forEach((key, value) {
         final listing = Map<String, dynamic>.from(value as Map);
         // Assuming you store user id as 'uid' in each listing
-        if (listing['uid'] == user.uid) {
+        if (listing['userId'] == user.uid) {
           listing['key'] = key;
           myListings.add(listing);
         }
@@ -51,41 +51,45 @@ class _MyListingsPageState extends State<MyListingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Listings'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _listings.isEmpty
+      appBar: AppBar(title: const Text('My Listings')),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _listings.isEmpty
               ? const Center(child: Text('No listings found.'))
               : ListView.builder(
-                  itemCount: _listings.length,
-                  itemBuilder: (context, index) {
-                    final listing = _listings[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: ListTile(
-                        leading: listing['uploadedPhotos'] != null &&
-                                (listing['uploadedPhotos'] as List).isNotEmpty
-                            ? Image.network(
+                itemCount: _listings.length,
+                itemBuilder: (context, index) {
+                  final listing = _listings[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: ListTile(
+                      leading:
+                          listing['uploadedPhotos'] != null &&
+                                  (listing['uploadedPhotos'] as List).isNotEmpty
+                              ? Image.network(
                                 listing['uploadedPhotos'][0],
                                 width: 60,
                                 height: 60,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.image_not_supported),
+                                errorBuilder:
+                                    (context, error, stackTrace) =>
+                                        const Icon(Icons.image_not_supported),
                               )
-                            : const Icon(Icons.home, size: 40),
-                        title: Text(listing['title'] ?? 'No Title'),
-                        subtitle: Text(listing['location'] ?? ''),
-                        trailing: Text('₹${listing['rent'] ?? '-'}'),
-                        onTap: () {
-                          // Optionally, navigate to details page
-                        },
-                      ),
-                    );
-                  },
-                ),
+                              : const Icon(Icons.home, size: 40),
+                      title: Text(listing['title'] ?? 'No Title'),
+                      subtitle: Text(listing['location'] ?? ''),
+                      trailing: Text('₹${listing['rent'] ?? '-'}'),
+                      onTap: () {
+                        // Optionally, navigate to details page
+                      },
+                    ),
+                  );
+                },
+              ),
     );
   }
 }
