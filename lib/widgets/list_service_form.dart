@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../theme.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ListServiceForm extends StatefulWidget {
   const ListServiceForm({Key? key}) : super(key: key);
@@ -22,11 +23,22 @@ class _ListServiceFormState extends State<ListServiceForm>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fabAnimation;
 
+  bool _isNavigating = false;
+  DateTime _lastNavigationTime = DateTime.now();
+
   int _currentStep = 0;
-  final int _totalSteps = 5;
+  final int _totalSteps = 6;
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
+
+  String _selectedPlan = '1Day';
+  final Map<String, int> _planPrices = {
+    '1Day': 29,
+    '7Day': 149,
+    '15Day': 239,
+    '1Month': 499,
+  };
 
   // Basic Service Details
   String _serviceType = 'Library';
@@ -109,6 +121,17 @@ class _ListServiceFormState extends State<ListServiceForm>
   void initState() {
     super.initState();
     _pageController = PageController();
+    
+    // Add listener to sync page changes with step counter
+    _pageController.addListener(() {
+      if (_pageController.page != null &&
+          !_pageController.position.isScrollingNotifier.value) {
+        final newStep = _pageController.page!.round();
+        if (newStep != _currentStep) {
+          setState(() => _currentStep = newStep);
+        }
+      }
+    });
 
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
@@ -178,31 +201,53 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   void _nextStep() {
-    if (_currentStep < _totalSteps - 1) {
-      setState(() {
-        _currentStep++;
-      });
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateProgress();
-      _triggerSlideAnimation();
-    }
+    if (_isNavigating || _currentStep >= _totalSteps - 1) return;
+    
+    final now = DateTime.now();
+    if (now.difference(_lastNavigationTime).inMilliseconds < 300) return;
+    
+    _isNavigating = true;
+    _lastNavigationTime = now;
+
+    setState(() {
+      _currentStep++;
+    });
+
+    _pageController.animateToPage(
+      _currentStep,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    ).then((_) {
+      _isNavigating = false;
+    });
+
+    _updateProgress();
+    _triggerSlideAnimation();
   }
 
   void _previousStep() {
-    if (_currentStep > 0) {
-      setState(() {
-        _currentStep--;
-      });
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateProgress();
-      _triggerSlideAnimation();
-    }
+    if (_isNavigating || _currentStep <= 0) return;
+    
+    final now = DateTime.now();
+    if (now.difference(_lastNavigationTime).inMilliseconds < 300) return;
+    
+    _isNavigating = true;
+    _lastNavigationTime = now;
+
+    setState(() {
+      _currentStep--;
+    });
+
+    _pageController.animateToPage(
+      _currentStep,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    ).then((_) {
+      _isNavigating = false;
+    });
+
+    _updateProgress();
+    _triggerSlideAnimation();
   }
 
   void _updateProgress() {
@@ -216,10 +261,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   void _submitForm() async {
-    // Prepare the data map based on your form fields and service type
-
-    final userId =
-        FirebaseAuth.instance.currentUser?.uid; // Get current user ID
+    final userId = FirebaseAuth.instance.currentUser?.uid;
     final data = {
       'userId': userId,
       'serviceType': _serviceType,
@@ -235,6 +277,9 @@ class _ListServiceFormState extends State<ListServiceForm>
           _closingTime != null ? _closingTime!.format(context) : null,
       'offDay': _offDay,
       'createdAt': DateTime.now().toIso8601String(),
+      'imageUrl':
+          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
+
       // Library-specific
       if (_serviceType == 'Library') ...{
         'libraryType': _libraryType,
@@ -275,8 +320,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     };
 
     try {
-      final dbRef = FirebaseDatabase.instance.ref().child('service_listings');
-      await dbRef.push().set(data);
+      await FirebaseFirestore.instance.collection('service_listings').add(data);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -288,11 +332,7 @@ class _ListServiceFormState extends State<ListServiceForm>
           ),
         ),
       );
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/home',
-        (route) => false, // This clears the navigation stack
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -368,6 +408,7 @@ class _ListServiceFormState extends State<ListServiceForm>
                   _buildTimingsAndContactStep(),
                   _buildSpecificDetailsStep(),
                   _buildPhotosStep(),
+                  _buildPaymentPlanStep(),
                 ],
               ),
             ),
@@ -598,6 +639,172 @@ class _ListServiceFormState extends State<ListServiceForm>
     );
   }
 
+  Widget _buildPaymentPlanStep() {
+    return _buildStepContainer(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStepHeader(
+              '💰 Payment Plan',
+              'Choose how long to keep your listing active',
+            ),
+            const SizedBox(height: BuddyTheme.spacingXl),
+            
+            ..._planPrices.entries.map((plan) => Padding(
+              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
+              child: _buildPlanCard(
+                plan.key,
+                plan.value.toDouble(),
+                isSelected: _selectedPlan == plan.key,
+                onSelect: () => setState(() => _selectedPlan = plan.key),
+              ),
+            )).toList(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
+            _buildPlanInfoCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(String planName, double price, {
+    required bool isSelected,
+    required VoidCallback onSelect,
+  }) {
+    String duration = planName;
+    String formattedPrice = '₹${price.toStringAsFixed(0)}';
+
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          child: Opacity(
+            opacity: value,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onSelect,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : cardColor,
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    border: Border.all(
+                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                      ),
+                      const SizedBox(width: BuddyTheme.spacingMd),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              duration,
+                              style: TextStyle(
+                                color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: BuddyTheme.spacingXs),
+                            Text(
+                              'Keep your listing active for ${duration.toLowerCase()}',
+                              style: TextStyle(
+                                color: textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        formattedPrice,
+                        style: TextStyle(
+                          color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          );
+      },
+    );
+  }
+
+  Widget _buildPlanInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            BuddyTheme.primaryColor.withOpacity(0.1),
+            BuddyTheme.primaryColor.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: BuddyTheme.primaryColor.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: BuddyTheme.primaryColor,
+              ),
+              const SizedBox(width: BuddyTheme.spacingSm),
+              Text(
+                'Plan Benefits',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: BuddyTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BuddyTheme.spacingSm),
+          Text(
+            '• Your listing will be active for the selected duration\n'
+            '• Featured placement in search results\n'
+            '• Email notifications for interested users\n'
+            '• Option to extend duration later',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: BuddyTheme.textSecondaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStepHeader(String title, String subtitle) {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 800),
@@ -632,100 +839,98 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   Widget _buildServiceTypeCards() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.1,
-        crossAxisSpacing: BuddyTheme.spacingSm,
-        mainAxisSpacing: BuddyTheme.spacingSm,
-      ),
-      itemCount: _serviceTypes.length,
-      itemBuilder: (context, index) {
-        String serviceType = _serviceTypes[index];
-        bool isSelected = _serviceType == serviceType;
+  return GridView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      childAspectRatio: 1.1,
+      crossAxisSpacing: BuddyTheme.spacingSm,
+      mainAxisSpacing: BuddyTheme.spacingSm,
+    ),
+    itemCount: _serviceTypes.length,
+    itemBuilder: (context, index) {
+      String serviceType = _serviceTypes[index];
+      bool isSelected = _serviceType == serviceType;
 
-        return TweenAnimationBuilder<double>(
-          duration: Duration(milliseconds: 400 + (index * 100)),
-          tween: Tween(begin: 0.0, end: 1.0),
-          builder: (context, value, child) {
-            return Transform.scale(
-              scale: 0.8 + (0.2 * value),
-              child: Opacity(
-                opacity: value,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _serviceType = serviceType;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
+      return TweenAnimationBuilder<double>(
+        duration: Duration(milliseconds: 400 + (index * 100)),
+        tween: Tween(begin: 0.0, end: 1.0),
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: 0.8 + (0.2 * value),
+            child: Opacity(
+              opacity: value,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _serviceType = serviceType;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? BuddyTheme.primaryColor.withOpacity(0.1)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                      border: Border.all(
+                        color: isSelected
+                            ? BuddyTheme.primaryColor
+                            : BuddyTheme.borderColor,
+                        width: isSelected ? 2 : 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                      decoration: BoxDecoration(
-                        color:
-                            isSelected
-                                ? BuddyTheme.primaryColor.withOpacity(0.1)
-                                : Colors.white,
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _getServiceTypeIcon(serviceType),
+                          style: const TextStyle(fontSize: 32),
                         ),
-                        border: Border.all(
-                          color:
-                              isSelected
-                                  ? BuddyTheme.primaryColor
-                                  : BuddyTheme.borderColor,
-                          width: isSelected ? 2 : 1,
+                        const SizedBox(height: BuddyTheme.spacingSm),
+                        Text(
+                          serviceType,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                color: isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : BuddyTheme.textPrimaryColor,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _getServiceTypeIcon(serviceType),
-                            style: const TextStyle(fontSize: 32),
-                          ),
-                          const SizedBox(height: BuddyTheme.spacingSm),
-                          Text(
-                            serviceType,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleMedium?.copyWith(
-                              color:
-                                  isSelected
-                                      ? BuddyTheme.primaryColor
-                                      : BuddyTheme.textPrimaryColor,
-                              fontWeight:
-                                  isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
 
   Widget _buildServiceTypeInfo() {
     return Container(
@@ -1518,7 +1723,7 @@ class _ListServiceFormState extends State<ListServiceForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }

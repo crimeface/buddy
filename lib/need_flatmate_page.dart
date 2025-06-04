@@ -4,6 +4,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'theme.dart';
 import 'display pages/flatmate_details.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NeedFlatmatePage extends StatefulWidget {
   const NeedFlatmatePage({super.key});
@@ -61,21 +62,35 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   }
 
   Future<void> _fetchFlatmates() async {
-    final ref = FirebaseDatabase.instance.ref().child('room_requests');
-    final snapshot = await ref.get();
-    final List<Map<String, dynamic>> loaded = [];
-    if (snapshot.exists) {
-      final data = snapshot.value as Map<dynamic, dynamic>;
-      data.forEach((key, value) {
-        final flatmate = Map<String, dynamic>.from(value as Map);
-        flatmate['key'] = key;
-        loaded.add(flatmate);
-      });
-    }
     setState(() {
-      _flatmates = loaded;
-      _isLoading = false;
+      _isLoading = true;
     });
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('room_requests')
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      final List<Map<String, dynamic>> loaded = [];
+      for (var doc in querySnapshot.docs) {
+        final flatmate = doc.data();
+        flatmate['key'] = doc.id;
+        loaded.add(flatmate);
+      }
+      setState(() {
+        _flatmates = loaded;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _flatmates = [];
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load flatmates: $e')));
+    }
   }
 
   List<Map<String, dynamic>> get _filteredFlatmates {

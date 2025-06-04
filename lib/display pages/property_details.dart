@@ -1,8 +1,112 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
+
+class FullScreenImageGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const FullScreenImageGallery({
+    Key? key,
+    required this.images,
+    required this.initialIndex,
+  }) : super(key: key);
+
+  @override
+  _FullScreenImageGalleryState createState() => _FullScreenImageGalleryState();
+}
+
+class _FullScreenImageGalleryState extends State<FullScreenImageGallery> {
+  late PageController _pageController;
+  late int currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          GestureDetector(
+            onVerticalDragEnd: (details) {
+              if (details.primaryVelocity! > 0) {
+                Navigator.pop(context);
+              }
+            },
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  currentIndex = index;
+                });
+              },
+              itemCount: widget.images.length,
+              itemBuilder: (context, index) {
+                return InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 3.0,
+                  child: Center(
+                    child: Image.network(
+                      widget.images[index],
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Text(
+                '${currentIndex + 1}/${widget.images.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: BuddyTheme.fontSizeMd,
+                ),
+              ),
+              centerTitle: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class PropertyData {
   final String title;
@@ -18,7 +122,7 @@ class PropertyData {
   final int maxFlatmates;
   final String gender;
   final String occupation;
-  final List<String> images;
+  final Map<String, String> images;
   final List<String> amenities;
   final String description;
   final String ownerName;
@@ -54,45 +158,45 @@ class PropertyData {
   });
 
   factory PropertyData.fromJson(Map<String, dynamic> json) {
-    String formatAvailableDate(String? dateStr) {
-      if (dateStr == null || dateStr.isEmpty) return '';
-      try {
-        if (dateStr.contains('T')) {
-          String date = dateStr.split('T')[0];
-          final parts = date.split('-');
-          if (parts.length == 3) {
-            return '${parts[2]}-${parts[1]}-${parts[0]}';
-          }
-        }
-        return dateStr;
-      } catch (e) {
-        return dateStr;
-      }
+    double parseNumericValue(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
+    int parseIntValue(dynamic value) {
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
     }
 
     return PropertyData(
       title: json['title'] ?? '',
       location: json['location'] ?? '',
-      availableFrom: formatAvailableDate(json['availableFromDate']),
+      availableFrom: json['availableFromDate'] ?? '',
       roomType: json['roomType'] ?? '',
       flatSize: json['flatSize'] ?? '',
       furnishing: json['furnishing'] ?? '',
       bathroom: json['bathroom'] ?? '',
-      monthlyRent: (json['monthlyRent'] ?? 0.0).toDouble(),
-      securityDeposit: (json['securityDeposit'] ?? 0.0).toDouble(),
-      currentFlatmates: json['currentFlatmates'] ?? 0,
-      maxFlatmates: json['maxFlatmates'] ?? 0,
+      monthlyRent: parseNumericValue(json['monthlyRent']),
+      securityDeposit: parseNumericValue(json['securityDeposit']),
+      currentFlatmates: parseIntValue(json['currentFlatmates']),
+      maxFlatmates: parseIntValue(json['maxFlatmates']),
       gender: json['gender'] ?? '',
       occupation: json['occupation'] ?? '',
-      images: List<String>.from(json['images'] ?? []),
-      amenities: List<String>.from(json['amenities'] ?? []),
+      images: (json['images'] as Map<String, dynamic>?)?.map(
+        (key, value) => MapEntry(key, value.toString()),
+      ) ?? {},
+      amenities: (json['amenities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       description: json['description'] ?? '',
       ownerName: json['ownerName'] ?? '',
-      ownerRating: (json['ownerRating'] ?? 0.0).toDouble(),
-      preferences: Map<String, String>.from(json['preferences'] ?? {}),
+      ownerRating: parseNumericValue(json['ownerRating']),
+      preferences: (json['preferences'] as Map<String, dynamic>?)?.map(
+        (key, value) => MapEntry(key, value?.toString() ?? ''),
+      ) ?? {},
       phone: json['phone'] ?? '',
       email: json['email'] ?? '',
-      googleMapsLink: json['googleMapsLink'],
+      googleMapsLink: json['googleMapsLink'] as String?,
     );
   }
 }
@@ -108,7 +212,7 @@ class PropertyDetailsScreen extends StatefulWidget {
 }
 
 class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
-  final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late PropertyData propertyData;
   bool isBookmarked = false;
   int currentImageIndex = 0;
@@ -122,65 +226,69 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     _fetchPropertyDetails();
   }
 
-  String _formatDate(String dateString) {
-    if (dateString.isEmpty) return '';
-    final parts = dateString.split('T')[0].split('-');
-    if (parts.length != 3) return dateString;
-    return '${parts[2]}-${parts[1]}-${parts[0]}';
-  }
-
   Future<void> _fetchPropertyDetails() async {
     try {
-      final snapshot =
-          await _database.child('room_listings').child(widget.propertyId).get();
-
-      if (snapshot.exists) {
-        final data = Map<String, dynamic>.from(snapshot.value as Map);
-
-        final ownerEmail = data['email'];
-        final usersSnapshot = await _database.child('users').get();
+      final propertyDoc = await _firestore.collection('room_listings').doc(widget.propertyId).get();
+      
+      if (propertyDoc.exists) {
+        final data = propertyDoc.data() as Map<String, dynamic>;
+        final ownerEmail = data['email'] as String?;
         String ownerName = 'Unknown';
 
-        if (usersSnapshot.exists) {
-          final users = Map<String, dynamic>.from(usersSnapshot.value as Map);
-          users.forEach((key, value) {
-            if (value['email'] == ownerEmail) {
-              ownerName = value['username'] ?? 'Unknown';
-            }
-          });
+        if (ownerEmail != null) {
+          final userQuery = await _firestore.collection('users')
+              .where('email', isEqualTo: ownerEmail)
+              .limit(1)
+              .get();
+          
+          if (userQuery.docs.isNotEmpty) {
+            ownerName = userQuery.docs.first.data()['username'] ?? 'Unknown';
+          }
+        }        // Helper functions for data conversion
+        double parseDouble(dynamic value) {
+          if (value == null) return 0.0;
+          if (value is num) return value.toDouble();
+          if (value is String) return double.tryParse(value) ?? 0.0;
+          return 0.0;
+        }
+
+        int parseInt(dynamic value, {int defaultValue = 0}) {
+          if (value == null) return defaultValue;
+          if (value is num) return value.toInt();
+          if (value is String) return int.tryParse(value) ?? defaultValue;
+          return defaultValue;
         }
 
         final convertedData = {
-          'title': data['title'],
-          'location': data['location'],
-          'availableFromDate': data['availableFromDate']?.toString() ?? '',
-          'roomType': data['roomType'],
-          'flatSize': data['flatSize'],
-          'furnishing': data['furnishing'],
-          'bathroom': data['hasAttachedBathroom'] ? 'Attached' : 'Not Attached',
-          'monthlyRent': double.parse(data['rent']),
-          'securityDeposit': double.parse(data['deposit']),
-          'currentFlatmates': data['currentFlatmates'],
-          'maxFlatmates': data['maxFlatmates'],
-          'gender': data['genderComposition'],
-          'occupation': data['occupation'],
-          'images':
-              data['uploadedPhotos'] != null
-                  ? List<String>.from(data['uploadedPhotos'])
-                  : [data['imageUrl'] ?? ''],
-          'amenities': _getFacilities(data['facilities'] as Map?),
-          'description': data['notes'] ?? '',
+          'title': data['title']?.toString() ?? '',
+          'location': data['location']?.toString() ?? '',
+          'availableFromDate': data['availableFromDate'] != null ? _formatDate(data['availableFromDate']) : '',
+          'roomType': data['roomType']?.toString() ?? '',
+          'flatSize': data['flatSize']?.toString() ?? '',
+          'furnishing': data['furnishing']?.toString() ?? '',
+          'bathroom': data['hasAttachedBathroom'] == true ? 'Attached' : 'Shared',
+          'gender': data['genderComposition']?.toString() ?? '',
+          'occupation': data['occupation']?.toString() ?? '',
+          'monthlyRent': parseDouble(data['rent']),
+          'securityDeposit': parseDouble(data['deposit']),
+          'currentFlatmates': parseInt(data['currentFlatmates'], defaultValue: 1),
+          'maxFlatmates': parseInt(data['maxFlatmates'], defaultValue: 2),
+          'images': data['uploadedPhotos'] is Map ? Map<String, String>.from(
+            data['uploadedPhotos'].map((key, value) => MapEntry(key.toString(), value.toString()))
+          ) : {},
+          'amenities': _getFacilities(data['facilities']),
+          'description': data['description']?.toString() ?? '',
           'ownerName': ownerName,
           'ownerRating': 0.0,
-          'phone': data['phone'] ?? '',
-          'email': data['email'] ?? '',
-          'googleMapsLink': data['locationUrl'] ?? data['mapLink'] ?? '',
+          'phone': data['phone']?.toString() ?? '',
+          'email': data['email']?.toString() ?? '',
+          'googleMapsLink': data['locationUrl']?.toString() ?? '',
           'preferences': {
-            'lookingFor': data['lookingFor'] ?? '',
-            'foodPreference': data['foodPreference'] ?? '',
-            'smokingPolicy': data['smokingPolicy'] ?? '',
-            'drinkingPolicy': data['drinkingPolicy'] ?? '',
-            'guestPolicy': data['guestsPolicy'] ?? '',
+            'lookingFor': data['lookingFor']?.toString() ?? '',
+            'foodPreference': data['foodPreference']?.toString() ?? '',
+            'smokingPolicy': data['smokingPolicy']?.toString() ?? '',
+            'drinkingPolicy': data['drinkingPolicy']?.toString() ?? '',
+            'guestPolicy': data['guestsPolicy']?.toString() ?? '',
           },
         };
 
@@ -196,18 +304,59 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       }
     } catch (e) {
       setState(() {
-        error = 'Error loading property details';
+        error = 'Error loading property details: ${e.toString()}';
         isLoading = false;
       });
     }
   }
 
-  List<String> _getFacilities(Map? facilities) {
+  String _formatDate(dynamic date) {
+    if (date == null) return '';
+    
+    try {
+      DateTime dateTime;
+      if (date is DateTime) {
+        dateTime = date;
+      } else if (date is Timestamp) {
+        dateTime = date.toDate();
+      } else if (date is String) {
+        // Try to parse the string as a DateTime
+        dateTime = DateTime.parse(date);
+      } else {
+        return '';
+      }
+      
+      // Format as DD-MM-YYYY
+      return '${dateTime.day.toString().padLeft(2, '0')}-'
+          '${dateTime.month.toString().padLeft(2, '0')}-'
+          '${dateTime.year}';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  List<String> _getFacilities(dynamic facilities) {
     if (facilities == null) return [];
-    return facilities.entries
-        .where((entry) => entry.value == true)
-        .map((entry) => entry.key.toString())
-        .toList();
+    
+    if (facilities is Map<String, dynamic>) {
+      // Filter only the true values and get their keys
+      return facilities.entries
+          .where((entry) => entry.value == true)
+          .map((entry) => entry.key.toString())
+          .toList();
+    }
+    
+    if (facilities is List) {
+      // If it's a list, convert all items to strings
+      return facilities.map((item) => item.toString()).toList();
+    }
+    
+    if (facilities is String) {
+      // If it's a single string, return it as a single-item list
+      return [facilities];
+    }
+    
+    return [];
   }
 
   Future<void> _openGoogleMaps() async {
@@ -276,7 +425,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
   }
 
-  List<String> get propertyImages => !isLoading ? propertyData.images : [];
+  List<String> get propertyImages => !isLoading ? propertyData.images.values.toList() : [];
   List<String> get amenities => !isLoading ? propertyData.amenities : [];
   String _getInitials(String name) {
     if (name.isEmpty) return 'UK';
@@ -417,24 +566,87 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           children: [
-            PageView.builder(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() {
-                  currentImageIndex = index;
-                });
-              },
-              itemCount: propertyImages.length,
-              itemBuilder: (context, index) {
-                return Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage(propertyImages[index]),
-                      fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => Scaffold(
+                      backgroundColor: Colors.black,
+                      body: Stack(
+                        children: [
+                          GestureDetector(
+                            onVerticalDragEnd: (details) {
+                              if (details.primaryVelocity! > 0) {
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: PageView.builder(
+                              controller: PageController(initialPage: currentImageIndex),
+                              itemCount: propertyImages.length,
+                              itemBuilder: (context, index) {
+                                return InteractiveViewer(
+                                  minScale: 0.5,
+                                  maxScale: 3.0,
+                                  child: Center(
+                                    child: Image.network(
+                                      propertyImages[index],
+                                      fit: BoxFit.contain,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress.expectedTotalBytes != null
+                                                ? loadingProgress.cumulativeBytesLoaded /
+                                                    loadingProgress.expectedTotalBytes!
+                                                : null,
+                                            color: Colors.white,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: AppBar(
+                              backgroundColor: Colors.transparent,
+                              elevation: 0,
+                              leading: IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
               },
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    currentImageIndex = index;
+                  });
+                },
+                itemCount: propertyImages.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(propertyImages[index]),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
             Positioned(
               bottom: BuddyTheme.spacingMd,
@@ -551,25 +763,69 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             ],
           ),
           const SizedBox(height: BuddyTheme.spacingSm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: BuddyTheme.spacingSm,
-              vertical: BuddyTheme.spacingXs,
-            ),
-            decoration: BoxDecoration(
-              color: BuddyTheme.successColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-            ),
-            child: Text(
-              propertyData.availableFrom.isEmpty
-                  ? 'Available Now'
-                  : 'Available from: ${propertyData.availableFrom}',
-              style: TextStyle(
-                fontSize: BuddyTheme.fontSizeSm,
-                color: BuddyTheme.successColor,
-                fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: BuddyTheme.spacingSm,
+                    vertical: BuddyTheme.spacingXs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: BuddyTheme.successColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                  ),
+                  child: Text(
+                    propertyData.availableFrom.isEmpty
+                        ? 'Available Now'
+                        : 'Available from ${propertyData.availableFrom}',
+                    style: TextStyle(
+                      fontSize: BuddyTheme.fontSizeSm,
+                      color: BuddyTheme.successColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              if (propertyData.googleMapsLink != null &&
+                  propertyData.googleMapsLink!.isNotEmpty) ...[
+                const SizedBox(width: BuddyTheme.spacingMd),
+                GestureDetector(
+                  onTap: _openGoogleMaps,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BuddyTheme.spacingSm,
+                      vertical: BuddyTheme.spacingXs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.map,
+                          size: BuddyTheme.iconSizeSm,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: BuddyTheme.spacingXs),
+                        const Text(
+                          'View on Map',
+                          style: TextStyle(
+                            fontSize: BuddyTheme.fontSizeXs,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -743,8 +999,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     final cardColor = isDark ? const Color(0xFF1A1A1A) : theme.cardColor;
     final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
-    final textSecondary =
-        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1020,7 +1275,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-          margin: const EdgeInsets.all(BuddyTheme.spacingMd),
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
@@ -1035,56 +1289,53 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              const SizedBox(height: BuddyTheme.spacingSm),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor: BuddyTheme.primaryColor,
-                    child: Text(
-                      _getInitials(propertyData.ownerName),
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: BuddyTheme.primaryColor,
+                child: Text(
+                  _getInitials(propertyData.ownerName),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: BuddyTheme.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      propertyData.ownerName,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
+                        color: textPrimary,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: BuddyTheme.spacingSm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          propertyData.ownerName,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: textPrimary,
+                    if (propertyData.ownerRating > 0) ...[
+                      const SizedBox(height: BuddyTheme.spacingXs),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            size: BuddyTheme.iconSizeSm,
+                            color: Colors.amber,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (propertyData.ownerRating > 0)
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          size: BuddyTheme.iconSizeSm,
-                          color: Colors.amber,
-                        ),
-                        Text(
-                          propertyData.ownerRating.toString(),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: textPrimary,
+                          const SizedBox(width: BuddyTheme.spacingXs),
+                          Text(
+                            propertyData.ownerRating.toString(),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                ],
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -1100,12 +1351,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         isDark
             ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
             : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
-    final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       decoration: BoxDecoration(
         color: cardColor,
-        border: Border.all(color: borderColor),
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+        ),
       ),
       child: SafeArea(
         child: Row(
@@ -1131,21 +1384,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error making call: ${e.toString()}'),
-                            duration: const Duration(seconds: 2),
+                          const SnackBar(
+                            content: Text('Error making call'),
+                            duration: Duration(seconds: 2),
                           ),
                         );
                       }
-                    }
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Phone number not available'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
                     }
                   }
                 },
@@ -1183,60 +1427,23 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                              'Error sending message: ${e.toString()}',
-                            ),
+                            content: Text('Error sending message: ${e.toString()}'),
                             duration: const Duration(seconds: 2),
                           ),
                         );
                       }
-                    }
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Phone number not available'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
                     }
                   }
                 },
                 icon: const Icon(Icons.message),
                 label: const Text('Message'),
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: BuddyTheme.primaryColor,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     vertical: BuddyTheme.spacingSm,
                   ),
-                  backgroundColor: BuddyTheme.primaryColor,
-                  foregroundColor: Colors.white,
                 ),
-              ),
-            ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-            Container(
-              decoration: BoxDecoration(
-                color: BuddyTheme.successColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-              ),
-              child: IconButton(
-                onPressed: () {
-                  // Handle interest/inquiry
-                  HapticFeedback.lightImpact();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Interest shown! Owner will be notified.',
-                        ),
-                        duration: Duration(seconds: 3),
-                        backgroundColor: BuddyTheme.successColor,
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.favorite, color: Colors.white),
-                tooltip: 'Show Interest',
               ),
             ),
           ],
@@ -1270,6 +1477,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(BuddyTheme.spacingXs),
@@ -1286,7 +1494,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               fontSize: BuddyTheme.fontSizeXs,
               color: textSecondary,
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: BuddyTheme.spacingXxs),
           Text(
@@ -1295,7 +1502,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               fontWeight: FontWeight.w600,
               color: textPrimary,
             ),
-            textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1309,29 +1515,32 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
 
-    return Row(
-      children: [
-        Icon(icon, color: BuddyTheme.primaryColor, size: BuddyTheme.iconSizeMd),
-        const SizedBox(width: BuddyTheme.spacingMd),
-        Expanded(
-          child: Text(
-            title,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
+      child: Row(
+        children: [
+          Icon(icon, color: BuddyTheme.primaryColor, size: BuddyTheme.iconSizeMd),
+          const SizedBox(width: BuddyTheme.spacingMd),
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
             ),
           ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(color: textSecondary),
-            textAlign: TextAlign.right,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          Flexible(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(color: textSecondary),
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

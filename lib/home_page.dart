@@ -7,6 +7,7 @@ import 'widgets/action_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 
 export 'profile_page.dart';
 export 'need_room_page.dart';
@@ -206,6 +207,7 @@ class _HomePageState extends State<HomePage>
     with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   String _userName = '';
+  String _selectedLocation = 'Select Location';
 
   @override
   void initState() {
@@ -260,11 +262,10 @@ class _HomePageState extends State<HomePage>
           ),
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              padding: const EdgeInsets.only(left: BuddyTheme.spacingMd, right: BuddyTheme.spacingMd, bottom: BuddyTheme.spacingMd),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  _buildCompactHeader(context),
-                  const SizedBox(height: BuddyTheme.spacingLg),
+                  _buildUpdatedHeader(context),
                   
                   // Section header for Hostels & PGs
                   _buildSectionHeader(context, 'Hostels & PGs'),
@@ -299,85 +300,203 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildCompactHeader(BuildContext context) {
+  Widget _buildUpdatedHeader(BuildContext context) {
     final theme = Theme.of(context);
     final user = FirebaseAuth.instance.currentUser;
     final String? avatarUrl = user?.photoURL;
 
     return Container(
-      padding: const EdgeInsets.all(16.0),
-      // Removed the gradient decoration - now uses direct background
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: Column(
         children: [
-          // Greeting and Name
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hello,',
-                  style: theme.textTheme.titleMedium!.copyWith(
-                    fontSize: 16,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  '$_userName!',
-                  style: theme.textTheme.titleLarge!.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          // Profile Avatar
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  BuddyTheme.primaryColor.withOpacity(0.3),
-                  BuddyTheme.secondaryColor.withOpacity(0.3),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: BuddyTheme.primaryColor.withOpacity(0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Container(
-              margin: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(shape: BoxShape.circle),
-              child: ClipOval(
-                child: CachedNetworkImage(
-                  imageUrl: avatarUrl ?? 'https://via.placeholder.com/150',
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Shimmer.fromColors(
-                    baseColor: theme.colorScheme.surfaceVariant,
-                    highlightColor: theme.colorScheme.surface,
-                    child: Container(color: Colors.white),
-                  ),
-                  errorWidget: (context, url, error) => Icon(
-                    Icons.person,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    size: 24,
-                  ),
+          // Top row with greeting and profile
+          Row(
+            children: [
+              // Greeting and Name
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hello $_userName,',
+                      style: theme.textTheme.titleLarge!.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 22,
+                        color: theme.brightness == Brightness.dark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () {
+                        _showLocationSelector(context);
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.7) : Colors.black54,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _selectedLocation,
+                            style: theme.textTheme.bodyMedium!.copyWith(
+                              color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.7) : Colors.black54,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+              // Profile Avatar with black circle border and tap functionality
+              GestureDetector(
+                onTap: () => widget.onTabChange?.call(3), // Navigate to Profile tab
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.4) : Colors.black.withOpacity(0.4),
+                      width: 2,
+                    ),
+                  ),
+                  child: Container(
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+                    ),
+                    child: ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: avatarUrl ?? 'https://via.placeholder.com/150',
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Shimmer.fromColors(
+                          baseColor: theme.colorScheme.surfaceVariant,
+                          highlightColor: theme.colorScheme.surface,
+                          child: Container(color: Colors.white),
+                        ),
+                        errorWidget: (context, url, error) => Icon(
+                          Icons.person,
+                          color: BuddyTheme.primaryColor,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          // Promotional Banner Carousel
+          _buildPromoBannerCarousel(context),
         ],
       ),
+    );
+  }
+
+  Widget _buildPromoBannerCarousel(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    // Define your promotional banners
+    final List<Map<String, dynamic>> banners = [
+      {
+        'title': 'HOSTEL & PGs',
+        'subtitle': 'Find Your Perfect Accommodation',
+        'icon': Icons.home_work,
+        'image': 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80'
+      },
+      {
+        'title': 'NEEDY SERVICES',
+        'subtitle': 'Get Connected with Local Services',
+        'icon': Icons.support_agent,
+        'image': 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        'title': 'FLATMATES FINDER',
+        'subtitle': 'Connect With Perfect Roommates',
+        'icon': Icons.people,
+        'image': 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        'title': 'ROOM FINDER',
+        'subtitle': 'Discover Your Ideal Space',
+        'icon': Icons.bed,
+        'image': 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80',
+      },
+    ];
+
+    return _BannerCarouselWidget(banners: banners, theme: theme);
+  }
+
+  void _showLocationSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 300,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Location',
+                style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.my_location),
+                title: const Text('Use current location'),
+                onTap: () {
+                  setState(() {
+                    _selectedLocation = 'Current Location';
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.location_city),
+                title: const Text('Mumbai, Maharashtra'),
+                onTap: () {
+                  setState(() {
+                    _selectedLocation = 'Mumbai, Maharashtra';
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.location_city),
+                title: const Text('Pune, Maharashtra'),
+                onTap: () {
+                  setState(() {
+                    _selectedLocation = 'Pune, Maharashtra';
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.location_city),
+                title: const Text('Kolhapur, Maharashtra'),
+                onTap: () {
+                  setState(() {
+                    _selectedLocation = 'Kolhapur, Maharashtra';
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -805,6 +924,185 @@ class _HomePageState extends State<HomePage>
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.onSurface,
             fontSize: 20,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BannerCarouselWidget extends StatefulWidget {
+  final List<Map<String, dynamic>> banners;
+  final ThemeData theme;
+
+  const _BannerCarouselWidget({
+    required this.banners,
+    required this.theme,
+  });
+
+  @override
+  State<_BannerCarouselWidget> createState() => _BannerCarouselWidgetState();
+}
+
+class _BannerCarouselWidgetState extends State<_BannerCarouselWidget> {
+  final PageController _pageController = PageController();
+  int _currentIndex = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoScroll();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoScroll() {
+    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (mounted && _pageController.hasClients) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          height: 120,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index % widget.banners.length;
+              });
+            },
+            itemCount: null, // Infinite scroll
+            itemBuilder: (context, index) {
+              final bannerIndex = index % widget.banners.length;
+              final banner = widget.banners[bannerIndex];
+              return Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Theme.of(context).cardColor,
+                ),
+                child: Stack(
+                  children: [
+                    // Background image
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: banner['image'] as String,
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Shimmer.fromColors(
+                          baseColor: widget.theme.colorScheme.surfaceVariant,
+                          highlightColor: widget.theme.colorScheme.surface,
+                          child: Container(
+                            height: 120,
+                            color: widget.theme.colorScheme.surfaceVariant,
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          height: 120,
+                          color: widget.theme.colorScheme.surface,
+                          child: Icon(
+                            banner['icon'] as IconData,
+                            size: 40,
+                            color: widget.theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Dark overlay for better text readability
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.black.withOpacity(0.4),
+                      ),
+                    ),
+                    // Content
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  banner['title'] as String,
+                                  style: widget.theme.textTheme.titleLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  banner['subtitle'] as String,
+                                  style: widget.theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            banner['icon'] as IconData,
+                            color: Colors.white.withOpacity(0.9),
+                            size: 32,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Page indicators
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.banners.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              height: 4,
+              width: _currentIndex == index ? 16 : 4,
+              decoration: BoxDecoration(
+                color: _currentIndex == index
+                    ? BuddyTheme.primaryColor
+                    : BuddyTheme.primaryColor.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
           ),
         ),
       ],

@@ -3,7 +3,9 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import './services/cloudinary_service.dart';
+// Make sure uploadImage is a top-level function in cloudinary_service.dart and is exported.
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -23,11 +25,10 @@ class _EditProfilePageState extends State<EditProfilePage>
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _bioController = TextEditingController();
-  final _websiteController = TextEditingController();
-  final _locationController = TextEditingController();
-
   File? _profileImage;
   bool _isLoading = false;
+
+  String _profileImageUrlFromFirestore = '';
 
   @override
   void initState() {
@@ -47,8 +48,7 @@ class _EditProfilePageState extends State<EditProfilePage>
     );
     _animationController.forward();
 
-    // Load existing data
-    _loadUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserData());
   }
 
   @override
@@ -58,23 +58,32 @@ class _EditProfilePageState extends State<EditProfilePage>
     _emailController.dispose();
     _phoneController.dispose();
     _bioController.dispose();
-    _websiteController.dispose();
-    _locationController.dispose();
     super.dispose();
   }
 
-  void _loadUserData() {
-    // Simulate loading existing user data
-    _nameController.text = '';
-    _emailController.text = '';
-    _phoneController.text = '';
-    _bioController.text = '';
+  void _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+    if (doc.exists) {
+      final data = doc.data()!;
+      setState(() {
+        _nameController.text = data['username'] ?? '';
+        _emailController.text = data['email'] ?? '';
+        _phoneController.text = data['phone'] ?? '';
+        _bioController.text = data['bio'] ?? '';
+        _profileImageUrlFromFirestore = data['profileImageUrl'] ?? '';
+      });
+    }
   }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
 
-    // Show image source selection
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -87,6 +96,7 @@ class _EditProfilePageState extends State<EditProfilePage>
         setState(() {
           _profileImage = File(picked.path);
         });
+        await _saveProfileImageOnly();
       }
     }
   }
@@ -162,43 +172,100 @@ class _EditProfilePageState extends State<EditProfilePage>
       return;
     }
 
+    String? profileImageUrl;
+    if (_profileImage != null) {
+      profileImageUrl = await CloudinaryService.uploadImage(
+        _profileImage!.path,
+      );
+      if (profileImageUrl == null) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to upload profile image.')),
+        );
+        return;
+      }
+    }
+
     final data = {
       'username': _nameController.text,
       'email': _emailController.text,
       'phone': _phoneController.text,
+      'bio': _bioController.text,
+      if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
     };
 
-    // Remove null values (e.g., if image not updated)
     data.removeWhere((key, value) => value == null);
 
-    // Save to Firebase Realtime Database
-    await FirebaseDatabase.instance
-        .ref()
-        .child('users')
-        .child(user.uid)
-        .update(data);
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set(data, SetOptions(merge: true));
 
-    setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
 
-    if (mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Profile updated successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Profile updated successfully!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          content: Text('Failed to update profile: $e'),
+          backgroundColor: Colors.red,
         ),
       );
-      Navigator.pop(context);
     }
+  }
+
+  Future<void> _saveProfileImageOnly() async {
+    if (_profileImage == null) return;
+    setState(() => _isLoading = true);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User not logged in!')));
+      return;
+    }
+
+    String? profileImageUrl = await CloudinaryService.uploadImage(
+      _profileImage!.path,
+    );
+    if (profileImageUrl == null) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to upload profile image.')),
+      );
+      return;
+    }
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'profileImageUrl': profileImageUrl,
+    }, SetOptions(merge: true));
+
+    setState(() {
+      _profileImageUrlFromFirestore = profileImageUrl;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -304,9 +371,12 @@ class _EditProfilePageState extends State<EditProfilePage>
                   backgroundImage:
                       _profileImage != null
                           ? FileImage(_profileImage!)
-                          : const NetworkImage(
-                                'https://randomuser.me/api/portraits/men/32.jpg',
-                              )
+                          : (_profileImageUrlFromFirestore != null &&
+                                      _profileImageUrlFromFirestore.isNotEmpty
+                                  ? NetworkImage(_profileImageUrlFromFirestore)
+                                  : const NetworkImage(
+                                    'https://randomuser.me/api/portraits/men/32.jpg',
+                                  ))
                               as ImageProvider,
                 ),
               ),

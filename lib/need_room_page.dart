@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'main.dart'; // Add this import
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NeedRoomPage extends StatefulWidget {
   const NeedRoomPage({super.key});
@@ -100,27 +102,36 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   }
 
   Future<void> _fetchRooms() async {
-    final ref = FirebaseDatabase.instance.ref().child('room_listings');
-    final snapshot = await ref.get();
-    final List<Map<String, dynamic>> loadedRooms = [];
-    if (snapshot.exists) {
-      print('Fetched room listings snapshot exists');
-      final data = snapshot.value as Map<dynamic, dynamic>;
-      print('Raw data from Firebase: $data');
-      data.forEach((key, value) {
-        final room = Map<String, dynamic>.from(value as Map);
-        room['id'] = key; // Store the Firebase key as ID
-        room['key'] = key; // Keep key for backward compatibility
-        loadedRooms.add(room);
-      });
-      print('Processed ${loadedRooms.length} rooms');
-    } else {
-      print('No room listings found in Firebase');
-    }
     setState(() {
-      _rooms = loadedRooms;
-      _isLoading = false;
+      _isLoading = true;
     });
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('room_listings')
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      final List<Map<String, dynamic>> loadedRooms = [];
+      for (var doc in querySnapshot.docs) {
+        final room = doc.data();
+        room['id'] = doc.id;
+        room['key'] = doc.id;
+        loadedRooms.add(room);
+      }
+      setState(() {
+        _rooms = loadedRooms;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _rooms = [];
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load rooms: $e')));
+    }
   }
 
   List<Map<String, dynamic>> get _filteredRooms {
@@ -521,6 +532,30 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
     Color successColor,
     Color warningColor,
   ) {
+    // Get the image URL from the firstPhoto field or try to find one from uploadedPhotos
+    String? imageUrl = room['firstPhoto'] as String?;
+    if (imageUrl == null && room['uploadedPhotos'] != null) {
+      final photos = room['uploadedPhotos'];
+      if (photos is Map<String, dynamic>) {
+        // New format with categories
+        for (final categoryPhotos in photos.values) {
+          if (categoryPhotos is List && categoryPhotos.isNotEmpty) {
+            imageUrl = categoryPhotos[0] as String;
+            break;
+          }
+        }
+      } else if (photos is List) {
+        // Old format - direct list of photos
+        if (photos.isNotEmpty) {
+          imageUrl = photos[0].toString();
+        }
+      }
+    }
+    // Fallback to imageUrl field if no photos found
+    if (imageUrl == null && room['imageUrl'] != null && room['imageUrl'].toString().isNotEmpty) {
+      imageUrl = room['imageUrl'];
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -540,28 +575,35 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
           Stack(
             children: [
               // Property image
-              if (room['imageUrl'] != null &&
-                  room['imageUrl'].toString().isNotEmpty)
+              if (imageUrl != null)
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),
                   ),
-                  child: Image.network(
-                    room['imageUrl'],
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder:
-                        (context, error, stackTrace) => Container(
-                          color: borderColor,
-                          height: 200,
-                          child: Icon(
-                            Icons.image_not_supported_outlined,
-                            color: textLight,
-                            size: 48,
-                          ),
+                    placeholder: (context, url) => Container(
+                      height: 200,
+                      color: borderColor,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: accentColor,
                         ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      height: 200,
+                      color: borderColor,
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        color: textLight,
+                        size: 48,
+                      ),
+                    ),
                   ),
                 )
               else

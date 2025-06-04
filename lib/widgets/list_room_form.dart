@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../services/cloudinary_service.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -22,7 +25,7 @@ class _ListRoomFormState extends State<ListRoomForm>
   late Animation<double> _fabAnimation;
 
   int _currentStep = 0;
-  final int _totalSteps = 7;
+  final int _totalSteps = 8; // Updated from 7 to 8
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
@@ -30,8 +33,7 @@ class _ListRoomFormState extends State<ListRoomForm>
   // Flat Details
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
-  final _locationUrlController =
-      TextEditingController(); // Not used in this example
+  final _locationUrlController =TextEditingController(); // Not used in this example
   final _rentController = TextEditingController();
   final _depositController = TextEditingController();
   DateTime? _availableFromDate;
@@ -67,7 +69,19 @@ class _ListRoomFormState extends State<ListRoomForm>
   String _guestsPolicy = 'Allowed';
 
   // Photos
-  List<String> _uploadedPhotos = [];
+  final Map<String, List<String>> _uploadedPhotos = {
+    'Room': [],
+    'Washroom': [],
+    'Kitchen': [],
+    'Building': [],
+  };
+  final Map<String, List<String>> _uploadedPhotoUrls = {
+    'Room': [],
+    'Washroom': [],
+    'Kitchen': [],
+    'Building': [],
+  };
+  final ImagePicker _picker = ImagePicker();
   final List<String> _requiredPhotoTypes = [
     'Room',
     'Washroom',
@@ -80,6 +94,15 @@ class _ListRoomFormState extends State<ListRoomForm>
   final _emailController = TextEditingController();
   final _notesController = TextEditingController();
 
+  // Payment Plan
+  String _selectedPlan = '1Day';
+  final Map<String, double> _planPrices = {
+    '1Day': 29.0,
+    '7Day': 149.0,
+    '15Day': 239.0,
+    '1Month': 499.0,
+  };
+
   // Add these theme variables
   late ThemeData theme;
   late Color scaffoldBg;
@@ -87,14 +110,25 @@ class _ListRoomFormState extends State<ListRoomForm>
   late Color textPrimary;
   late Color textSecondary;
 
+
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    _pageController.addListener(() {
+      if (_pageController.page?.round() != _currentStep) {
+        setState(() {
+          _currentStep = _pageController.page!.round();
+        });
+        _updateProgress();
+        _triggerSlideAnimation();
+      }
+    });
 
     _progressAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
       vsync: this,
+      duration: const Duration(milliseconds: 500),
     );
 
     _slideAnimationController = AnimationController(
@@ -153,31 +187,23 @@ class _ListRoomFormState extends State<ListRoomForm>
   }
 
   void _nextStep() {
-    if (_currentStep < _totalSteps - 1) {
-      setState(() {
-        _currentStep++;
-      });
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateProgress();
-      _triggerSlideAnimation();
-    }
+    if (_currentStep >= _totalSteps - 1) return;
+    
+    _pageController.animateToPage(
+      _currentStep + 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   void _previousStep() {
-    if (_currentStep > 0) {
-      setState(() {
-        _currentStep--;
-      });
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateProgress();
-      _triggerSlideAnimation();
-    }
+    if (_currentStep <= 0) return;
+    
+    _pageController.animateToPage(
+      _currentStep - 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   void _updateProgress() {
@@ -191,14 +217,11 @@ class _ListRoomFormState extends State<ListRoomForm>
   }
 
   void _submitForm() async {
-    // Validate form if needed
-    // if (!_formKey.currentState!.validate()) return;
-    final userId =
-        FirebaseAuth.instance.currentUser?.uid; // Get current user ID
+    final userId = FirebaseAuth.instance.currentUser?.uid;
 
     // Prepare data
     final data = {
-      'userId': userId ?? 'anonymous', // Use anonymous if not logged in
+      'userId': userId ?? 'anonymous',
       'title': _titleController.text,
       'location': _locationController.text,
       'locationUrl': _locationUrlController.text,
@@ -220,19 +243,13 @@ class _ListRoomFormState extends State<ListRoomForm>
       'drinkingPolicy': _drinkingPolicy,
       'petsPolicy': _petsPolicy,
       'guestsPolicy': _guestsPolicy,
-      'uploadedPhotos': _uploadedPhotos,
-      'phone': _phoneController.text,
-      'email': _emailController.text,
-      'notes': _notesController.text,
+      'uploadedPhotos': _uploadedPhotoUrls.map((key, value) => MapEntry(key, value)),
+      'firstPhoto': _uploadedPhotoUrls.values.firstWhere((list) => list.isNotEmpty, orElse: () => []).firstOrNull,
       'createdAt': DateTime.now().toIso8601String(),
-      'imageUrl':
-          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
-      // Not used in this example
     };
 
     try {
-      final dbRef = FirebaseDatabase.instance.ref().child('room_listings');
-      await dbRef.push().set(data);
+      await FirebaseFirestore.instance.collection('room_listings').add(data);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -255,15 +272,83 @@ class _ListRoomFormState extends State<ListRoomForm>
     }
   }
 
+  Future<void> _uploadPhoto(String photoType) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85, // Compress image for faster upload
+        maxWidth: 1920,   // Max width for the image
+        maxHeight: 1080,  // Max height for the image
+      );
+      if (image == null) return;
+
+      // Show loading indicator
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Text('Uploading image...'),
+            ],
+          ),
+          duration: const Duration(seconds: 1),
+          backgroundColor: BuddyTheme.primaryColor,
+        ),
+      );
+
+      // Upload to Cloudinary
+      String cloudinaryUrl = await CloudinaryService.uploadImage(image.path);
+      
+      if (!mounted) return;
+      setState(() {
+        if (!_uploadedPhotoUrls.containsKey(photoType)) {
+          _uploadedPhotoUrls[photoType] = [];
+        }
+        _uploadedPhotoUrls[photoType]!.add(cloudinaryUrl);
+        
+        if (!_uploadedPhotos.containsKey(photoType)) {
+          _uploadedPhotos[photoType] = [];
+        }
+        _uploadedPhotos[photoType]!.add(image.path);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image uploaded successfully!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload image: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     theme = Theme.of(context);
     scaffoldBg = theme.scaffoldBackgroundColor;
-    // Custom card color for better contrast
-    cardColor =
-        theme.brightness == Brightness.dark
-            ? const Color(0xFF23262F)
-            : const Color.fromARGB(255, 226, 227, 231);
+    cardColor = theme.brightness == Brightness.dark
+        ? const Color(0xFF23262F)
+        : const Color.fromARGB(255, 226, 227, 231);
     textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
     textSecondary =
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
@@ -278,53 +363,31 @@ class _ListRoomFormState extends State<ListRoomForm>
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: BuddyTheme.spacingMd),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BuddyTheme.spacingSm,
-                  vertical: BuddyTheme.spacingXs,
-                ),
-                decoration: BoxDecoration(
-                  color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    BuddyTheme.borderRadiusSm,
-                  ),
-                ),
-                child: Text(
-                  'Step ${_currentStep + 1}/$_totalSteps',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: BuddyTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            _buildProgressIndicator(),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildFlatDetailsStep(),
+                  _buildLocationAndDateStep(),
+                  _buildPricingStep(),
+                  _buildFlatmateDetailsStep(),
+                  _buildFacilitiesStep(),
+                  _buildPreferencesStep(),
+                  _buildPhotosAndContactStep(),
+                  _buildPaymentPlanStep(),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildProgressIndicator(),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildFlatDetailsStep(),
-                _buildLocationAndDateStep(),
-                _buildPricingStep(),
-                _buildFlatmateDetailsStep(),
-                _buildFacilitiesStep(),
-                _buildPreferencesStep(),
-                _buildPhotosAndContactStep(),
-              ],
-            ),
-          ),
-          _buildNavigationButtons(),
-        ],
+            _buildNavigationButtons(),
+          ],
+        ),
       ),
     );
   }
@@ -690,36 +753,191 @@ class _ListRoomFormState extends State<ListRoomForm>
     );
   }
 
-  Widget _buildStepHeader(String title, String subtitle) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 800),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+  Widget _buildPaymentPlanStep() {
+    return _buildStepContainer(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStepHeader(
+              '💰 Payment Plan',
+              'Choose how long to keep your listing active',
+            ),
+            const SizedBox(height: BuddyTheme.spacingXl),
+            
+            ..._planPrices.entries.map((plan) => Padding(
+              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
+              child: _buildPlanCard(
+                plan.key,
+                plan.value,
+                isSelected: _selectedPlan == plan.key,
+                onSelect: () => setState(() => _selectedPlan = plan.key),
+              ),
+            )).toList(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
+            _buildPlanInfoCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(String planName, double price, {
+    required bool isSelected,
+    required VoidCallback onSelect,
+  }) {
+    String duration = planName;
+    String formattedPrice = '₹${price.toStringAsFixed(0)}';
+
+    return TweenAnimationBuilder(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onSelect,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                decoration: BoxDecoration(
+                  color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : cardColor,
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  border: Border.all(
+                    color: isSelected ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
+                    width: isSelected ? 2 : 1,
                   ),
                 ),
-                const SizedBox(height: BuddyTheme.spacingXs),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: BuddyTheme.textSecondaryColor,
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            duration,
+                            style: TextStyle(
+                              color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingXs),
+                          Text(
+                            'Keep your listing active for ${duration.toLowerCase()}',
+                            style: TextStyle(
+                              color: textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      formattedPrice,
+                      style: TextStyle(
+                        color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            BuddyTheme.primaryColor.withOpacity(0.1),
+            BuddyTheme.primaryColor.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: BuddyTheme.primaryColor.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: BuddyTheme.primaryColor,
+              ),
+              const SizedBox(width: BuddyTheme.spacingSm),
+              Text(
+                'Plan Benefits',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: BuddyTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BuddyTheme.spacingSm),
+          Text(
+            '• Your listing will be active for the selected duration\n'
+            '• Featured placement in search results\n'
+            '• Email notifications for interested flatmates\n'
+            '• Option to extend duration later',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: BuddyTheme.textSecondaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepHeader(String title, String subtitle) {
+    return TweenAnimationBuilder(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: BuddyTheme.spacingXs),
+              Text(
+                subtitle,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: BuddyTheme.textSecondaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -731,49 +949,45 @@ class _ListRoomFormState extends State<ListRoomForm>
     TextInputType? keyboardType,
     int maxLines = 1,
   }) {
-    return TweenAnimationBuilder<double>(
+    return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 500),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextFormField(
-                controller: controller,
-                keyboardType: keyboardType,
-                maxLines: maxLines,
-                style: TextStyle(color: textPrimary),
-                decoration: InputDecoration(
-                  labelText: label,
-                  hintText: hint,
-                  prefixIcon: Icon(icon, color: BuddyTheme.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
-                    ),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: cardColor,
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Container(
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
+              ],
+            ),
+            child: TextFormField(
+              controller: controller,
+              keyboardType: keyboardType,
+              maxLines: maxLines,
+              style: TextStyle(color: textPrimary),
+              decoration: InputDecoration(
+                labelText: label,
+                hintText: hint,
+                prefixIcon: Icon(icon, color: BuddyTheme.primaryColor),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: cardColor,
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -784,97 +998,76 @@ class _ListRoomFormState extends State<ListRoomForm>
     Function(String) onChanged,
     IconData icon,
   ) {
-    return TweenAnimationBuilder<double>(
+    return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 600),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(50 * (1 - value), 0),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(icon, color: BuddyTheme.primaryColor),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Text(
-                        title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: textPrimary,
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (BuildContext context, double value, Widget? child) => Transform.translate(
+        offset: Offset(50 * (1 - value), 0),
+        child: Opacity(
+          opacity: value,
+          child: Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: BuddyTheme.primaryColor),
+                    const SizedBox(width: BuddyTheme.spacingSm),
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: BuddyTheme.spacingMd),
+                Wrap(
+                  spacing: BuddyTheme.spacingSm,
+                  runSpacing: BuddyTheme.spacingSm,
+                  children: options.map((option) => GestureDetector(
+                    onTap: () => onChanged(option),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: BuddyTheme.spacingMd,
+                        vertical: BuddyTheme.spacingSm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selectedValue == option ? BuddyTheme.primaryColor : scaffoldBg,
+                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                        border: Border.all(
+                          color: selectedValue == option ? BuddyTheme.primaryColor : BuddyTheme.borderColor,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-                  Wrap(
-                    spacing: BuddyTheme.spacingSm,
-                    runSpacing: BuddyTheme.spacingSm,
-                    children:
-                        options
-                            .map(
-                              (option) => GestureDetector(
-                                onTap: () => onChanged(option),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: BuddyTheme.spacingMd,
-                                    vertical: BuddyTheme.spacingSm,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        selectedValue == option
-                                            ? BuddyTheme.primaryColor
-                                            : scaffoldBg,
-                                    borderRadius: BorderRadius.circular(
-                                      BuddyTheme.borderRadiusSm,
-                                    ),
-                                    border: Border.all(
-                                      color:
-                                          selectedValue == option
-                                              ? BuddyTheme.primaryColor
-                                              : BuddyTheme.borderColor,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    option,
-                                    style: TextStyle(
-                                      color:
-                                          selectedValue == option
-                                              ? Colors.white
-                                              : textPrimary,
-                                      fontWeight:
-                                          selectedValue == option
-                                              ? FontWeight.w600
-                                              : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                  ),
-                ],
-              ),
+                      child: Text(
+                        option,
+                        style: TextStyle(
+                          color: selectedValue == option ? Colors.white : textPrimary,
+                          fontWeight: selectedValue == option ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -885,62 +1078,60 @@ class _ListRoomFormState extends State<ListRoomForm>
     Function(bool) onChanged,
     IconData icon,
   ) {
-    return TweenAnimationBuilder<double>(
+    return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 700),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, animValue, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * animValue),
-          child: Opacity(
-            opacity: animValue,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(icon, color: BuddyTheme.primaryColor),
-                  const SizedBox(width: BuddyTheme.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: textPrimary,
-                          ),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (BuildContext context, double animValue, Widget? child) => Transform.scale(
+        scale: 0.8 + (0.2 * animValue),
+        child: Opacity(
+          opacity: animValue,
+          child: Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: BuddyTheme.primaryColor),
+                const SizedBox(width: BuddyTheme.spacingMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
                         ),
-                        Text(
-                          subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: textSecondary,
-                          ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: textSecondary,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Switch(
-                    value: value,
-                    onChanged: onChanged,
-                    activeColor: BuddyTheme.primaryColor,
-                  ),
-                ],
-              ),
+                ),
+                Switch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeColor: BuddyTheme.primaryColor,
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -1042,7 +1233,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1114,104 +1305,79 @@ class _ListRoomFormState extends State<ListRoomForm>
     bool isSelected, {
     bool fullWidth = false,
   }) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 400),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _facilities[facility] = !isSelected;
-                  });
-                },
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(BuddyTheme.spacingSm),
-                  width: fullWidth ? double.infinity : null,
-                  decoration: BoxDecoration(
-                    color:
-                        isSelected
-                            ? BuddyTheme.primaryColor.withOpacity(0.1)
-                            : Colors.white,
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
-                    ),
-                    border: Border.all(
-                      color:
-                          isSelected
-                              ? BuddyTheme.primaryColor
-                              : BuddyTheme.borderColor,
-                      width: isSelected ? 2 : 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+    return TweenAnimationBuilder(
+      duration: const Duration(milliseconds: 400),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _facilities[facility] = !isSelected;
+                });
+              },
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(BuddyTheme.spacingSm),
+                width: fullWidth ? double.infinity : null,
+                decoration: BoxDecoration(
+                  color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : Colors.white,
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  border: Border.all(
+                    color: isSelected ? BuddyTheme.primaryColor : BuddyTheme.borderColor,
+                    width: isSelected ? 2 : 1,
                   ),
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color:
-                              isSelected
-                                  ? BuddyTheme.primaryColor
-                                  : Colors.transparent,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color:
-                                isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.borderColor,
-                          ),
-                        ),
-                        child:
-                            isSelected
-                                ? const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 14,
-                                )
-                                : null,
-                      ),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Expanded(
-                        child: Text(
-                          facility,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyMedium?.copyWith(
-                            color:
-                                isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.textPrimaryColor,
-                            fontWeight:
-                                isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                          ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: isSelected ? BuddyTheme.primaryColor : Colors.transparent,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: isSelected ? BuddyTheme.primaryColor : BuddyTheme.borderColor,
                         ),
                       ),
-                    ],
-                  ),
+                      child: isSelected
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 14,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingSm),
+                    Expanded(
+                      child: Text(
+                        facility,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isSelected ? BuddyTheme.primaryColor : BuddyTheme.textPrimaryColor,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -1323,71 +1489,69 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
 
   Widget _buildPricingTipCard() {
-    return TweenAnimationBuilder<double>(
+    return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 800),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.9 + (0.1 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    BuddyTheme.primaryColor.withOpacity(0.1),
-                    BuddyTheme.primaryColor.withOpacity(0.05),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                border: Border.all(
-                  color: BuddyTheme.primaryColor.withOpacity(0.3),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.lightbulb_outlined,
-                        color: BuddyTheme.primaryColor,
-                      ),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Text(
-                        'Pricing Tips',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: BuddyTheme.primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingSm),
-                  Text(
-                    '• Research similar properties in your area\n'
-                    '• Consider including utilities in rent\n'
-                    '• Security deposit is typically 1-3 months rent\n'
-                    '• Be transparent about additional charges',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: BuddyTheme.textSecondaryColor,
-                    ),
-                  ),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
+        scale: 0.9 + (0.1 * value),
+        child: Opacity(
+          opacity: value,
+          child: Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  BuddyTheme.primaryColor.withOpacity(0.1),
+                  BuddyTheme.primaryColor.withOpacity(0.05),
                 ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              border: Border.all(
+                color: BuddyTheme.primaryColor.withOpacity(0.3),
               ),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outlined,
+                      color: BuddyTheme.primaryColor,
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingSm),
+                    Text(
+                      'Pricing Tips',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: BuddyTheme.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: BuddyTheme.spacingSm),
+                Text(
+                  '• Research similar properties in your area\n'
+                  '• Consider including utilities in rent\n'
+                  '• Security deposit is typically 1-3 months rent\n'
+                  '• Be transparent about additional charges',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: BuddyTheme.textSecondaryColor,
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -1426,138 +1590,184 @@ class _ListRoomFormState extends State<ListRoomForm>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Property Photos',
-          style: theme.textTheme.titleMedium?.copyWith(
+          'Required Photos',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
           ),
         ),
-        const SizedBox(height: BuddyTheme.spacingSm),
-        Text(
-          'Add photos of different areas (${_uploadedPhotos.length} uploaded)',
-          style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
-        ),
         const SizedBox(height: BuddyTheme.spacingMd),
-
-        // Photo upload grid
+        Text(
+          'Please upload photos for each required section',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: BuddyTheme.textSecondaryColor,
+          ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: BuddyTheme.spacingSm,
-            mainAxisSpacing: BuddyTheme.spacingSm,
+            mainAxisSpacing: BuddyTheme.spacingMd,
+            crossAxisSpacing: BuddyTheme.spacingMd,
+            childAspectRatio: 0.85,
           ),
           itemCount: _requiredPhotoTypes.length,
           itemBuilder: (context, index) {
-            String photoType = _requiredPhotoTypes[index];
-            bool hasPhoto = _uploadedPhotos.contains(photoType);
-
-            return TweenAnimationBuilder<double>(
-              duration: Duration(milliseconds: 300 + (index * 100)),
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: value,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          // Simulate photo upload
-                          setState(() {
-                            if (hasPhoto) {
-                              _uploadedPhotos.remove(photoType);
-                            } else {
-                              _uploadedPhotos.add(photoType);
-                            }
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color:
-                                hasPhoto
-                                    ? BuddyTheme.primaryColor.withOpacity(0.1)
-                                    : cardColor,
-                            borderRadius: BorderRadius.circular(
-                              BuddyTheme.borderRadiusMd,
-                            ),
-                            border: Border.all(
-                              color:
-                                  hasPhoto
-                                      ? BuddyTheme.primaryColor
-                                      : BuddyTheme.borderColor,
-                              style:
-                                  hasPhoto
-                                      ? BorderStyle.solid
-                                      : BorderStyle.none,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 200),
-                                child: Icon(
-                                  hasPhoto
-                                      ? Icons.check_circle
-                                      : Icons.add_a_photo_outlined,
-                                  key: ValueKey(hasPhoto),
-                                  size: 32,
-                                  color:
-                                      hasPhoto
-                                          ? BuddyTheme.primaryColor
-                                          : textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: BuddyTheme.spacingSm),
-                              Text(
-                                photoType,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color:
-                                      hasPhoto
-                                          ? BuddyTheme.primaryColor
-                                          : textSecondary,
-                                  fontWeight:
-                                      hasPhoto
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                ),
-                              ),
-                              if (hasPhoto) ...[
-                                const SizedBox(height: BuddyTheme.spacingXs),
-                                Text(
-                                  'Tap to remove',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: textSecondary,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+            final photoType = _requiredPhotoTypes[index];
+            final hasPhotos = _uploadedPhotoUrls[photoType]?.isNotEmpty ?? false;
+            
+            return _buildPhotoUploadCard(
+              photoType: photoType,
+              hasPhoto: hasPhotos,
+              photoUrls: _uploadedPhotoUrls[photoType],
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildPhotoUploadCard({
+    required String photoType,
+    required bool hasPhoto,
+    List<String>? photoUrls,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: hasPhoto ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
+          width: hasPhoto ? 2 : 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _uploadPhoto(photoType),
+          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+          child: Padding(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (hasPhoto && photoUrls != null && photoUrls.isNotEmpty) ...[
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: photoUrls.first,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            errorWidget: (context, url, error) => const Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 32,
+                            ),
+                          ),
+                          if (photoUrls.length > 1)
+                            Positioned(
+                              bottom: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '+${photoUrls.length - 1}',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _uploadedPhotoUrls[photoType]?.clear();
+                                      _uploadedPhotos[photoType]?.clear();
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                InkWell(
+                                  onTap: () => _uploadPhoto(photoType),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.add_a_photo,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  Icon(
+                    Icons.add_a_photo_outlined,
+                    size: 40,
+                    color: hasPhoto ? BuddyTheme.primaryColor : Colors.grey,
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                ],
+                Text(
+                  photoType,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: hasPhoto ? BuddyTheme.primaryColor : textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (!hasPhoto) ...[
+                  const SizedBox(height: BuddyTheme.spacingXs),
+                  Text(
+                    'Tap to upload',
+                    style: TextStyle(
+                      color: textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1654,4 +1864,4 @@ class _ListRoomFormState extends State<ListRoomForm>
       ),
     );
   }
-}
+    }

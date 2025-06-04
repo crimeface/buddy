@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RoomRequestForm extends StatefulWidget {
   const RoomRequestForm({Key? key}) : super(key: key);
@@ -21,12 +22,23 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fabAnimation;
 
+  bool _isNavigating = false; // Add this flag to prevent rapid navigation
+  DateTime _lastNavigationTime = DateTime.now();
+
   int _currentStep = 0;
-  final int _totalSteps =
-      4; // Basic Info, Room Requirements, Additional Preferences, Contact Details
+  final int _totalSteps = 5; // Basic Info, Room Requirements, Additional Preferences, Contact Details, Payment Plan
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
+
+  // Payment Plan
+  String _selectedPlan = '1Day';
+  final Map<String, int> _planPrices = {
+    '1Day': 29,
+    '7Day': 149,
+    '15Day': 239,
+    '1Month': 499,
+  };
 
   // Basic Info
   final _nameController = TextEditingController();
@@ -68,6 +80,17 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   void initState() {
     super.initState();
     _pageController = PageController();
+
+    // Add listener to sync page changes with step counter
+    _pageController.addListener(() {
+      if (_pageController.page != null &&
+          !_pageController.position.isScrollingNotifier.value) {
+        final newStep = _pageController.page!.round();
+        if (newStep != _currentStep) {
+          setState(() => _currentStep = newStep);
+        }
+      }
+    });
 
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
@@ -131,33 +154,53 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   }
 
   void _nextStep() {
-    if (_currentStep < _totalSteps - 1) {
-      setState(() {
-        _currentStep++;
-      });
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateProgress();
-      _triggerSlideAnimation();
-    } else {
-      _submitForm();
-    }
+    if (_isNavigating || _currentStep >= _totalSteps - 1) return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastNavigationTime).inMilliseconds < 300) return; // Debounce check
+
+    _isNavigating = true;
+    _lastNavigationTime = now;
+
+    setState(() {
+      _currentStep++;
+    });
+
+    _pageController.animateToPage(
+      _currentStep,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    ).then((_) {
+      _isNavigating = false;
+    });
+
+    _updateProgress();
+    _triggerSlideAnimation();
   }
 
   void _previousStep() {
-    if (_currentStep > 0) {
-      setState(() {
-        _currentStep--;
-      });
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateProgress();
-      _triggerSlideAnimation();
-    }
+    if (_isNavigating || _currentStep <= 0) return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastNavigationTime).inMilliseconds < 300) return; // Debounce check
+
+    _isNavigating = true;
+    _lastNavigationTime = now;
+
+    setState(() {
+      _currentStep--;
+    });
+
+    _pageController.animateToPage(
+      _currentStep,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    ).then((_) {
+      _isNavigating = false;
+    });
+
+    _updateProgress();
+    _triggerSlideAnimation();
   }
 
   void _updateProgress() {
@@ -172,11 +215,10 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   void _submitForm() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // Prepare data to store in Firebase
-      final userId =
-          FirebaseAuth.instance.currentUser?.uid; // Get current user ID
+      // Prepare data to store in Firestore
+      final userId = FirebaseAuth.instance.currentUser?.uid;
       final data = {
-        'userId': userId ?? 'anonymous', // Use anonymous if not logged in
+        'userId': userId ?? 'anonymous',
         'name': _nameController.text,
         'age': _ageController.text,
         'gender': _gender,
@@ -199,13 +241,11 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         'email': _emailController.text,
         'bio': _bioController.text,
         'createdAt': DateTime.now().toIso8601String(),
-        'imageUrl':
-            'https://randomuser.me/api/portraits/men/33.jpg', // Placeholder for image URL
+        'imageUrl': 'https://randomuser.me/api/portraits/men/33.jpg',
       };
 
       try {
-        final dbRef = FirebaseDatabase.instance.ref().child('room_requests');
-        await dbRef.push().set(data);
+        await FirebaseFirestore.instance.collection('room_requests').add(data);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -291,6 +331,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 _buildRoomRequirementsStep(),
                 _buildAdditionalPreferencesStep(),
                 _buildContactDetailsStep(),
+                _buildPaymentPlanStep(),
               ],
             ),
           ),
@@ -593,6 +634,172 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     );
   }
 
+  Widget _buildPaymentPlanStep() {
+    return _buildStepContainer(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStepHeader(
+              '💰 Payment Plan',
+              'Choose how long to keep your listing active',
+            ),
+            const SizedBox(height: BuddyTheme.spacingXl),
+            
+            ..._planPrices.entries.map((plan) => Padding(
+              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
+              child: _buildPlanCard(
+                plan.key,
+                plan.value.toDouble(),
+                isSelected: _selectedPlan == plan.key,
+                onSelect: () => setState(() => _selectedPlan = plan.key),
+              ),
+            )).toList(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
+            _buildPlanInfoCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(String planName, double price, {
+    required bool isSelected,
+    required VoidCallback onSelect,
+  }) {
+    String duration = planName;
+    String formattedPrice = '₹${price.toStringAsFixed(0)}';
+
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          child: Opacity(
+            opacity: value,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onSelect,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : cardColor,
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    border: Border.all(
+                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                      ),
+                      const SizedBox(width: BuddyTheme.spacingMd),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              duration,
+                              style: TextStyle(
+                                color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: BuddyTheme.spacingXs),
+                            Text(
+                              'Keep your listing active for ${duration.toLowerCase()}',
+                              style: TextStyle(
+                                color: textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        formattedPrice,
+                        style: TextStyle(
+                          color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          );
+      },
+    );
+  }
+
+  Widget _buildPlanInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            BuddyTheme.primaryColor.withOpacity(0.1),
+            BuddyTheme.primaryColor.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: BuddyTheme.primaryColor.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: BuddyTheme.primaryColor,
+              ),
+              const SizedBox(width: BuddyTheme.spacingSm),
+              Text(
+                'Plan Benefits',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: BuddyTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BuddyTheme.spacingSm),
+          Text(
+            '• Your listing will be active for the selected duration\n'
+            '• Featured placement in search results\n'
+            '• Email notifications for interested users\n'
+            '• Option to extend duration later',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: BuddyTheme.textSecondaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStepHeader(String title, String subtitle) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,49 +909,35 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                   Wrap(
                     spacing: BuddyTheme.spacingSm,
                     runSpacing: BuddyTheme.spacingSm,
-                    children:
-                        options
-                            .map(
-                              (option) => GestureDetector(
-                                onTap: () => onChanged(option),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: BuddyTheme.spacingMd,
-                                    vertical: BuddyTheme.spacingSm,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        selectedValue == option
-                                            ? BuddyTheme.primaryColor
-                                            : scaffoldBg,
-                                    borderRadius: BorderRadius.circular(
-                                      BuddyTheme.borderRadiusSm,
-                                    ),
-                                    border: Border.all(
-                                      color:
-                                          selectedValue == option
-                                              ? BuddyTheme.primaryColor
-                                              : BuddyTheme.borderColor,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    option,
-                                    style: TextStyle(
-                                      color:
-                                          selectedValue == option
-                                              ? Colors.white
-                                              : textPrimary,
-                                      fontWeight:
-                                          selectedValue == option
-                                              ? FontWeight.w600
-                                              : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
+                    children: options.map((option) {
+                      final isSelected = selectedValue == option;
+                      return InkWell(
+                        onTap: () => onChanged(option),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: BuddyTheme.spacingMd,
+                            vertical: BuddyTheme.spacingSm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? BuddyTheme.primaryColor
+                                : BuddyTheme.primaryColor.withOpacity(0.1),
+                            borderRadius:
+                                BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                          ),
+                          child: Text(
+                            option,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: isSelected
+                                  ? Colors.white
+                                  : BuddyTheme.primaryColor,
+                              fontWeight:
+                                  isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
@@ -923,16 +1116,15 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         children: [
           Row(
             children: [
-              Icon(
-                Icons.calendar_today_outlined,
+              Icon(Icons.calendar_today_outlined,
                 color: BuddyTheme.primaryColor,
               ),
               const SizedBox(width: BuddyTheme.spacingMd),
               Text(
                 'Move-in Date',
                 style: t.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
                   color: tp,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -946,18 +1138,20 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );
-              if (picked != null) {
-                setState(() => _moveInDate = picked);
+              if (picked != null && picked != _moveInDate) {
+                setState(() {
+                  _moveInDate = picked;
+                });
               }
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: BuddyTheme.spacingMd,
-                vertical: BuddyTheme.spacingSm,
-              ),
+              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               decoration: BoxDecoration(
-                border: Border.all(color: t.dividerColor),
+                color: theme?.scaffoldBackgroundColor ?? Colors.grey[100],
                 borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                border: Border.all(
+                  color: BuddyTheme.primaryColor.withOpacity(0.2),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -966,13 +1160,14 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                     _moveInDate == null
                         ? 'Select Date'
                         : '${_moveInDate!.day}/${_moveInDate!.month}/${_moveInDate!.year}',
-                    style: t.textTheme.bodyMedium?.copyWith(
-                      color: _moveInDate == null ? t.hintColor : tp,
+                    style: t.textTheme.bodyLarge?.copyWith(
+                      color: tp,
                     ),
                   ),
-                  const Icon(
-                    Icons.arrow_drop_down,
-                    color: BuddyTheme.textSecondaryColor,
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: BuddyTheme.primaryColor,
                   ),
                 ],
               ),
@@ -990,86 +1185,53 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         color: cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.05),
             offset: const Offset(0, -2),
+            blurRadius: 10,
           ),
         ],
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (_currentStep > 0) ...[
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _previousStep,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingMd,
-                  ),
-                  side: BorderSide(color: BuddyTheme.primaryColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
-                    const SizedBox(width: BuddyTheme.spacingSm),
-                    Text(
-                      'Previous',
-                      style: TextStyle(color: BuddyTheme.primaryColor),
-                    ),
-                  ],
-                ),
+          if (_currentStep > 0)
+            TextButton.icon(
+              onPressed: _previousStep,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Back'),
+              style: TextButton.styleFrom(
+                foregroundColor: BuddyTheme.textSecondaryColor,
+              ),
+            )
+          else
+            const SizedBox.shrink(),
+          ElevatedButton(
+            onPressed: _currentStep < _totalSteps - 1 ? _nextStep : _submitForm,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: BuddyTheme.primaryColor,
+              padding: const EdgeInsets.symmetric(
+                horizontal: BuddyTheme.spacingXl,
+                vertical: BuddyTheme.spacingMd,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
               ),
             ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-          ],
-          Expanded(
-            flex: _currentStep == 0 ? 1 : 1,
-            child: ScaleTransition(
-              scale: _fabAnimation,
-              child: ElevatedButton(
-                onPressed:
-                    _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BuddyTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingMd,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _currentStep < _totalSteps - 1 ? 'Next' : 'Submit',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
-                    ),
-                  ),
-                  elevation: 2,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _currentStep == _totalSteps - 1
-                          ? 'Submit Listing'
-                          : 'Next',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: BuddyTheme.spacingXs),
-                    Icon(
-                      _currentStep == _totalSteps - 1
-                          ? Icons.check
-                          : Icons.arrow_forward,
-                      color: cardColor,
-                    ),
-                  ],
-                ),
-              ),
+                if (_currentStep < _totalSteps - 1) ...[
+                  const SizedBox(width: BuddyTheme.spacingSm),
+                  const Icon(Icons.arrow_forward, color: Colors.white),
+                ],
+              ],
             ),
           ),
         ],

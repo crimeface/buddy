@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HostelPgPage extends StatefulWidget {
   const HostelPgPage({Key? key}) : super(key: key);
@@ -49,20 +49,23 @@ class _HostelPgPageState extends State<HostelPgPage> {
 
   Future<void> _fetchHostels() async {
     setState(() => _isLoading = true);
-    final ref = FirebaseDatabase.instance.ref().child('hostel_listings');
-    final snapshot = await ref.get();
-    final List<Map<String, dynamic>> loadedHostels = [];
-    if (snapshot.exists) {
-      final data = Map<String, dynamic>.from(snapshot.value as Map);
-      data.forEach((key, value) {
-        final v = Map<String, dynamic>.from(value);
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('hostel_listings')
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      final List<Map<String, dynamic>> loadedHostels = [];
+      for (var doc in querySnapshot.docs) {
+        final v = doc.data();
         loadedHostels.add({
           ...v,
-          'key': key,
+          'key': doc.id,
           // Aliases for filtering and display
-          'location': v['address'] ?? '', // for search/filter
-          'type': v['hostelType'] ?? '', // for filter
-          'amenities': v['facilities'] ?? [], // for filter
+          'location': v['address'] ?? '',
+          'type': v['hostelType'] ?? '',
+          'amenities': v['facilities'] ?? [],
           'imageUrl':
               (v['uploadedPhotos'] is List &&
                       (v['uploadedPhotos'] as List).isNotEmpty)
@@ -100,12 +103,20 @@ class _HostelPgPageState extends State<HostelPgPage> {
           'specialFeatures': v['specialFeatures'] ?? '',
           'createdAt': v['createdAt'] ?? '',
         });
+      }
+      setState(() {
+        _hostels = loadedHostels;
+        _isLoading = false;
       });
+    } catch (e) {
+      setState(() {
+        _hostels = [];
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load hostels: $e')));
     }
-    setState(() {
-      _hostels = loadedHostels;
-      _isLoading = false;
-    });
   }
 
   List<Map<String, dynamic>> get _filteredHostels {
@@ -670,6 +681,11 @@ class _HostelPgPageState extends State<HostelPgPage> {
                       child: ElevatedButton(
                         onPressed: () {
                           // TODO: Navigate to details page with hostel['key']
+                          Navigator.pushNamed(
+                            context,
+                            '/propertyDetails',
+                            arguments: {'propertyId': hostel['key']},
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accentColor,

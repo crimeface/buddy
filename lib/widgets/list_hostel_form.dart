@@ -4,10 +4,10 @@ import 'package:flutter/services.dart';
 import '../../theme.dart';
 import '../models/room_type.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this import at the top
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ListHostelForm extends StatefulWidget {
   ListHostelForm({Key? key}) : super(key: key) {
-    print('ListHostelForm constructor called'); // Debug print
   }
 
   @override
@@ -23,12 +23,23 @@ class _ListHostelFormState extends State<ListHostelForm>
   late Animation<double> _progressAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fabAnimation;
+  bool _isNavigating = false;
+  bool _isPageChanging = false;
 
   int _currentStep = 0;
-  final int _totalSteps = 8;
+  final int _totalSteps = 9;
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
+
+  // Payment Plan
+  String _selectedPlan = '1Day';
+  final Map<String, double> _planPrices = {
+    '1Day': 29.0,
+    '7Day': 149.0,
+    '15Day': 239.0,
+    '1Month': 499.0,
+  };
 
   // Basic Information
   final _titleController = TextEditingController();
@@ -90,6 +101,7 @@ class _ListHostelFormState extends State<ListHostelForm>
     'Building Front',
     'Common Area',
   ];
+  String _imageUrl = '';
 
   // Additional Information
   final _descriptionController = TextEditingController();
@@ -109,12 +121,12 @@ class _ListHostelFormState extends State<ListHostelForm>
     _pageController = PageController();
 
     _progressAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
       vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
 
     _slideAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
 
@@ -177,8 +189,8 @@ class _ListHostelFormState extends State<ListHostelForm>
         _currentStep++;
       });
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
       );
       _updateProgress();
       _triggerSlideAnimation();
@@ -191,7 +203,7 @@ class _ListHostelFormState extends State<ListHostelForm>
         _currentStep--;
       });
       _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
       );
       _updateProgress();
@@ -210,9 +222,7 @@ class _ListHostelFormState extends State<ListHostelForm>
   }
 
   void _submitForm() async {
-    // Prepare data to store in Firebase
-    final userId =
-        FirebaseAuth.instance.currentUser?.uid; // Get current user ID
+    final userId = FirebaseAuth.instance.currentUser?.uid;
     final data = {
       'uid': userId,
       'title': _titleController.text,
@@ -252,11 +262,12 @@ class _ListHostelFormState extends State<ListHostelForm>
       'offers': _offersController.text,
       'specialFeatures': _specialFeaturesController.text,
       'createdAt': DateTime.now().toIso8601String(),
+      'imageUrl':
+          'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
     };
 
     try {
-      final dbRef = FirebaseDatabase.instance.ref().child('hostel_listings');
-      await dbRef.push().set(data);
+      await FirebaseFirestore.instance.collection('hostel_listings').add(data);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -283,14 +294,11 @@ class _ListHostelFormState extends State<ListHostelForm>
   Widget build(BuildContext context) {
     theme = Theme.of(context);
     scaffoldBg = theme.scaffoldBackgroundColor;
-    // Custom card color for better contrast
-    cardColor =
-        theme.brightness == Brightness.dark
-            ? const Color(0xFF23262F)
-            : const Color.fromARGB(255, 226, 227, 231);
+    cardColor = theme.brightness == Brightness.dark
+        ? const Color(0xFF23262F)
+        : const Color.fromARGB(255, 226, 227, 231);
     textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
-    textSecondary =
-        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
+    textSecondary = theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -310,12 +318,6 @@ class _ListHostelFormState extends State<ListHostelForm>
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (index) {
-                setState(() {
-                  _currentStep = index;
-                });
-                _updateProgress();
-              },
               children: [
                 _buildBasicInformationStep(),
                 _buildRoomTypesStep(),
@@ -325,6 +327,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                 _buildPhotosStep(),
                 _buildAdditionalInfoStep(),
                 _buildPreviewStep(),
+                _buildPaymentPlanStep(), // Payment plan as final step
               ],
             ),
           ),
@@ -336,14 +339,11 @@ class _ListHostelFormState extends State<ListHostelForm>
 
   Widget _buildProgressIndicator() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: BuddyTheme.spacingLg,
-        vertical: BuddyTheme.spacingMd,
-      ),
+      padding: const EdgeInsets.all(BuddyTheme.spacingLg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Step ${_currentStep + 1} of $_totalSteps',
@@ -351,28 +351,31 @@ class _ListHostelFormState extends State<ListHostelForm>
                   color: BuddyTheme.textSecondaryColor,
                 ),
               ),
-              const Spacer(),
-              Text(
-                '${((_currentStep + 1) / _totalSteps * 100).round()}%',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: BuddyTheme.primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
+              AnimatedBuilder(
+                animation: _progressAnimation,
+                builder: (context, child) {
+                  return Text(
+                    '${((_currentStep + _progressAnimation.value) / _totalSteps * 100).round()}%',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: BuddyTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
               ),
             ],
           ),
-          const SizedBox(height: BuddyTheme.spacingSm),
+          const SizedBox(height: BuddyTheme.spacingXs),
           AnimatedBuilder(
             animation: _progressAnimation,
             builder: (context, child) {
               return LinearProgressIndicator(
-                value: (_currentStep + 1) / _totalSteps,
-                backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
+                value: (_currentStep + _progressAnimation.value) / _totalSteps,
+                backgroundColor: BuddyTheme.dividerColor,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   BuddyTheme.primaryColor,
                 ),
                 minHeight: 6,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
               );
             },
           ),
@@ -695,6 +698,172 @@ class _ListHostelFormState extends State<ListHostelForm>
     );
   }
 
+  Widget _buildPaymentPlanStep() {
+    return _buildStepContainer(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStepHeader(
+              '💰 Payment Plan',
+              'Choose how long to keep your listing active',
+            ),
+            const SizedBox(height: BuddyTheme.spacingXl),
+            
+            ..._planPrices.entries.map((plan) => Padding(
+              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
+              child: _buildPlanCard(
+                plan.key,
+                plan.value,
+                isSelected: _selectedPlan == plan.key,
+                onSelect: () => setState(() => _selectedPlan = plan.key),
+              ),
+            )).toList(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
+            _buildPlanInfoCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(String planName, double price, {
+    required bool isSelected,
+    required VoidCallback onSelect,
+  }) {
+    String duration = planName;
+    String formattedPrice = '₹${price.toStringAsFixed(0)}';
+
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          child: Opacity(
+            opacity: value,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onSelect,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : cardColor,
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    border: Border.all(
+                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                      ),
+                      const SizedBox(width: BuddyTheme.spacingMd),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              duration,
+                              style: TextStyle(
+                                color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: BuddyTheme.spacingXs),
+                            Text(
+                              'Keep your listing active for ${duration.toLowerCase()}',
+                              style: TextStyle(
+                                color: textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        formattedPrice,
+                        style: TextStyle(
+                          color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          );
+      },
+    );
+  }
+
+  Widget _buildPlanInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            BuddyTheme.primaryColor.withOpacity(0.1),
+            BuddyTheme.primaryColor.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: BuddyTheme.primaryColor.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: BuddyTheme.primaryColor,
+              ),
+              const SizedBox(width: BuddyTheme.spacingSm),
+              Text(
+                'Plan Benefits',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: BuddyTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BuddyTheme.spacingSm),
+          Text(
+            '• Your listing will be active for the selected duration\n'
+            '• Featured placement in search results\n'
+            '• Email notifications for interested users\n'
+            '• Option to extend duration later',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: BuddyTheme.textSecondaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   Widget _buildPreviewStep() {
     return _buildStepContainer(
       child: SingleChildScrollView(
@@ -716,7 +885,7 @@ class _ListHostelFormState extends State<ListHostelForm>
 
   Widget _buildStepHeader(String title, String subtitle) {
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 500),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, value, child) {
         return Transform.scale(
@@ -757,7 +926,7 @@ class _ListHostelFormState extends State<ListHostelForm>
     int maxLines = 1,
   }) {
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 400),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, value, child) {
         return Transform.scale(
@@ -797,7 +966,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -810,7 +979,7 @@ class _ListHostelFormState extends State<ListHostelForm>
     IconData icon,
   ) {
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 400),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, value, child) {
         return Transform.translate(
@@ -898,7 +1067,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -911,7 +1080,7 @@ class _ListHostelFormState extends State<ListHostelForm>
     IconData icon,
   ) {
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 400),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, animValue, child) {
         return Transform.scale(
@@ -961,14 +1130,14 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
 
   Widget _buildRoomTypeCard(RoomType roomType, int index) {
     return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 500 + (index * 100)),
+      duration: Duration(milliseconds: 400 + (index * 100)),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, value, child) {
         return Transform.scale(
@@ -1104,14 +1273,14 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
 
   Widget _buildAddRoomTypeButton() {
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 500),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, value, child) {
         return Transform.scale(
@@ -1153,7 +1322,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1321,7 +1490,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1462,151 +1631,146 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
 
   Widget _buildPhotoUploadSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Property Photos',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: textPrimary,
-          ),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Property Photos',
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
         ),
-        const SizedBox(height: BuddyTheme.spacingSm),
-        Text(
-          'Add photos of different areas (${_uploadedPhotos.length} uploaded)',
-          style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
+      ),
+      const SizedBox(height: BuddyTheme.spacingSm),
+      Text(
+        'Add photos of different areas (${_uploadedPhotos.length} uploaded)',
+        style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
+      ),
+      const SizedBox(height: BuddyTheme.spacingMd),
+      GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 1.2,
+          crossAxisSpacing: BuddyTheme.spacingSm,
+          mainAxisSpacing: BuddyTheme.spacingSm,
         ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: BuddyTheme.spacingSm,
-            mainAxisSpacing: BuddyTheme.spacingSm,
-          ),
-          itemCount: _requiredPhotoTypes.length,
-          itemBuilder: (context, index) {
-            String photoType = _requiredPhotoTypes[index];
-            bool hasPhoto = _uploadedPhotos.contains(photoType);
+        itemCount: _requiredPhotoTypes.length,
+        itemBuilder: (context, index) {
+          String photoType = _requiredPhotoTypes[index];
+          bool hasPhoto = _uploadedPhotos.contains(photoType);
 
-            return TweenAnimationBuilder<double>(
-              duration: Duration(milliseconds: 300 + (index * 100)),
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: value,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            if (hasPhoto) {
-                              _uploadedPhotos.remove(photoType);
-                            } else {
-                              _uploadedPhotos.add(photoType);
-                            }
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
+          return TweenAnimationBuilder<double>(
+            duration: Duration(milliseconds: 300 + (index * 100)),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: 0.8 + (0.2 * value),
+                child: Opacity(
+                  opacity: value,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (hasPhoto) {
+                            _uploadedPhotos.remove(photoType);
+                          } else {
+                            _uploadedPhotos.add(photoType);
+                          }
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: hasPhoto
+                              ? BuddyTheme.primaryColor.withOpacity(0.1)
+                              : cardColor,
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusMd,
+                          ),
+                          border: Border.all(
+                            color: hasPhoto
+                                ? BuddyTheme.primaryColor
+                                : BuddyTheme.borderColor,
+                            style: hasPhoto
+                                ? BorderStyle.solid
+                                : BorderStyle.none,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color:
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(
                                 hasPhoto
-                                    ? BuddyTheme.primaryColor.withOpacity(0.1)
-                                    : cardColor,
-                            borderRadius: BorderRadius.circular(
-                              BuddyTheme.borderRadiusMd,
-                            ),
-                            border: Border.all(
-                              color:
-                                  hasPhoto
-                                      ? BuddyTheme.primaryColor
-                                      : BuddyTheme.borderColor,
-                              style:
-                                  hasPhoto
-                                      ? BorderStyle.solid
-                                      : BorderStyle.none,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                                    ? Icons.check_circle
+                                    : Icons.add_a_photo_outlined,
+                                key: ValueKey(hasPhoto),
+                                size: 32,
+                                color: hasPhoto
+                                    ? BuddyTheme.primaryColor
+                                    : textSecondary,
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 200),
-                                child: Icon(
-                                  hasPhoto
-                                      ? Icons.check_circle
-                                      : Icons.add_a_photo_outlined,
-                                  key: ValueKey(hasPhoto),
-                                  size: 32,
-                                  color:
-                                      hasPhoto
-                                          ? BuddyTheme.primaryColor
-                                          : textSecondary,
-                                ),
+                            ),
+                            const SizedBox(height: BuddyTheme.spacingSm),
+                            Text(
+                              photoType,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: hasPhoto
+                                    ? BuddyTheme.primaryColor
+                                    : textSecondary,
+                                fontWeight: hasPhoto
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
-                              const SizedBox(height: BuddyTheme.spacingSm),
+                            ),
+                            if (hasPhoto) ...[
+                              const SizedBox(height: BuddyTheme.spacingXs),
                               Text(
-                                photoType,
+                                'Tap to remove',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color:
-                                      hasPhoto
-                                          ? BuddyTheme.primaryColor
-                                          : textSecondary,
-                                  fontWeight:
-                                      hasPhoto
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
+                                  color: textSecondary,
+                                  fontSize: 10,
                                 ),
                               ),
-                              if (hasPhoto) ...[
-                                const SizedBox(height: BuddyTheme.spacingXs),
-                                Text(
-                                  'Tap to remove',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: textSecondary,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
                             ],
-                          ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                );
-              },
-            );
-          },
-        ),
-      ],
-    );
-  }
+                ),
+              );
+            },
+          );
+        },
+      ),
+    ],
+  );
+}
+
 
   Widget _buildPreviewCard() {
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 500),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (BuildContext context, double value, Widget? child) {
         return Transform.scale(
@@ -1765,7 +1929,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }

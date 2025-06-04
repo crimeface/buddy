@@ -1,7 +1,7 @@
 // signup.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -39,16 +39,18 @@ class _SignUpPageState extends State<SignUpPage> {
         // Create user with email and password
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            );
 
         // Update the user's display name in Firebase Authentication
-        await userCredential.user!.updateDisplayName(_fullNameController.text.trim());
+        await userCredential.user!.updateDisplayName(
+          _fullNameController.text.trim(),
+        );
 
-        // Store user data in Firebase Realtime Database
+        // Store user data in Firestore
         final userId = userCredential.user!.uid;
-        await FirebaseDatabase.instance.ref().child('users').child(userId).set({
+        await FirebaseFirestore.instance.collection('users').doc(userId).set({
           'username': _fullNameController.text.trim(),
           'email': _emailController.text.trim(),
           'createdAt': DateTime.now().toIso8601String(),
@@ -57,7 +59,7 @@ class _SignUpPageState extends State<SignUpPage> {
         setState(() {
           _isLoading = false;
         });
-        
+
         if (mounted) {
           Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         }
@@ -73,9 +75,9 @@ class _SignUpPageState extends State<SignUpPage> {
         } else if (e.code == 'weak-password') {
           errorMsg = 'Password is too weak';
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMsg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMsg)));
       } catch (e) {
         setState(() {
           _isLoading = false;
@@ -132,14 +134,16 @@ class _SignUpPageState extends State<SignUpPage> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // Full Name field
                           TextFormField(
                             controller: _fullNameController,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Full Name',
-                              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.1),
                               border: OutlineInputBorder(
@@ -156,7 +160,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           // Email field
                           TextFormField(
                             controller: _emailController,
@@ -164,7 +168,9 @@ class _SignUpPageState extends State<SignUpPage> {
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Email',
-                              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.1),
                               border: OutlineInputBorder(
@@ -177,14 +183,15 @@ class _SignUpPageState extends State<SignUpPage> {
                               if (value == null || value.isEmpty) {
                                 return 'Please enter your email';
                               }
-                              if (!value.contains('@') || !value.contains('.')) {
+                              if (!value.contains('@') ||
+                                  !value.contains('.')) {
                                 return 'Please enter a valid email';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           // Password field
                           TextFormField(
                             controller: _passwordController,
@@ -192,7 +199,9 @@ class _SignUpPageState extends State<SignUpPage> {
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Password',
-                              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.1),
                               border: OutlineInputBorder(
@@ -202,7 +211,9 @@ class _SignUpPageState extends State<SignUpPage> {
                               contentPadding: const EdgeInsets.all(16),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                  _isPasswordVisible
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Colors.white70,
                                 ),
                                 onPressed: () {
@@ -223,7 +234,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           // Confirm Password field
                           TextFormField(
                             controller: _confirmPasswordController,
@@ -231,7 +242,9 @@ class _SignUpPageState extends State<SignUpPage> {
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Confirm Password',
-                              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.1),
                               border: OutlineInputBorder(
@@ -241,12 +254,15 @@ class _SignUpPageState extends State<SignUpPage> {
                               contentPadding: const EdgeInsets.all(16),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                  _isConfirmPasswordVisible
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Colors.white70,
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                                    _isConfirmPasswordVisible =
+                                        !_isConfirmPasswordVisible;
                                   });
                                 },
                               ),
@@ -262,7 +278,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             },
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // Sign Up button
                           SizedBox(
                             width: double.infinity,
@@ -277,26 +293,30 @@ class _SignUpPageState extends State<SignUpPage> {
                                 ),
                                 elevation: 0,
                               ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              child:
+                                  _isLoading
+                                      ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      )
+                                      : const Text(
+                                        'Sign Up',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    )
-                                  : const Text(
-                                      'Sign Up',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                             ),
                           ),
                           const SizedBox(height: 20),
-                          
+
                           // Sign in option
                           Center(
                             child: Row(
@@ -304,9 +324,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               children: [
                                 const Text(
                                   'Already have an account?',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                  ),
+                                  style: TextStyle(color: Colors.white70),
                                 ),
                                 TextButton(
                                   onPressed: () {
@@ -316,7 +334,8 @@ class _SignUpPageState extends State<SignUpPage> {
                                     foregroundColor: Colors.blue,
                                     padding: const EdgeInsets.only(left: 4),
                                     minimumSize: const Size(0, 0),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   child: const Text(
                                     'Sign In',
