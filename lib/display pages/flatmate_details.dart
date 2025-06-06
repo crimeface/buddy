@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
 
 class FlatmateDetailsPage extends StatelessWidget {
@@ -8,16 +9,29 @@ class FlatmateDetailsPage extends StatelessWidget {
   const FlatmateDetailsPage({Key? key, required this.flatmateData})
     : super(key: key);
 
-  String _formatDate(String? dateString) {
-    if (dateString == null || dateString.isEmpty) return 'Flexible';
+  String _formatDate(dynamic dateValue) {
+    if (dateValue == null) return 'Flexible';
     try {
-      final parts = dateString.split('T')[0].split('-');
-      if (parts.length == 3) {
-        return '${parts[2]}-${parts[1]}-${parts[0]}'; // DD-MM-YYYY
+      if (dateValue is Timestamp) {
+        final dt = dateValue.toDate();
+        return '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year}';
+      } else if (dateValue is DateTime) {
+        return '${dateValue.day.toString().padLeft(2, '0')}-${dateValue.month.toString().padLeft(2, '0')}-${dateValue.year}';
+      } else if (dateValue is String && dateValue.isNotEmpty) {
+        final dt = DateTime.tryParse(dateValue);
+        if (dt != null) {
+          return '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year}';
+        }
+        // fallback: try to format as DD-MM-YYYY if string is already in that format
+        final parts = dateValue.split('T')[0].split('-');
+        if (parts.length == 3) {
+          return '${parts[2]}-${parts[1]}-${parts[0]}'; // DD-MM-YYYY
+        }
+        return dateValue;
       }
-      return dateString;
+      return dateValue.toString();
     } catch (e) {
-      return dateString;
+      return dateValue.toString();
     }
   }
 
@@ -112,11 +126,11 @@ class FlatmateDetailsPage extends StatelessWidget {
             radius: 40,
             backgroundColor: BuddyTheme.secondaryColor,
             backgroundImage:
-                flatmateData['imageUrl'] != null
-                    ? NetworkImage(flatmateData['imageUrl'])
+                flatmateData['profilePhotoUrl'] != null
+                    ? NetworkImage(flatmateData['profilePhotoUrl'])
                     : null,
             child:
-                flatmateData['imageUrl'] == null
+                flatmateData['profilePhotoUrl'] == null
                     ? Text(
                       flatmateData['name']?.substring(0, 1).toUpperCase() ??
                           'U',
@@ -158,8 +172,7 @@ class FlatmateDetailsPage extends StatelessWidget {
                     const SizedBox(width: BuddyTheme.spacingXxs),
                     Expanded(
                       child: Text(
-                        flatmateData['preferredLocation'] ??
-                            'Location not specified',
+                        flatmateData['location'] ?? 'Location not specified',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: textSecondary,
                         ),
@@ -361,6 +374,13 @@ class FlatmateDetailsPage extends StatelessWidget {
             Icons.local_bar,
             'Drinking',
             flatmateData['drinkingPreference'] ?? 'No preference',
+          ),
+          Divider(height: BuddyTheme.spacingLg),
+          _buildPreferenceRow(
+            theme,
+            Icons.bedroom_parent,
+            'Flat Size Preference',
+            flatmateData['preferredRoomSize'] ?? 'No preference',
           ),
         ],
       ),

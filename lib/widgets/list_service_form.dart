@@ -1,10 +1,10 @@
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
-import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/cloudinary_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ListServiceForm extends StatefulWidget {
   const ListServiceForm({Key? key}) : super(key: key);
@@ -18,10 +18,9 @@ class _ListServiceFormState extends State<ListServiceForm>
   late PageController _pageController;
   late AnimationController _progressAnimationController;
   late AnimationController _slideAnimationController;
-  late AnimationController _fabAnimationController;
+
   late Animation<double> _progressAnimation;
   late Animation<Offset> _slideAnimation;
-  late Animation<double> _fabAnimation;
 
   bool _isNavigating = false;
   DateTime _lastNavigationTime = DateTime.now();
@@ -87,17 +86,9 @@ class _ListServiceFormState extends State<ListServiceForm>
   final _usefulnessController = TextEditingController();
 
   // Photo fields
-  final _requiredPhotoTypes = [
-    'Cover Photo',
-    'Inside',
-    'Outside',
-    'Special Features',
-  ];
-  final _uploadedPhotoUrls = <String>[];
-
-  // Photos
-  List<String> _uploadedPhotos = [];
-  bool _hasCoverPhoto = false;
+  String? _coverPhotoUrl;
+  List<String> _additionalPhotoUrls = [];
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> _serviceTypes = ['Library', 'Café', 'Mess', 'Other'];
   final List<String> _offDays = [
@@ -121,7 +112,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   void initState() {
     super.initState();
     _pageController = PageController();
-    
+
     // Add listener to sync page changes with step counter
     _pageController.addListener(() {
       if (_pageController.page != null &&
@@ -143,11 +134,6 @@ class _ListServiceFormState extends State<ListServiceForm>
       vsync: this,
     );
 
-    _fabAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
     _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _progressAnimationController,
@@ -165,16 +151,8 @@ class _ListServiceFormState extends State<ListServiceForm>
       ),
     );
 
-    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _fabAnimationController,
-        curve: Curves.elasticOut,
-      ),
-    );
-
     _progressAnimationController.forward();
     _slideAnimationController.forward();
-    _fabAnimationController.forward();
   }
 
   @override
@@ -182,7 +160,6 @@ class _ListServiceFormState extends State<ListServiceForm>
     _pageController.dispose();
     _progressAnimationController.dispose();
     _slideAnimationController.dispose();
-    _fabAnimationController.dispose();
     _serviceNameController.dispose();
     _locationController.dispose();
     _mapLinkController.dispose();
@@ -202,10 +179,10 @@ class _ListServiceFormState extends State<ListServiceForm>
 
   void _nextStep() {
     if (_isNavigating || _currentStep >= _totalSteps - 1) return;
-    
+
     final now = DateTime.now();
     if (now.difference(_lastNavigationTime).inMilliseconds < 300) return;
-    
+
     _isNavigating = true;
     _lastNavigationTime = now;
 
@@ -213,13 +190,15 @@ class _ListServiceFormState extends State<ListServiceForm>
       _currentStep++;
     });
 
-    _pageController.animateToPage(
-      _currentStep,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    ).then((_) {
-      _isNavigating = false;
-    });
+    _pageController
+        .animateToPage(
+          _currentStep,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        )
+        .then((_) {
+          _isNavigating = false;
+        });
 
     _updateProgress();
     _triggerSlideAnimation();
@@ -227,10 +206,10 @@ class _ListServiceFormState extends State<ListServiceForm>
 
   void _previousStep() {
     if (_isNavigating || _currentStep <= 0) return;
-    
+
     final now = DateTime.now();
     if (now.difference(_lastNavigationTime).inMilliseconds < 300) return;
-    
+
     _isNavigating = true;
     _lastNavigationTime = now;
 
@@ -238,13 +217,15 @@ class _ListServiceFormState extends State<ListServiceForm>
       _currentStep--;
     });
 
-    _pageController.animateToPage(
-      _currentStep,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    ).then((_) {
-      _isNavigating = false;
-    });
+    _pageController
+        .animateToPage(
+          _currentStep,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        )
+        .then((_) {
+          _isNavigating = false;
+        });
 
     _updateProgress();
     _triggerSlideAnimation();
@@ -262,6 +243,27 @@ class _ListServiceFormState extends State<ListServiceForm>
 
   void _submitForm() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    // Plan-based expiry logic
+    Duration planDuration;
+    switch (_selectedPlan) {
+      case '1Day':
+        planDuration = const Duration(days: 1);
+        break;
+      case '7Day':
+        planDuration = const Duration(days: 7);
+        break;
+      case '15Day':
+        planDuration = const Duration(days: 15);
+        break;
+      case '1Month':
+        planDuration = const Duration(days: 30);
+        break;
+      default:
+        planDuration = const Duration(days: 1);
+    }
+    final now = DateTime.now();
+    final expiryDate = now.add(planDuration);
+
     final data = {
       'userId': userId,
       'serviceType': _serviceType,
@@ -276,10 +278,9 @@ class _ListServiceFormState extends State<ListServiceForm>
       'closingTime':
           _closingTime != null ? _closingTime!.format(context) : null,
       'offDay': _offDay,
-      'createdAt': DateTime.now().toIso8601String(),
-      'imageUrl':
-          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
-
+      'createdAt': now.toIso8601String(),
+      'coverPhoto': _coverPhotoUrl,
+      'additionalPhotos': _additionalPhotoUrls,
       // Library-specific
       if (_serviceType == 'Library') ...{
         'libraryType': _libraryType,
@@ -313,10 +314,9 @@ class _ListServiceFormState extends State<ListServiceForm>
         'serviceTypeOther': _serviceTypeOtherController.text,
         'usefulness': _usefulnessController.text,
       },
-      // Photos
-      'coverPhoto': _uploadedPhotos.isNotEmpty ? _uploadedPhotos.first : null,
-      'additionalPhotos':
-          _uploadedPhotos.length > 1 ? _uploadedPhotos.sublist(1) : [],
+      'selectedPlan': _selectedPlan,
+      'expiryDate': expiryDate.toIso8601String(),
+      'visibility': true,
     };
 
     try {
@@ -650,16 +650,22 @@ class _ListServiceFormState extends State<ListServiceForm>
               'Choose how long to keep your listing active',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
-            ..._planPrices.entries.map((plan) => Padding(
-              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
-              child: _buildPlanCard(
-                plan.key,
-                plan.value.toDouble(),
-                isSelected: _selectedPlan == plan.key,
-                onSelect: () => setState(() => _selectedPlan = plan.key),
-              ),
-            )).toList(),
+
+            ..._planPrices.entries
+                .map(
+                  (plan) => Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: BuddyTheme.spacingMd,
+                    ),
+                    child: _buildPlanCard(
+                      plan.key,
+                      plan.value.toDouble(),
+                      isSelected: _selectedPlan == plan.key,
+                      onSelect: () => setState(() => _selectedPlan = plan.key),
+                    ),
+                  ),
+                )
+                .toList(),
 
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
@@ -669,7 +675,9 @@ class _ListServiceFormState extends State<ListServiceForm>
     );
   }
 
-  Widget _buildPlanCard(String planName, double price, {
+  Widget _buildPlanCard(
+    String planName,
+    double price, {
     required bool isSelected,
     required VoidCallback onSelect,
   }) {
@@ -693,10 +701,18 @@ class _ListServiceFormState extends State<ListServiceForm>
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                   decoration: BoxDecoration(
-                    color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : cardColor,
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    color:
+                        isSelected
+                            ? BuddyTheme.primaryColor.withOpacity(0.1)
+                            : cardColor,
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                     border: Border.all(
-                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
+                      color:
+                          isSelected
+                              ? BuddyTheme.primaryColor
+                              : Colors.grey.withOpacity(0.3),
                       width: isSelected ? 2 : 1,
                     ),
                     boxShadow: [
@@ -711,7 +727,8 @@ class _ListServiceFormState extends State<ListServiceForm>
                     children: [
                       Icon(
                         Icons.access_time,
-                        color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                        color:
+                            isSelected ? BuddyTheme.primaryColor : Colors.grey,
                       ),
                       const SizedBox(width: BuddyTheme.spacingMd),
                       Expanded(
@@ -721,7 +738,10 @@ class _ListServiceFormState extends State<ListServiceForm>
                             Text(
                               duration,
                               style: TextStyle(
-                                color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                                color:
+                                    isSelected
+                                        ? BuddyTheme.primaryColor
+                                        : textPrimary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -739,7 +759,10 @@ class _ListServiceFormState extends State<ListServiceForm>
                       Text(
                         formattedPrice,
                         style: TextStyle(
-                          color: isSelected ? BuddyTheme.primaryColor : textPrimary,
+                          color:
+                              isSelected
+                                  ? BuddyTheme.primaryColor
+                                  : textPrimary,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -750,7 +773,7 @@ class _ListServiceFormState extends State<ListServiceForm>
               ),
             ),
           ),
-          );
+        );
       },
     );
   }
@@ -768,19 +791,14 @@ class _ListServiceFormState extends State<ListServiceForm>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-        border: Border.all(
-          color: BuddyTheme.primaryColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: BuddyTheme.primaryColor.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: BuddyTheme.primaryColor,
-              ),
+              Icon(Icons.info_outline, color: BuddyTheme.primaryColor),
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 'Plan Benefits',
@@ -839,98 +857,100 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   Widget _buildServiceTypeCards() {
-  return GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      childAspectRatio: 1.1,
-      crossAxisSpacing: BuddyTheme.spacingSm,
-      mainAxisSpacing: BuddyTheme.spacingSm,
-    ),
-    itemCount: _serviceTypes.length,
-    itemBuilder: (context, index) {
-      String serviceType = _serviceTypes[index];
-      bool isSelected = _serviceType == serviceType;
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.1,
+        crossAxisSpacing: BuddyTheme.spacingSm,
+        mainAxisSpacing: BuddyTheme.spacingSm,
+      ),
+      itemCount: _serviceTypes.length,
+      itemBuilder: (context, index) {
+        String serviceType = _serviceTypes[index];
+        bool isSelected = _serviceType == serviceType;
 
-      return TweenAnimationBuilder<double>(
-        duration: Duration(milliseconds: 400 + (index * 100)),
-        tween: Tween(begin: 0.0, end: 1.0),
-        builder: (context, value, child) {
-          return Transform.scale(
-            scale: 0.8 + (0.2 * value),
-            child: Opacity(
-              opacity: value,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _serviceType = serviceType;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(
-                    BuddyTheme.borderRadiusMd,
-                  ),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? BuddyTheme.primaryColor.withOpacity(0.1)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(
-                        BuddyTheme.borderRadiusMd,
-                      ),
-                      border: Border.all(
-                        color: isSelected
-                            ? BuddyTheme.primaryColor
-                            : BuddyTheme.borderColor,
-                        width: isSelected ? 2 : 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+        return TweenAnimationBuilder<double>(
+          duration: Duration(milliseconds: 400 + (index * 100)),
+          tween: Tween(begin: 0.0, end: 1.0),
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: 0.8 + (0.2 * value),
+              child: Opacity(
+                opacity: value,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _serviceType = serviceType;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _getServiceTypeIcon(serviceType),
-                          style: const TextStyle(fontSize: 32),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected
+                                ? BuddyTheme.primaryColor.withOpacity(0.1)
+                                : Colors.white,
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusMd,
                         ),
-                        const SizedBox(height: BuddyTheme.spacingSm),
-                        Text(
-                          serviceType,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(
-                                color: isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.textPrimaryColor,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
+                        border: Border.all(
+                          color:
+                              isSelected
+                                  ? BuddyTheme.primaryColor
+                                  : BuddyTheme.borderColor,
+                          width: isSelected ? 2 : 1,
                         ),
-                      ],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _getServiceTypeIcon(serviceType),
+                            style: const TextStyle(fontSize: 32),
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingSm),
+                          Text(
+                            serviceType,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(
+                              color:
+                                  isSelected
+                                      ? BuddyTheme.primaryColor
+                                      : BuddyTheme.textPrimaryColor,
+                              fontWeight:
+                                  isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
-
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildServiceTypeInfo() {
     return Container(
@@ -1035,7 +1055,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     Function(TimeOfDay) onTimeSelected,
   ) {
     return Material(
-      color: Colors.transparent,
+      color: cardColor,
       child: InkWell(
         onTap: () async {
           final TimeOfDay? picked = await showTimePicker(
@@ -1321,26 +1341,38 @@ class _ListServiceFormState extends State<ListServiceForm>
               color: cardColor,
               borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
               border: Border.all(color: BuddyTheme.borderColor),
+              image:
+                  _coverPhotoUrl != null
+                      ? DecorationImage(
+                        image: NetworkImage(_coverPhotoUrl!),
+                        fit: BoxFit.cover,
+                      )
+                      : null,
             ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.add_a_photo,
-                    size: 48,
-                    color: BuddyTheme.textSecondaryColor,
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingSm),
-                  Text(
-                    'Click to add cover photo',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: BuddyTheme.textSecondaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            child:
+                _coverPhotoUrl == null
+                    ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_a_photo,
+                            size: 48,
+                            color: BuddyTheme.textSecondaryColor,
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingSm),
+                          Text(
+                            'Click to add cover photo',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(
+                              color: BuddyTheme.textSecondaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                    : null,
           ),
         ),
       ],
@@ -1373,19 +1405,19 @@ class _ListServiceFormState extends State<ListServiceForm>
             crossAxisSpacing: BuddyTheme.spacingSm,
             mainAxisSpacing: BuddyTheme.spacingSm,
           ),
-          itemCount: _uploadedPhotos.length + 1,
+          itemCount: _additionalPhotoUrls.length + 1,
           itemBuilder: (context, index) {
-            if (index == _uploadedPhotos.length) {
+            if (index == _additionalPhotoUrls.length) {
               return _buildAddPhotoButton();
             }
-            return _buildPhotoThumbnail(_uploadedPhotos[index]);
+            return _buildPhotoThumbnail(_additionalPhotoUrls[index]);
           },
         ),
       ],
     );
   }
 
-  Widget _buildPhotoThumbnail(String photoPath) {
+  Widget _buildPhotoThumbnail(String photoUrl) {
     return Stack(
       children: [
         Container(
@@ -1394,7 +1426,7 @@ class _ListServiceFormState extends State<ListServiceForm>
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
             border: Border.all(color: BuddyTheme.borderColor),
             image: DecorationImage(
-              image: FileImage(File(photoPath)),
+              image: NetworkImage(photoUrl),
               fit: BoxFit.cover,
             ),
           ),
@@ -1403,7 +1435,7 @@ class _ListServiceFormState extends State<ListServiceForm>
           top: 4,
           right: 4,
           child: InkWell(
-            onTap: () => _removePhoto(photoPath),
+            onTap: () => _removePhoto(photoUrl),
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -1449,44 +1481,77 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   void _selectCoverPhoto() async {
-    // Implement photo selection logic
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Uploading cover photo...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      try {
+        String url = await CloudinaryService.uploadImage(image.path);
+        setState(() {
+          _coverPhotoUrl = url;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cover photo uploaded!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _selectAdditionalPhoto() async {
-    // Implement photo selection logic
-  }
-
-  void _removePhoto(String photoPath) {
-    setState(() {
-      _uploadedPhotos.remove(photoPath);
-    });
-  }
-
-  Widget _buildSubmitButton() {
-    return ElevatedButton(
-      onPressed: () {
-        if (_formKey.currentState?.validate() ?? false) {
-          _submitForm();
-        }
-      },
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(
-          vertical: BuddyTheme.spacingMd,
-          horizontal: BuddyTheme.spacingLg,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-        ),
-        backgroundColor: BuddyTheme.primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      child: Text(
-        'Submit Listing',
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-      ),
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
     );
+    if (image != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Uploading photo...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      try {
+        String url = await CloudinaryService.uploadImage(image.path);
+        setState(() {
+          _additionalPhotoUrls.add(url);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo uploaded!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _removePhoto(String photoUrl) {
+    setState(() {
+      _additionalPhotoUrls.remove(photoUrl);
+    });
   }
 
   Widget _buildMealTimingsCard() {
@@ -1641,26 +1706,24 @@ class _ListServiceFormState extends State<ListServiceForm>
                 ),
               ),
               child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _currentStep == _totalSteps - 1
-                          ? 'Submit Listing'
-                          : 'Next',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _currentStep == _totalSteps - 1 ? 'Submit Listing' : 'Next',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: BuddyTheme.spacingXs),
-                    Icon(
-                      _currentStep == _totalSteps - 1
-                          ? Icons.check
-                          : Icons.arrow_forward,
-                      color: cardColor,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: BuddyTheme.spacingXs),
+                  Icon(
+                    _currentStep == _totalSteps - 1
+                        ? Icons.check
+                        : Icons.arrow_forward,
+                    color: cardColor,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1723,7 +1786,7 @@ class _ListServiceFormState extends State<ListServiceForm>
               ),
             ),
           ),
-          );
+        );
       },
     );
   }

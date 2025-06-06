@@ -1,14 +1,14 @@
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme.dart';
 import '../models/room_type.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this import at the top
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/cloudinary_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ListHostelForm extends StatefulWidget {
-  ListHostelForm({Key? key}) : super(key: key) {
-  }
+  ListHostelForm({Key? key}) : super(key: key) {}
 
   @override
   State<ListHostelForm> createState() => _ListHostelFormState();
@@ -53,15 +53,13 @@ class _ListHostelFormState extends State<ListHostelForm>
   String _hostelFor = 'Male';
 
   // Room Types
-  List<RoomType> _roomTypes = [
-    RoomType(
-      type: '1 Bed Room (Private)',
-      bedsPerRoom: 1,
-      availableRooms: 0,
-      rentPerPerson: 0,
-      deposit: 0,
-    ),
-  ];
+  Map<String, bool> _roomTypes = {
+    '1 Bed Room (Private)': false,
+    '2 Bed Room': false,
+    '3 Bed Room': false,
+    '4+ Bed Room': false,
+  };
+  final _startingPriceController = TextEditingController();
 
   // Facilities
   Map<String, bool> _facilities = {
@@ -94,7 +92,8 @@ class _ListHostelFormState extends State<ListHostelForm>
   String _bookingMode = 'Call';
 
   // Photos
-  List<String> _uploadedPhotos = [];
+  Map<String, String> _uploadedPhotos = {};
+  final imagePicker = ImagePicker();
   final List<String> _requiredPhotoTypes = [
     'Room',
     'Washroom',
@@ -180,6 +179,7 @@ class _ListHostelFormState extends State<ListHostelForm>
     _descriptionController.dispose();
     _offersController.dispose();
     _specialFeaturesController.dispose();
+    _startingPriceController.dispose();
     super.dispose();
   }
 
@@ -221,31 +221,81 @@ class _ListHostelFormState extends State<ListHostelForm>
     _slideAnimationController.forward();
   }
 
+  // Add this function for uploading a single photo to Cloudinary
+  Future<String?> _uploadPhotoToCloudinary(String imagePath) async {
+    try {
+      return await CloudinaryService.uploadImage(imagePath);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return null;
+    }
+  }
+
+  // Update this function to handle image picking and uploading
+  Future<void> _pickAndUploadPhoto(String photoType) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked != null) {
+      final url = await _uploadPhotoToCloudinary(picked.path);
+      if (url != null) {
+        setState(() {
+          _uploadedPhotos[photoType] = url;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image uploaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
   void _submitForm() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    // Plan expiry logic
+    Duration planDuration;
+    switch (_selectedPlan) {
+      case '1Day':
+        planDuration = const Duration(days: 1);
+        break;
+      case '7Day':
+        planDuration = const Duration(days: 7);
+        break;
+      case '15Day':
+        planDuration = const Duration(days: 15);
+        break;
+      case '1Month':
+        planDuration = const Duration(days: 30);
+        break;
+      default:
+        planDuration = const Duration(days: 1);
+    }
+    final now = DateTime.now();
+    final expiryDate = now.add(planDuration);
+
     final data = {
       'uid': userId,
       'title': _titleController.text,
       'hostelType': _hostelType,
       'hostelFor': _hostelFor,
+      'startingAt': _startingPriceController.text.isNotEmpty ? int.parse(_startingPriceController.text) : 0,
       'contactPerson': _contactPersonController.text,
       'phone': _phoneController.text,
       'email': _emailController.text,
       'address': _addressController.text,
       'landmark': _landmarkController.text,
       'mapLink': _mapLinkController.text,
-      'roomTypes':
-          _roomTypes
-              .map(
-                (room) => {
-                  'type': room.type,
-                  'bedsPerRoom': room.bedsPerRoom,
-                  'availableRooms': room.availableRooms,
-                  'rentPerPerson': room.rentPerPerson,
-                  'deposit': room.deposit,
-                },
-              )
-              .toList(),
+      'roomTypes': _roomTypes,
       'facilities': _facilities,
       'hasEntryTimings': _hasEntryTimings,
       'entryTime': _entryTime?.format(context),
@@ -257,13 +307,18 @@ class _ListHostelFormState extends State<ListHostelForm>
       'availableFromDate': _availableFromDate?.toIso8601String(),
       'minimumStay': _minimumStay,
       'bookingMode': _bookingMode,
-      'uploadedPhotos': _uploadedPhotos,
+      'uploadedPhotos': _uploadedPhotos, // Now contains Cloudinary URLs
       'description': _descriptionController.text,
       'offers': _offersController.text,
       'specialFeatures': _specialFeaturesController.text,
       'createdAt': DateTime.now().toIso8601String(),
       'imageUrl':
-          'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
+          _uploadedPhotos.isNotEmpty
+              ? _uploadedPhotos.values.first
+              : 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
+      'selectedPlan': _selectedPlan,
+      'expiryDate': expiryDate.toIso8601String(),
+      'visibility': true,
     };
 
     try {
@@ -294,11 +349,13 @@ class _ListHostelFormState extends State<ListHostelForm>
   Widget build(BuildContext context) {
     theme = Theme.of(context);
     scaffoldBg = theme.scaffoldBackgroundColor;
-    cardColor = theme.brightness == Brightness.dark
-        ? const Color(0xFF23262F)
-        : const Color.fromARGB(255, 226, 227, 231);
+    cardColor =
+        theme.brightness == Brightness.dark
+            ? const Color(0xFF23262F)
+            : const Color.fromARGB(255, 226, 227, 231);
     textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
-    textSecondary = theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
+    textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -494,20 +551,91 @@ class _ListHostelFormState extends State<ListHostelForm>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildStepHeader(
-              '🛏️ Room Types and Bed Availability',
-              'Configure your room types and availability',
+              '🛏️ Room Types and Price',
+              'Configure your room types and pricing',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-
-            ..._roomTypes.asMap().entries.map((entry) {
-              int index = entry.key;
-              RoomType roomType = entry.value;
-              return _buildRoomTypeCard(roomType, index);
-            }).toList(),
+            
+            Container(
+              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Available Room Types',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                  ..._roomTypes.entries.map((entry) => CheckboxListTile(
+                    title: Text(entry.key),
+                    value: entry.value,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _roomTypes[entry.key] = value ?? false;
+                      });
+                    },
+                    activeColor: BuddyTheme.primaryColor,
+                  )).toList(),
+                ],
+              ),
+            ),
 
             const SizedBox(height: BuddyTheme.spacingLg),
+            
+            Container(
+              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Rooms starting at',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                  TextFormField(
+                    controller: _startingPriceController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Enter starting price',
+                      prefixText: '₹ ',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-            _buildAddRoomTypeButton(),
+            const SizedBox(height: BuddyTheme.spacingLg),
           ],
         ),
       ),
@@ -547,7 +675,7 @@ class _ListHostelFormState extends State<ListHostelForm>
 
             _buildSwitchCard(
               'Entry Timings',
-              'Do you have specific entry timings?',
+              'Do you have specific entry timings limit?',
               _hasEntryTimings,
               (value) => setState(() => _hasEntryTimings = value),
               Icons.access_time,
@@ -593,7 +721,7 @@ class _ListHostelFormState extends State<ListHostelForm>
             _buildSelectionCard(
               'Food Type Provided',
               _foodType,
-              ['Veg', 'Non-Veg', 'Both'],
+              ['Veg', 'Non-Veg', 'Both', 'Not Provided'],
               (value) => setState(() => _foodType = value),
               Icons.restaurant,
             ),
@@ -709,16 +837,22 @@ class _ListHostelFormState extends State<ListHostelForm>
               'Choose how long to keep your listing active',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
-            ..._planPrices.entries.map((plan) => Padding(
-              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
-              child: _buildPlanCard(
-                plan.key,
-                plan.value,
-                isSelected: _selectedPlan == plan.key,
-                onSelect: () => setState(() => _selectedPlan = plan.key),
-              ),
-            )).toList(),
+
+            ..._planPrices.entries
+                .map(
+                  (plan) => Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: BuddyTheme.spacingMd,
+                    ),
+                    child: _buildPlanCard(
+                      plan.key,
+                      plan.value,
+                      isSelected: _selectedPlan == plan.key,
+                      onSelect: () => setState(() => _selectedPlan = plan.key),
+                    ),
+                  ),
+                )
+                .toList(),
 
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
@@ -728,91 +862,104 @@ class _ListHostelFormState extends State<ListHostelForm>
     );
   }
 
-  Widget _buildPlanCard(String planName, double price, {
-    required bool isSelected,
-    required VoidCallback onSelect,
-  }) {
-    String duration = planName;
-    String formattedPrice = '₹${price.toStringAsFixed(0)}';
+  Widget _buildPlanCard(
+  String planName,
+  double price, {
+  required bool isSelected,
+  required VoidCallback onSelect,
+}) {
+  String duration = planName;
+  String formattedPrice = '₹${price.toStringAsFixed(0)}';
 
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 600),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onSelect,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                  decoration: BoxDecoration(
-                    color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : cardColor,
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                    border: Border.all(
-                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
-                      width: isSelected ? 2 : 1,
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 600),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onSelect,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? BuddyTheme.primaryColor.withOpacity(0.1)
+                      : cardColor,
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  border: Border.all(
+                    color: isSelected
+                        ? BuddyTheme.primaryColor
+                        : Colors.grey.withOpacity(0.3),
+                    width: isSelected ? 2 : 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
-                      ),
-                      const SizedBox(width: BuddyTheme.spacingMd),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              duration,
-                              style: TextStyle(
-                                color: isSelected ? BuddyTheme.primaryColor : textPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            duration,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? BuddyTheme.primaryColor
+                                  : textPrimary,
                             ),
-                            const SizedBox(height: BuddyTheme.spacingXs),
-                            Text(
-                              'Keep your listing active for ${duration.toLowerCase()}',
-                              style: TextStyle(
-                                color: textSecondary,
-                                fontSize: 12,
-                              ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Keep your listing active',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textSecondary,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        formattedPrice,
-                        style: TextStyle(
-                          color: isSelected ? BuddyTheme.primaryColor : textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
+                    ),
+                    Text(
+                      formattedPrice,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? BuddyTheme.primaryColor
+                            : textPrimary,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-          );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
+
+
 
   Widget _buildPlanInfoCard() {
     return Container(
@@ -827,19 +974,14 @@ class _ListHostelFormState extends State<ListHostelForm>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-        border: Border.all(
-          color: BuddyTheme.primaryColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: BuddyTheme.primaryColor.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: BuddyTheme.primaryColor,
-              ),
+              Icon(Icons.info_outline, color: BuddyTheme.primaryColor),
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 'Plan Benefits',
@@ -863,7 +1005,7 @@ class _ListHostelFormState extends State<ListHostelForm>
       ),
     );
   }
-  
+
   Widget _buildPreviewStep() {
     return _buildStepContainer(
       child: SingleChildScrollView(
@@ -884,448 +1026,256 @@ class _ListHostelFormState extends State<ListHostelForm>
   }
 
   Widget _buildStepHeader(String title, String subtitle) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 500),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 500),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
                 ),
-                const SizedBox(height: BuddyTheme.spacingXs),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: textSecondary,
-                  ),
+              ),
+              const SizedBox(height: BuddyTheme.spacingXs),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+
+
+  Widget _buildAnimatedTextField({
+  required TextEditingController controller,
+  required String label,
+  required String hint,
+  required IconData icon,
+  TextInputType? keyboardType,
+  int maxLines = 1,
+}) {
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 400),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Container(
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAnimatedTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextInputType? keyboardType,
-    int maxLines = 1,
-  }) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 400),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextFormField(
-                controller: controller,
-                keyboardType: keyboardType,
-                maxLines: maxLines,
-                style: TextStyle(color: textPrimary),
-                decoration: InputDecoration(
-                  labelText: label,
-                  hintText: hint,
-                  prefixIcon: Icon(icon, color: BuddyTheme.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
-                    ),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: cardColor,
-                ),
-              ),
-            ),
-          ),
-          );
-      },
-    );
-  }
-
-  Widget _buildSelectionCard(
-    String title,
-    String selectedValue,
-    List<String> options,
-    Function(String) onChanged,
-    IconData icon,
-  ) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 400),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(50 * (1 - value), 0),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(icon, color: BuddyTheme.primaryColor),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Text(
-                        title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-                  Wrap(
-                    spacing: BuddyTheme.spacingSm,
-                    runSpacing: BuddyTheme.spacingSm,
-                    children:
-                        options
-                            .map(
-                              (option) => GestureDetector(
-                                onTap: () => onChanged(option),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: BuddyTheme.spacingMd,
-                                    vertical: BuddyTheme.spacingSm,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        selectedValue == option
-                                            ? BuddyTheme.primaryColor
-                                            : scaffoldBg,
-                                    borderRadius: BorderRadius.circular(
-                                      BuddyTheme.borderRadiusSm,
-                                    ),
-                                    border: Border.all(
-                                      color:
-                                          selectedValue == option
-                                              ? BuddyTheme.primaryColor
-                                              : BuddyTheme.borderColor,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    option,
-                                    style: TextStyle(
-                                      color:
-                                          selectedValue == option
-                                              ? Colors.white
-                                              : textPrimary,
-                                      fontWeight:
-                                          selectedValue == option
-                                              ? FontWeight.w600
-                                              : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          );
-      },
-    );
-  }
-
-  Widget _buildSwitchCard(
-    String title,
-    String subtitle,
-    bool value,
-    Function(bool) onChanged,
-    IconData icon,
-  ) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 400),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, animValue, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * animValue),
-          child: Opacity(
-            opacity: animValue,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(icon, color: BuddyTheme.primaryColor),
-                  const SizedBox(width: BuddyTheme.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          subtitle,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: BuddyTheme.textSecondaryColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: value,
-                    onChanged: onChanged,
-                    activeColor: BuddyTheme.primaryColor,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          );
-      },
-    );
-  }
-
-  Widget _buildRoomTypeCard(RoomType roomType, int index) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 400 + (index * 100)),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: BuddyTheme.spacingLg),
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        roomType.type,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                      if (_roomTypes.length > 1)
-                        IconButton(
-                          onPressed: () => _removeRoomType(index),
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-                  DropdownButtonFormField<String>(
-                    value: roomType.type,
-                    decoration: InputDecoration(
-                      labelText: 'Room Type',
-                      prefixIcon: const Icon(Icons.bed),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusSm,
-                        ),
-                      ),
-                    ),
-                    items:
-                        [
-                              '1 Bed Room (Private)',
-                              '2 Bed Sharing',
-                              '3 Bed Sharing',
-                              '4+ Bed Sharing',
-                            ]
-                            .map(
-                              (type) => DropdownMenuItem(
-                                value: type,
-                                child: Text(type),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        roomType.type = value!;
-                        roomType.bedsPerRoom = _getBedsPerRoom(value);
-                      });
-                    },
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Available Rooms - now on its own row
-                  TextFormField(
-                    initialValue: roomType.availableRooms.toString(),
-                    decoration: InputDecoration(
-                      labelText: 'Available Rooms',
-                      prefixIcon: const Icon(Icons.door_front_door),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusSm,
-                        ),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      roomType.availableRooms = int.tryParse(value) ?? 0;
-                    },
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Rent per Person - now on its own row
-                  TextFormField(
-                    initialValue: roomType.rentPerPerson.toString(),
-                    decoration: InputDecoration(
-                      labelText: 'Rent per Person',
-                      prefixIcon: const Icon(Icons.currency_rupee),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusSm,
-                        ),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      roomType.rentPerPerson = double.tryParse(value) ?? 0;
-                    },
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Security Deposit
-                  TextFormField(
-                    initialValue: roomType.deposit.toString(),
-                    decoration: InputDecoration(
-                      labelText: 'Security Deposit',
-                      prefixIcon: const Icon(Icons.account_balance_wallet),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusSm,
-                        ),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      roomType.deposit = double.tryParse(value) ?? 0;
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          );
-      },
-    );
-  }
-
-  Widget _buildAddRoomTypeButton() {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 500),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: GestureDetector(
-              onTap: _addRoomType,
-              child: Container(
-                padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-                decoration: BoxDecoration(
-                  color: BuddyTheme.primaryColor.withOpacity(0.1),
+            child: TextFormField(
+              controller: controller,
+              keyboardType: keyboardType,
+              maxLines: maxLines,
+              style: TextStyle(color: textPrimary),
+              decoration: InputDecoration(
+                labelText: label,
+                hintText: hint,
+                prefixIcon: Icon(icon, color: BuddyTheme.primaryColor),
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(
                     BuddyTheme.borderRadiusMd,
                   ),
-                  border: Border.all(
-                    color: BuddyTheme.primaryColor,
-                    style: BorderStyle.solid,
-                    width: 2,
-                  ),
+                  borderSide: BorderSide.none,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                filled: true,
+                fillColor: cardColor,
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+
+
+  Widget _buildSelectionCard(
+  String title,
+  String selectedValue,
+  List<String> options,
+  Function(String) onChanged,
+  IconData icon,
+) {
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 400),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.translate(
+        offset: Offset(50 * (1 - value), 0),
+        child: Opacity(
+          opacity: value,
+          child: Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Icon(
-                      Icons.add_circle_outline,
-                      color: BuddyTheme.primaryColor,
-                    ),
-                    const SizedBox(width: BuddyTheme.spacingSm),
+                    Icon(icon, color: BuddyTheme.primaryColor),
+                    const SizedBox(width: BuddyTheme.spacingMd),
                     Text(
-                      'Add Another Room Type',
+                      title,
                       style: TextStyle(
-                        color: BuddyTheme.primaryColor,
                         fontWeight: FontWeight.bold,
+                        color: textPrimary,
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: BuddyTheme.spacingMd),
+                Wrap(
+                  spacing: BuddyTheme.spacingSm,
+                  runSpacing: BuddyTheme.spacingSm,
+                  children: options.map((option) {
+                    final isSelected = selectedValue == option;
+                    return InkWell(
+                      onTap: () => onChanged(option),
+                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: BuddyTheme.spacingMd,
+                          vertical: BuddyTheme.spacingSm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? BuddyTheme.primaryColor
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                          border: Border.all(
+                            color: isSelected
+                                ? BuddyTheme.primaryColor
+                                : Colors.grey.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          option,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : textPrimary,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
           ),
-          );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
+
+
+
+  Widget _buildSwitchCard(
+  String title,
+  String subtitle,
+  bool value,
+  Function(bool) onChanged,
+  IconData icon,
+) {
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 400),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, animValue, child) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * animValue),
+        child: Opacity(
+          opacity: animValue,
+          child: Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: BuddyTheme.primaryColor),
+                const SizedBox(width: BuddyTheme.spacingMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeColor: BuddyTheme.primaryColor,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
 
   Widget _buildFacilitiesGrid() {
     List<Widget> rows = [];
@@ -1390,110 +1340,54 @@ class _ListHostelFormState extends State<ListHostelForm>
   }
 
   Widget _buildFacilityItem(
-    String facility,
-    bool isSelected, {
-    bool fullWidth = false,
-  }) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 400),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _facilities[facility] = !isSelected;
-                  });
-                },
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(BuddyTheme.spacingSm),
-                  width: fullWidth ? double.infinity : null,
-                  decoration: BoxDecoration(
-                    color:
-                        isSelected
-                            ? BuddyTheme.primaryColor.withOpacity(0.1)
-                            : Colors.white,
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
-                    ),
-                    border: Border.all(
-                      color:
-                          isSelected
-                              ? BuddyTheme.primaryColor
-                              : BuddyTheme.borderColor,
-                      width: isSelected ? 2 : 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color:
-                              isSelected
-                                  ? BuddyTheme.primaryColor
-                                  : Colors.transparent,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color:
-                                isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.borderColor,
-                          ),
-                        ),
-                        child:
-                            isSelected
-                                ? const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 14,
-                                )
-                                : null,
-                      ),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Expanded(
-                        child: Text(
-                          facility,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyMedium?.copyWith(
-                            color:
-                                isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.textPrimaryColor,
-                            fontWeight:
-                                isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+  String facility,
+  bool isSelected, {
+  bool fullWidth = false,
+}) {
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 400),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              _facilities[facility] = !isSelected;
+            });
+          },
+          child: Container(
+            width: fullWidth ? double.infinity : null,
+            padding: EdgeInsets.symmetric(
+              horizontal: BuddyTheme.spacingMd,
+              vertical: BuddyTheme.spacingSm,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? BuddyTheme.primaryColor.withOpacity(0.1)
+                  : cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              border: Border.all(
+                color: isSelected
+                    ? BuddyTheme.primaryColor
+                    : Colors.grey.withOpacity(0.3),
+              ),
+            ),
+            child: Text(
+              facility,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isSelected ? BuddyTheme.primaryColor : textSecondary,
               ),
             ),
           ),
-          );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
+
+
 
   Widget _buildTimePickerCard() {
     return Container(
@@ -1555,86 +1449,87 @@ class _ListHostelFormState extends State<ListHostelForm>
   }
 
   Widget _buildDatePickerCard() {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 600),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 600),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Opacity(
+          opacity: value,
+          child: Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today,
+                  color: BuddyTheme.primaryColor,
+                ),
+                const SizedBox(width: BuddyTheme.spacingMd),
+                Expanded(
+                  child: Text(
+                    'Available From Date',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    color: BuddyTheme.primaryColor,
-                  ),
-                  const SizedBox(width: BuddyTheme.spacingMd),
-                  Expanded(
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: _availableFromDate ?? DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _availableFromDate = picked;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BuddyTheme.spacingMd,
+                      vertical: BuddyTheme.spacingSm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                    ),
                     child: Text(
-                      'Available From Date',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      _availableFromDate != null
+                          ? '${_availableFromDate!.day}/${_availableFromDate!.month}/${_availableFromDate!.year}'
+                          : 'Select Date',
+                      style: TextStyle(
+                        color: BuddyTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: _availableFromDate ?? DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          _availableFromDate = picked;
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: BuddyTheme.spacingMd,
-                        vertical: BuddyTheme.spacingSm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: BuddyTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusSm,
-                        ),
-                      ),
-                      child: Text(
-                        _availableFromDate != null
-                            ? '${_availableFromDate!.day}/${_availableFromDate!.month}/${_availableFromDate!.year}'
-                            : 'Select Date',
-                        style: TextStyle(
-                          color: BuddyTheme.primaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
+
 
   Widget _buildPhotoUploadSection() {
   return Column(
@@ -1665,7 +1560,7 @@ class _ListHostelFormState extends State<ListHostelForm>
         itemCount: _requiredPhotoTypes.length,
         itemBuilder: (context, index) {
           String photoType = _requiredPhotoTypes[index];
-          bool hasPhoto = _uploadedPhotos.contains(photoType);
+          String? photoUrl = _uploadedPhotos[photoType];
 
           return TweenAnimationBuilder<double>(
             duration: Duration(milliseconds: 300 + (index * 100)),
@@ -1678,31 +1573,23 @@ class _ListHostelFormState extends State<ListHostelForm>
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          if (hasPhoto) {
-                            _uploadedPhotos.remove(photoType);
-                          } else {
-                            _uploadedPhotos.add(photoType);
-                          }
-                        });
-                      },
+                      onTap: () => _pickAndUploadPhoto(photoType),
                       borderRadius: BorderRadius.circular(
                         BuddyTheme.borderRadiusMd,
                       ),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: hasPhoto
+                          color: photoUrl != null
                               ? BuddyTheme.primaryColor.withOpacity(0.1)
                               : cardColor,
                           borderRadius: BorderRadius.circular(
                             BuddyTheme.borderRadiusMd,
                           ),
                           border: Border.all(
-                            color: hasPhoto
+                            color: photoUrl != null
                                 ? BuddyTheme.primaryColor
                                 : BuddyTheme.borderColor,
-                            style: hasPhoto
+                            style: photoUrl != null
                                 ? BorderStyle.solid
                                 : BorderStyle.none,
                           ),
@@ -1717,35 +1604,46 @@ class _ListHostelFormState extends State<ListHostelForm>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              child: Icon(
-                                hasPhoto
-                                    ? Icons.check_circle
-                                    : Icons.add_a_photo_outlined,
-                                key: ValueKey(hasPhoto),
+                            if (photoUrl != null)
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    BuddyTheme.borderRadiusSm,
+                                  ),
+                                  child: Image.network(
+                                    photoUrl,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Icon(
+                                      Icons.broken_image,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              Icon(
+                                Icons.add_a_photo_outlined,
                                 size: 32,
-                                color: hasPhoto
-                                    ? BuddyTheme.primaryColor
-                                    : textSecondary,
+                                color: textSecondary,
                               ),
-                            ),
                             const SizedBox(height: BuddyTheme.spacingSm),
                             Text(
                               photoType,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: hasPhoto
+                                color: photoUrl != null
                                     ? BuddyTheme.primaryColor
                                     : textSecondary,
-                                fontWeight: hasPhoto
+                                fontWeight: photoUrl != null
                                     ? FontWeight.w600
                                     : FontWeight.normal,
                               ),
                             ),
-                            if (hasPhoto) ...[
+                            if (photoUrl != null) ...[
                               const SizedBox(height: BuddyTheme.spacingXs),
                               Text(
-                                'Tap to remove',
+                                'Tap to change',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: textSecondary,
                                   fontSize: 10,
@@ -1759,7 +1657,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                   ),
                 ),
               );
-            },
+            }, // ✅ Removed incorrect semicolon here
           );
         },
       ),
@@ -1768,171 +1666,174 @@ class _ListHostelFormState extends State<ListHostelForm>
 }
 
 
+
   Widget _buildPreviewCard() {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 500),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) {
-        return Transform.scale(
-          scale: 0.9 + (0.1 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title and Basic Info
-                  Text(
-                    _titleController.text.isNotEmpty
-                        ? _titleController.text
-                        : 'Hostel Title',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingXs),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: BuddyTheme.spacingSm,
-                          vertical: BuddyTheme.spacingXs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: BuddyTheme.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(
-                            BuddyTheme.borderRadiusSm,
-                          ),
-                        ),
-                        child: Text(
-                          _hostelType,
-                          style: TextStyle(
-                            color: BuddyTheme.primaryColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 500),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (BuildContext context, double value, Widget? child) {
+      return Transform.scale(
+        scale: 0.9 + (0.1 * value),
+        child: Opacity(
+          opacity: value,
+          child: Container(
+            padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title and Basic Info
+                Text(
+                  _titleController.text.isNotEmpty
+                      ? _titleController.text
+                      : 'Hostel Title',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: BuddyTheme.spacingXs),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: BuddyTheme.spacingSm,
+                        vertical: BuddyTheme.spacingXs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: BuddyTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusSm,
                         ),
                       ),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: BuddyTheme.spacingSm,
-                          vertical: BuddyTheme.spacingXs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: BuddyTheme.accentColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(
-                            BuddyTheme.borderRadiusSm,
-                          ),
-                        ),
-                        child: Text(
-                          _hostelFor,
-                          style: TextStyle(
-                            color: BuddyTheme.accentColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      child: Text(
+                        _hostelType,
+                        style: TextStyle(
+                          color: BuddyTheme.primaryColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-                  const Divider(),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Contact Info
-                  _buildPreviewSection('Contact Information', [
-                    _buildPreviewItem(
-                      'Contact Person',
-                      _contactPersonController.text,
                     ),
-                    _buildPreviewItem('Phone', _phoneController.text),
-                    _buildPreviewItem('Email', _emailController.text),
-                    _buildPreviewItem('Address', _addressController.text),
-                    _buildPreviewItem('Landmark', _landmarkController.text),
-                  ]),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Room Types
-                  _buildPreviewSection(
-                    'Room Types',
-                    _roomTypes
-                        .map(
-                          (room) => _buildPreviewItem(
-                            room.type,
-                            '${room.availableRooms} rooms • ₹${room.rentPerPerson}/person • ₹${room.deposit} deposit',
-                          ),
-                        )
-                        .toList(),
-                  ),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Facilities
-                  _buildPreviewSection('Facilities', [
-                    _buildPreviewFacilities(),
-                  ]),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Rules
-                  _buildPreviewSection('Rules & Policies', [
-                    _buildPreviewItem(
-                      'Entry Timings',
-                      _hasEntryTimings
-                          ? (_entryTime?.format(context) ?? 'Not specified')
-                          : 'No restrictions',
-                    ),
-                    _buildPreviewItem('Smoking', _smokingPolicy),
-                    _buildPreviewItem('Drinking', _drinkingPolicy),
-                    _buildPreviewItem('Guests', _guestsPolicy),
-                    _buildPreviewItem('Pets', _petsPolicy),
-                    _buildPreviewItem('Food Type', _foodType),
-                  ]),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Availability
-                  _buildPreviewSection('Availability', [
-                    _buildPreviewItem(
-                      'Available From',
-                      _availableFromDate != null
-                          ? '${_availableFromDate!.day}/${_availableFromDate!.month}/${_availableFromDate!.year}'
-                          : 'Not specified',
-                    ),
-                    _buildPreviewItem('Minimum Stay', _minimumStay),
-                    _buildPreviewItem('Booking Mode', _bookingMode),
-                  ]),
-
-                  if (_descriptionController.text.isNotEmpty)
-                    _buildPreviewSection('Description', [
-                      const SizedBox(height: BuddyTheme.spacingMd),
-                      Text(
-                        _descriptionController.text,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                    const SizedBox(width: BuddyTheme.spacingSm),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: BuddyTheme.spacingSm,
+                        vertical: BuddyTheme.spacingXs,
                       ),
-                    ]),
-                ],
-              ),
+                      decoration: BoxDecoration(
+                        color: BuddyTheme.accentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusSm,
+                        ),
+                      ),
+                      child: Text(
+                        _hostelFor,
+                        style: TextStyle(
+                          color: BuddyTheme.accentColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: BuddyTheme.spacingMd),
+                const Divider(),
+                const SizedBox(height: BuddyTheme.spacingMd),
+
+                // Contact Info
+                _buildPreviewSection('Contact Information', [
+                  _buildPreviewItem(
+                    'Contact Person',
+                    _contactPersonController.text,
+                  ),
+                  _buildPreviewItem('Phone', _phoneController.text),
+                  _buildPreviewItem('Email', _emailController.text),
+                  _buildPreviewItem('Address', _addressController.text),
+                  _buildPreviewItem('Landmark', _landmarkController.text),
+                ]),
+
+                const SizedBox(height: BuddyTheme.spacingMd),
+
+                // Room Types
+                _buildPreviewSection(
+                  'Room Types',
+                  _roomTypes.entries
+                      .where((entry) => entry.value)
+                      .map(
+                        (entry) => _buildPreviewItem(
+                          entry.key,
+                          'Available',
+                        ),
+                      )
+                      .toList(),
+                ),
+
+                const SizedBox(height: BuddyTheme.spacingMd),
+
+                // Facilities
+                _buildPreviewSection('Facilities', [
+                  _buildPreviewFacilities(),
+                ]),
+
+                const SizedBox(height: BuddyTheme.spacingMd),
+
+                // Rules
+                _buildPreviewSection('Rules & Policies', [
+                  _buildPreviewItem(
+                    'Entry Timings',
+                    _hasEntryTimings
+                        ? (_entryTime?.format(context) ?? 'Not specified')
+                        : 'No restrictions',
+                  ),
+                  _buildPreviewItem('Smoking', _smokingPolicy),
+                  _buildPreviewItem('Drinking', _drinkingPolicy),
+                  _buildPreviewItem('Guests', _guestsPolicy),
+                  _buildPreviewItem('Pets', _petsPolicy),
+                  _buildPreviewItem('Food Type', _foodType),
+                ]),
+
+                const SizedBox(height: BuddyTheme.spacingMd),
+
+                // Availability
+                _buildPreviewSection('Availability', [
+                  _buildPreviewItem(
+                    'Available From',
+                    _availableFromDate != null
+                        ? '${_availableFromDate!.day}/${_availableFromDate!.month}/${_availableFromDate!.year}'
+                        : 'Not specified',
+                  ),
+                  _buildPreviewItem('Minimum Stay', _minimumStay),
+                  _buildPreviewItem('Booking Mode', _bookingMode),
+                ]),
+
+                if (_descriptionController.text.isNotEmpty)
+                  _buildPreviewSection('Description', [
+                    const SizedBox(height: BuddyTheme.spacingMd),
+                    Text(
+                      _descriptionController.text,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ]),
+              ],
             ),
           ),
-          );
-      },
-    );
-  }
+        ),
+      );
+    }, // ✅ Correctly close the builder block here
+  );
+}
+
 
   Widget _buildPreviewSection(String title, List<Widget> children) {
     return Column(
@@ -2030,12 +1931,6 @@ class _ListHostelFormState extends State<ListHostelForm>
     print('Uploading photo for: $photoType');
   }
 
-  void _removePhoto(int index) {
-    setState(() {
-      _uploadedPhotos.removeAt(index);
-    });
-  }
-
   Widget _buildNavigationButtons() {
     return ScaleTransition(
       scale: _fabAnimation,
@@ -2128,60 +2023,4 @@ class _ListHostelFormState extends State<ListHostelForm>
       ),
     );
   }
-
-  // Helper methods
-  void _addRoomType() {
-    setState(() {
-      _roomTypes.add(
-        RoomType(
-          type: '1 Bed Room (Private)',
-          bedsPerRoom: 1,
-          availableRooms: 0,
-          rentPerPerson: 0,
-          deposit: 0,
-        ),
-      );
-    });
-  }
-
-  void _removeRoomType(int index) {
-    setState(() {
-      _roomTypes.removeAt(index);
-    });
-  }
-
-  void _updateRoomType(
-    int index, {
-    String? type,
-    int? bedsPerRoom,
-    int? availableRooms,
-    double? rentPerPerson,
-    double? deposit,
-  }) {
-    setState(() {
-      final roomType = _roomTypes[index];
-      _roomTypes[index] = RoomType(
-        type: type ?? roomType.type,
-        bedsPerRoom: bedsPerRoom ?? roomType.bedsPerRoom,
-        availableRooms: availableRooms ?? roomType.availableRooms,
-        rentPerPerson: rentPerPerson ?? roomType.rentPerPerson,
-        deposit: deposit ?? roomType.deposit,
-      );
-    });
-  }
-
-  int _getBedsPerRoom(String roomType) {
-    switch (roomType) {
-      case '1 Bed Room (Private)':
-        return 1;
-      case '2 Bed Sharing':
-        return 2;
-      case '3 Bed Sharing':
-        return 3;
-      case '4+ Bed Sharing':
-        return 4;
-      default:
-        return 1;
     }
-  }
-}

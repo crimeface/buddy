@@ -67,10 +67,11 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> {
                         if (loadingProgress == null) return child;
                         return Center(
                           child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
+                            value:
+                                loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
                             color: Colors.white,
                           ),
                         );
@@ -184,16 +185,24 @@ class PropertyData {
       maxFlatmates: parseIntValue(json['maxFlatmates']),
       gender: json['gender'] ?? '',
       occupation: json['occupation'] ?? '',
-      images: (json['images'] as Map<String, dynamic>?)?.map(
-        (key, value) => MapEntry(key, value.toString()),
-      ) ?? {},
-      amenities: (json['amenities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      images:
+          (json['images'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, value.toString()),
+          ) ??
+          {},
+      amenities:
+          (json['amenities'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       description: json['description'] ?? '',
       ownerName: json['ownerName'] ?? '',
       ownerRating: parseNumericValue(json['ownerRating']),
-      preferences: (json['preferences'] as Map<String, dynamic>?)?.map(
-        (key, value) => MapEntry(key, value?.toString() ?? ''),
-      ) ?? {},
+      preferences:
+          (json['preferences'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, value?.toString() ?? ''),
+          ) ??
+          {},
       phone: json['phone'] ?? '',
       email: json['email'] ?? '',
       googleMapsLink: json['googleMapsLink'] as String?,
@@ -228,23 +237,29 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   Future<void> _fetchPropertyDetails() async {
     try {
-      final propertyDoc = await _firestore.collection('room_listings').doc(widget.propertyId).get();
-      
+      final propertyDoc =
+          await _firestore
+              .collection('room_listings')
+              .doc(widget.propertyId)
+              .get();
+
       if (propertyDoc.exists) {
         final data = propertyDoc.data() as Map<String, dynamic>;
         final ownerEmail = data['email'] as String?;
         String ownerName = 'Unknown';
 
         if (ownerEmail != null) {
-          final userQuery = await _firestore.collection('users')
-              .where('email', isEqualTo: ownerEmail)
-              .limit(1)
-              .get();
-          
+          final userQuery =
+              await _firestore
+                  .collection('users')
+                  .where('email', isEqualTo: ownerEmail)
+                  .limit(1)
+                  .get();
+
           if (userQuery.docs.isNotEmpty) {
             ownerName = userQuery.docs.first.data()['username'] ?? 'Unknown';
           }
-        }        // Helper functions for data conversion
+        } // Helper functions for data conversion
         double parseDouble(dynamic value) {
           if (value == null) return 0.0;
           if (value is num) return value.toDouble();
@@ -262,20 +277,33 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         final convertedData = {
           'title': data['title']?.toString() ?? '',
           'location': data['location']?.toString() ?? '',
-          'availableFromDate': data['availableFromDate'] != null ? _formatDate(data['availableFromDate']) : '',
+          'availableFromDate':
+              data['availableFromDate'] != null
+                  ? _formatDate(data['availableFromDate'])
+                  : '',
           'roomType': data['roomType']?.toString() ?? '',
           'flatSize': data['flatSize']?.toString() ?? '',
           'furnishing': data['furnishing']?.toString() ?? '',
-          'bathroom': data['hasAttachedBathroom'] == true ? 'Attached' : 'Shared',
+          'bathroom':
+              data['hasAttachedBathroom'] == true ? 'Attached' : 'Shared',
           'gender': data['genderComposition']?.toString() ?? '',
           'occupation': data['occupation']?.toString() ?? '',
           'monthlyRent': parseDouble(data['rent']),
           'securityDeposit': parseDouble(data['deposit']),
-          'currentFlatmates': parseInt(data['currentFlatmates'], defaultValue: 1),
+          'currentFlatmates': parseInt(
+            data['currentFlatmates'],
+            defaultValue: 1,
+          ),
           'maxFlatmates': parseInt(data['maxFlatmates'], defaultValue: 2),
-          'images': data['uploadedPhotos'] is Map ? Map<String, String>.from(
-            data['uploadedPhotos'].map((key, value) => MapEntry(key.toString(), value.toString()))
-          ) : {},
+          'images':
+              data['uploadedPhotos'] is Map
+                  ? Map<String, String>.from(
+                    data['uploadedPhotos'].map(
+                      (key, value) =>
+                          MapEntry(key.toString(), value.toString()),
+                    ),
+                  )
+                  : {},
           'amenities': _getFacilities(data['facilities']),
           'description': data['description']?.toString() ?? '',
           'ownerName': ownerName,
@@ -312,7 +340,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   String _formatDate(dynamic date) {
     if (date == null) return '';
-    
+
     try {
       DateTime dateTime;
       if (date is DateTime) {
@@ -325,7 +353,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       } else {
         return '';
       }
-      
+
       // Format as DD-MM-YYYY
       return '${dateTime.day.toString().padLeft(2, '0')}-'
           '${dateTime.month.toString().padLeft(2, '0')}-'
@@ -337,7 +365,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   List<String> _getFacilities(dynamic facilities) {
     if (facilities == null) return [];
-    
+
     if (facilities is Map<String, dynamic>) {
       // Filter only the true values and get their keys
       return facilities.entries
@@ -345,17 +373,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           .map((entry) => entry.key.toString())
           .toList();
     }
-    
+
     if (facilities is List) {
       // If it's a list, convert all items to strings
       return facilities.map((item) => item.toString()).toList();
     }
-    
+
     if (facilities is String) {
       // If it's a single string, return it as a single-item list
       return [facilities];
     }
-    
+
     return [];
   }
 
@@ -425,7 +453,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
   }
 
-  List<String> get propertyImages => !isLoading ? propertyData.images.values.toList() : [];
+  List<String> get propertyImages =>
+      !isLoading ? propertyData.images.values.toList() : [];
   List<String> get amenities => !isLoading ? propertyData.amenities : [];
   String _getInitials(String name) {
     if (name.isEmpty) return 'UK';
@@ -570,61 +599,74 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => Scaffold(
-                      backgroundColor: Colors.black,
-                      body: Stack(
-                        children: [
-                          GestureDetector(
-                            onVerticalDragEnd: (details) {
-                              if (details.primaryVelocity! > 0) {
-                                Navigator.pop(context);
-                              }
-                            },
-                            child: PageView.builder(
-                              controller: PageController(initialPage: currentImageIndex),
-                              itemCount: propertyImages.length,
-                              itemBuilder: (context, index) {
-                                return InteractiveViewer(
-                                  minScale: 0.5,
-                                  maxScale: 3.0,
-                                  child: Center(
-                                    child: Image.network(
-                                      propertyImages[index],
-                                      fit: BoxFit.contain,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Center(
-                                          child: CircularProgressIndicator(
-                                            value: loadingProgress.expectedTotalBytes != null
-                                                ? loadingProgress.cumulativeBytesLoaded /
-                                                    loadingProgress.expectedTotalBytes!
-                                                : null,
-                                            color: Colors.white,
-                                          ),
-                                        );
-                                      },
-                                    ),
+                    builder:
+                        (context) => Scaffold(
+                          backgroundColor: Colors.black,
+                          body: Stack(
+                            children: [
+                              GestureDetector(
+                                onVerticalDragEnd: (details) {
+                                  if (details.primaryVelocity! > 0) {
+                                    Navigator.pop(context);
+                                  }
+                                },
+                                child: PageView.builder(
+                                  controller: PageController(
+                                    initialPage: currentImageIndex,
                                   ),
-                                );
-                              },
-                            ),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: AppBar(
-                              backgroundColor: Colors.transparent,
-                              elevation: 0,
-                              leading: IconButton(
-                                icon: const Icon(Icons.close),
-                                onPressed: () => Navigator.pop(context),
+                                  itemCount: propertyImages.length,
+                                  itemBuilder: (context, index) {
+                                    return InteractiveViewer(
+                                      minScale: 0.5,
+                                      maxScale: 3.0,
+                                      child: Center(
+                                        child: Image.network(
+                                          propertyImages[index],
+                                          fit: BoxFit.contain,
+                                          loadingBuilder: (
+                                            context,
+                                            child,
+                                            loadingProgress,
+                                          ) {
+                                            if (loadingProgress == null)
+                                              return child;
+                                            return Center(
+                                              child: CircularProgressIndicator(
+                                                value:
+                                                    loadingProgress
+                                                                .expectedTotalBytes !=
+                                                            null
+                                                        ? loadingProgress
+                                                                .cumulativeBytesLoaded /
+                                                            loadingProgress
+                                                                .expectedTotalBytes!
+                                                        : null,
+                                                color: Colors.white,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: AppBar(
+                                  backgroundColor: Colors.transparent,
+                                  elevation: 0,
+                                  leading: IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
                   ),
                 );
               },
@@ -733,31 +775,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       horizontal: BuddyTheme.spacingSm,
                       vertical: BuddyTheme.spacingXs,
                     ),
-                    decoration: BoxDecoration(
-                      color: BuddyTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(
-                        BuddyTheme.borderRadiusSm,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.map,
-                          size: BuddyTheme.iconSizeSm,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: BuddyTheme.spacingXs),
-                        const Text(
-                          'View on Map',
-                          style: TextStyle(
-                            fontSize: BuddyTheme.fontSizeXs,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
             ],
@@ -773,7 +790,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: BuddyTheme.successColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusSm,
+                    ),
                   ),
                   child: Text(
                     propertyData.availableFrom.isEmpty
@@ -1427,7 +1446,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Error sending message: ${e.toString()}'),
+                            content: Text(
+                              'Error sending message: ${e.toString()}',
+                            ),
                             duration: const Duration(seconds: 2),
                           ),
                         );
@@ -1519,7 +1540,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
       child: Row(
         children: [
-          Icon(icon, color: BuddyTheme.primaryColor, size: BuddyTheme.iconSizeMd),
+          Icon(
+            icon,
+            color: BuddyTheme.primaryColor,
+            size: BuddyTheme.iconSizeMd,
+          ),
           const SizedBox(width: BuddyTheme.spacingMd),
           Expanded(
             child: Text(

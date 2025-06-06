@@ -106,18 +106,24 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       _isLoading = true;
     });
     try {
+      final now = DateTime.now();
       final querySnapshot =
           await FirebaseFirestore.instance
               .collection('room_listings')
-              .orderBy('createdAt', descending: true)
+              .where('visibility', isEqualTo: true)
               .get();
 
       final List<Map<String, dynamic>> loadedRooms = [];
       for (var doc in querySnapshot.docs) {
         final room = doc.data();
-        room['id'] = doc.id;
-        room['key'] = doc.id;
-        loadedRooms.add(room);
+        // Only show if not expired
+        if (room['expiryDate'] != null &&
+            DateTime.tryParse(room['expiryDate']) != null &&
+            DateTime.parse(room['expiryDate']).isAfter(now)) {
+          room['id'] = doc.id;
+          room['key'] = doc.id;
+          loadedRooms.add(room);
+        }
       }
       setState(() {
         _rooms = loadedRooms;
@@ -552,7 +558,9 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       }
     }
     // Fallback to imageUrl field if no photos found
-    if (imageUrl == null && room['imageUrl'] != null && room['imageUrl'].toString().isNotEmpty) {
+    if (imageUrl == null &&
+        room['imageUrl'] != null &&
+        room['imageUrl'].toString().isNotEmpty) {
       imageUrl = room['imageUrl'];
     }
 
@@ -586,24 +594,26 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: 200,
-                      color: borderColor,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: accentColor,
+                    placeholder:
+                        (context, url) => Container(
+                          height: 200,
+                          color: borderColor,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: accentColor,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      height: 200,
-                      color: borderColor,
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: textLight,
-                        size: 48,
-                      ),
-                    ),
+                    errorWidget:
+                        (context, url, error) => Container(
+                          height: 200,
+                          color: borderColor,
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: textLight,
+                            size: 48,
+                          ),
+                        ),
                   ),
                 )
               else

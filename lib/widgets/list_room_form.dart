@@ -33,7 +33,8 @@ class _ListRoomFormState extends State<ListRoomForm>
   // Flat Details
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
-  final _locationUrlController =TextEditingController(); // Not used in this example
+  final _locationUrlController =
+      TextEditingController(); // Not used in this example
   final _rentController = TextEditingController();
   final _depositController = TextEditingController();
   DateTime? _availableFromDate;
@@ -75,11 +76,11 @@ class _ListRoomFormState extends State<ListRoomForm>
     'Kitchen': [],
     'Building': [],
   };
-  final Map<String, List<String>> _uploadedPhotoUrls = {
-    'Room': [],
-    'Washroom': [],
-    'Kitchen': [],
-    'Building': [],
+  final Map<String, String> _uploadedPhotoUrls = {
+    'Room': '',
+    'Washroom': '',
+    'Kitchen': '',
+    'Building': '',
   };
   final ImagePicker _picker = ImagePicker();
   final List<String> _requiredPhotoTypes = [
@@ -109,8 +110,6 @@ class _ListRoomFormState extends State<ListRoomForm>
   late Color cardColor;
   late Color textPrimary;
   late Color textSecondary;
-
-
 
   @override
   void initState() {
@@ -188,7 +187,7 @@ class _ListRoomFormState extends State<ListRoomForm>
 
   void _nextStep() {
     if (_currentStep >= _totalSteps - 1) return;
-    
+
     _pageController.animateToPage(
       _currentStep + 1,
       duration: const Duration(milliseconds: 300),
@@ -198,7 +197,7 @@ class _ListRoomFormState extends State<ListRoomForm>
 
   void _previousStep() {
     if (_currentStep <= 0) return;
-    
+
     _pageController.animateToPage(
       _currentStep - 1,
       duration: const Duration(milliseconds: 300),
@@ -218,6 +217,27 @@ class _ListRoomFormState extends State<ListRoomForm>
 
   void _submitForm() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    // Calculate expiry date based on selected plan
+    Duration planDuration;
+    switch (_selectedPlan) {
+      case '1Day':
+        planDuration = const Duration(days: 1);
+        break;
+      case '7Day':
+        planDuration = const Duration(days: 7);
+        break;
+      case '15Day':
+        planDuration = const Duration(days: 15);
+        break;
+      case '1Month':
+        planDuration = const Duration(days: 30);
+        break;
+      default:
+        planDuration = const Duration(days: 1);
+    }
+    final now = DateTime.now();
+    final expiryDate = now.add(planDuration);
 
     // Prepare data
     final data = {
@@ -243,9 +263,15 @@ class _ListRoomFormState extends State<ListRoomForm>
       'drinkingPolicy': _drinkingPolicy,
       'petsPolicy': _petsPolicy,
       'guestsPolicy': _guestsPolicy,
-      'uploadedPhotos': _uploadedPhotoUrls.map((key, value) => MapEntry(key, value)),
-      'firstPhoto': _uploadedPhotoUrls.values.firstWhere((list) => list.isNotEmpty, orElse: () => []).firstOrNull,
-      'createdAt': DateTime.now().toIso8601String(),
+      'uploadedPhotos': _uploadedPhotoUrls,
+      'firstPhoto': _uploadedPhotoUrls.values.firstWhere(
+        (url) => url.isNotEmpty,
+        orElse: () => '',
+      ),
+      'createdAt': now.toIso8601String(),
+      'selectedPlan': _selectedPlan,
+      'expiryDate': expiryDate.toIso8601String(),
+      'visibility': true, // Always true on creation
     };
 
     try {
@@ -276,9 +302,9 @@ class _ListRoomFormState extends State<ListRoomForm>
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85, // Compress image for faster upload
-        maxWidth: 1920,   // Max width for the image
-        maxHeight: 1080,  // Max height for the image
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
       );
       if (image == null) return;
 
@@ -307,18 +333,10 @@ class _ListRoomFormState extends State<ListRoomForm>
 
       // Upload to Cloudinary
       String cloudinaryUrl = await CloudinaryService.uploadImage(image.path);
-      
+
       if (!mounted) return;
       setState(() {
-        if (!_uploadedPhotoUrls.containsKey(photoType)) {
-          _uploadedPhotoUrls[photoType] = [];
-        }
-        _uploadedPhotoUrls[photoType]!.add(cloudinaryUrl);
-        
-        if (!_uploadedPhotos.containsKey(photoType)) {
-          _uploadedPhotos[photoType] = [];
-        }
-        _uploadedPhotos[photoType]!.add(image.path);
+        _uploadedPhotoUrls[photoType] = cloudinaryUrl;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -346,9 +364,10 @@ class _ListRoomFormState extends State<ListRoomForm>
   Widget build(BuildContext context) {
     theme = Theme.of(context);
     scaffoldBg = theme.scaffoldBackgroundColor;
-    cardColor = theme.brightness == Brightness.dark
-        ? const Color(0xFF23262F)
-        : const Color.fromARGB(255, 226, 227, 231);
+    cardColor =
+        theme.brightness == Brightness.dark
+            ? const Color(0xFF23262F)
+            : const Color.fromARGB(255, 226, 227, 231);
     textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
     textSecondary =
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
@@ -764,16 +783,22 @@ class _ListRoomFormState extends State<ListRoomForm>
               'Choose how long to keep your listing active',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-            
-            ..._planPrices.entries.map((plan) => Padding(
-              padding: const EdgeInsets.only(bottom: BuddyTheme.spacingMd),
-              child: _buildPlanCard(
-                plan.key,
-                plan.value,
-                isSelected: _selectedPlan == plan.key,
-                onSelect: () => setState(() => _selectedPlan = plan.key),
-              ),
-            )).toList(),
+
+            ..._planPrices.entries
+                .map(
+                  (plan) => Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: BuddyTheme.spacingMd,
+                    ),
+                    child: _buildPlanCard(
+                      plan.key,
+                      plan.value,
+                      isSelected: _selectedPlan == plan.key,
+                      onSelect: () => setState(() => _selectedPlan = plan.key),
+                    ),
+                  ),
+                )
+                .toList(),
 
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
@@ -783,7 +808,9 @@ class _ListRoomFormState extends State<ListRoomForm>
     );
   }
 
-  Widget _buildPlanCard(String planName, double price, {
+  Widget _buildPlanCard(
+    String planName,
+    double price, {
     required bool isSelected,
     required VoidCallback onSelect,
   }) {
@@ -793,70 +820,94 @@ class _ListRoomFormState extends State<ListRoomForm>
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 600),
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
-        scale: 0.8 + (0.2 * value),
-        child: Opacity(
-          opacity: value,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onSelect,
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                decoration: BoxDecoration(
-                  color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : cardColor,
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                  border: Border.all(
-                    color: isSelected ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
-                    width: isSelected ? 2 : 1,
+      builder:
+          (
+            BuildContext context,
+            double value,
+            Widget? child,
+          ) => Transform.scale(
+            scale: 0.8 + (0.2 * value),
+            child: Opacity(
+              opacity: value,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onSelect,
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      color: isSelected ? BuddyTheme.primaryColor : Colors.grey,
-                    ),
-                    const SizedBox(width: BuddyTheme.spacingMd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            duration,
-                            style: TextStyle(
-                              color: isSelected ? BuddyTheme.primaryColor : textPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: BuddyTheme.spacingXs),
-                          Text(
-                            'Keep your listing active for ${duration.toLowerCase()}',
-                            style: TextStyle(
-                              color: textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color:
+                          isSelected
+                              ? BuddyTheme.primaryColor.withOpacity(0.1)
+                              : cardColor,
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                      border: Border.all(
+                        color:
+                            isSelected
+                                ? BuddyTheme.primaryColor
+                                : Colors.grey.withOpacity(0.3),
+                        width: isSelected ? 2 : 1,
                       ),
                     ),
-                    Text(
-                      formattedPrice,
-                      style: TextStyle(
-                        color: isSelected ? BuddyTheme.primaryColor : textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          color:
+                              isSelected
+                                  ? BuddyTheme.primaryColor
+                                  : Colors.grey,
+                        ),
+                        const SizedBox(width: BuddyTheme.spacingMd),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                duration,
+                                style: TextStyle(
+                                  color:
+                                      isSelected
+                                          ? BuddyTheme.primaryColor
+                                          : textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: BuddyTheme.spacingXs),
+                              Text(
+                                'Keep your listing active for ${duration.toLowerCase()}',
+                                style: TextStyle(
+                                  color: textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          formattedPrice,
+                          style: TextStyle(
+                            color:
+                                isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 
@@ -873,19 +924,14 @@ class _ListRoomFormState extends State<ListRoomForm>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-        border: Border.all(
-          color: BuddyTheme.primaryColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: BuddyTheme.primaryColor.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: BuddyTheme.primaryColor,
-              ),
+              Icon(Icons.info_outline, color: BuddyTheme.primaryColor),
               const SizedBox(width: BuddyTheme.spacingSm),
               Text(
                 'Plan Benefits',
@@ -914,30 +960,31 @@ class _ListRoomFormState extends State<ListRoomForm>
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 800),
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
-        scale: 0.8 + (0.2 * value),
-        child: Opacity(
-          opacity: value,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+      builder:
+          (BuildContext context, double value, Widget? child) =>
+              Transform.scale(
+                scale: 0.8 + (0.2 * value),
+                child: Opacity(
+                  opacity: value,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: BuddyTheme.spacingXs),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: BuddyTheme.textSecondaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: BuddyTheme.spacingXs),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: BuddyTheme.textSecondaryColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -952,42 +999,48 @@ class _ListRoomFormState extends State<ListRoomForm>
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 500),
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
-        scale: 0.8 + (0.2 * value),
-        child: Opacity(
-          opacity: value,
-          child: Container(
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+      builder:
+          (BuildContext context, double value, Widget? child) =>
+              Transform.scale(
+                scale: 0.8 + (0.2 * value),
+                child: Opacity(
+                  opacity: value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextFormField(
+                      controller: controller,
+                      keyboardType: keyboardType,
+                      maxLines: maxLines,
+                      style: TextStyle(color: textPrimary),
+                      decoration: InputDecoration(
+                        labelText: label,
+                        hintText: hint,
+                        prefixIcon: Icon(icon, color: BuddyTheme.primaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusMd,
+                          ),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: cardColor,
+                      ),
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            child: TextFormField(
-              controller: controller,
-              keyboardType: keyboardType,
-              maxLines: maxLines,
-              style: TextStyle(color: textPrimary),
-              decoration: InputDecoration(
-                labelText: label,
-                hintText: hint,
-                prefixIcon: Icon(icon, color: BuddyTheme.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: cardColor,
               ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1001,73 +1054,98 @@ class _ListRoomFormState extends State<ListRoomForm>
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 600),
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) => Transform.translate(
-        offset: Offset(50 * (1 - value), 0),
-        child: Opacity(
-          opacity: value,
-          child: Container(
-            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, color: BuddyTheme.primaryColor),
-                    const SizedBox(width: BuddyTheme.spacingSm),
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: textPrimary,
+      builder:
+          (BuildContext context, double value, Widget? child) =>
+              Transform.translate(
+                offset: Offset(50 * (1 - value), 0),
+                child: Opacity(
+                  opacity: value,
+                  child: Container(
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: BuddyTheme.spacingMd),
-                Wrap(
-                  spacing: BuddyTheme.spacingSm,
-                  runSpacing: BuddyTheme.spacingSm,
-                  children: options.map((option) => GestureDetector(
-                    onTap: () => onChanged(option),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: BuddyTheme.spacingMd,
-                        vertical: BuddyTheme.spacingSm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selectedValue == option ? BuddyTheme.primaryColor : scaffoldBg,
-                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                        border: Border.all(
-                          color: selectedValue == option ? BuddyTheme.primaryColor : BuddyTheme.borderColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                      child: Text(
-                        option,
-                        style: TextStyle(
-                          color: selectedValue == option ? Colors.white : textPrimary,
-                          fontWeight: selectedValue == option ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
+                      ],
                     ),
-                  )).toList(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(icon, color: BuddyTheme.primaryColor),
+                            const SizedBox(width: BuddyTheme.spacingSm),
+                            Text(
+                              title,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: BuddyTheme.spacingMd),
+                        Wrap(
+                          spacing: BuddyTheme.spacingSm,
+                          runSpacing: BuddyTheme.spacingSm,
+                          children:
+                              options
+                                  .map(
+                                    (option) => GestureDetector(
+                                      onTap: () => onChanged(option),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: BuddyTheme.spacingMd,
+                                          vertical: BuddyTheme.spacingSm,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              selectedValue == option
+                                                  ? BuddyTheme.primaryColor
+                                                  : scaffoldBg,
+                                          borderRadius: BorderRadius.circular(
+                                            BuddyTheme.borderRadiusSm,
+                                          ),
+                                          border: Border.all(
+                                            color:
+                                                selectedValue == option
+                                                    ? BuddyTheme.primaryColor
+                                                    : BuddyTheme.borderColor,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          option,
+                                          style: TextStyle(
+                                            color:
+                                                selectedValue == option
+                                                    ? Colors.white
+                                                    : textPrimary,
+                                            fontWeight:
+                                                selectedValue == option
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
+              ),
     );
   }
 
@@ -1081,57 +1159,61 @@ class _ListRoomFormState extends State<ListRoomForm>
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 700),
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double animValue, Widget? child) => Transform.scale(
-        scale: 0.8 + (0.2 * animValue),
-        child: Opacity(
-          opacity: animValue,
-          child: Container(
-            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Icon(icon, color: BuddyTheme.primaryColor),
-                const SizedBox(width: BuddyTheme.spacingMd),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: textPrimary,
-                        ),
+      builder:
+          (BuildContext context, double animValue, Widget? child) =>
+              Transform.scale(
+                scale: 0.8 + (0.2 * animValue),
+                child: Opacity(
+                  opacity: animValue,
+                  child: Container(
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
                       ),
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: textSecondary,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(icon, color: BuddyTheme.primaryColor),
+                        const SizedBox(width: BuddyTheme.spacingMd),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: textPrimary,
+                                ),
+                              ),
+                              Text(
+                                subtitle,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: value,
+                          onChanged: onChanged,
+                          activeColor: BuddyTheme.primaryColor,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                Switch(
-                  value: value,
-                  onChanged: onChanged,
-                  activeColor: BuddyTheme.primaryColor,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+              ),
     );
   }
 
@@ -1233,7 +1315,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-          );
+        );
       },
     );
   }
@@ -1308,76 +1390,103 @@ class _ListRoomFormState extends State<ListRoomForm>
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 400),
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
-        scale: 0.8 + (0.2 * value),
-        child: Opacity(
-          opacity: value,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _facilities[facility] = !isSelected;
-                });
-              },
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(BuddyTheme.spacingSm),
-                width: fullWidth ? double.infinity : null,
-                decoration: BoxDecoration(
-                  color: isSelected ? BuddyTheme.primaryColor.withOpacity(0.1) : Colors.white,
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                  border: Border.all(
-                    color: isSelected ? BuddyTheme.primaryColor : BuddyTheme.borderColor,
-                    width: isSelected ? 2 : 1,
+      builder:
+          (BuildContext context, double value, Widget? child) =>
+              Transform.scale(
+                scale: 0.8 + (0.2 * value),
+                child: Opacity(
+                  opacity: value,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _facilities[facility] = !isSelected;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(BuddyTheme.spacingSm),
+                        width: fullWidth ? double.infinity : null,
+                        decoration: BoxDecoration(
+                          color:
+                              isSelected
+                                  ? BuddyTheme.primaryColor.withOpacity(0.1)
+                                  : Colors.white,
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusMd,
+                          ),
+                          border: Border.all(
+                            color:
+                                isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : BuddyTheme.borderColor,
+                            width: isSelected ? 2 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color:
+                                    isSelected
+                                        ? BuddyTheme.primaryColor
+                                        : Colors.transparent,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color:
+                                      isSelected
+                                          ? BuddyTheme.primaryColor
+                                          : BuddyTheme.borderColor,
+                                ),
+                              ),
+                              child:
+                                  isSelected
+                                      ? const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 14,
+                                      )
+                                      : null,
+                            ),
+                            const SizedBox(width: BuddyTheme.spacingSm),
+                            Expanded(
+                              child: Text(
+                                facility,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.copyWith(
+                                  color:
+                                      isSelected
+                                          ? BuddyTheme.primaryColor
+                                          : BuddyTheme.textPrimaryColor,
+                                  fontWeight:
+                                      isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: isSelected ? BuddyTheme.primaryColor : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: isSelected ? BuddyTheme.primaryColor : BuddyTheme.borderColor,
-                        ),
-                      ),
-                      child: isSelected
-                          ? const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 14,
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: BuddyTheme.spacingSm),
-                    Expanded(
-                      child: Text(
-                        facility,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: isSelected ? BuddyTheme.primaryColor : BuddyTheme.textPrimaryColor,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1489,7 +1598,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-          );
+        );
       },
     );
   }
@@ -1498,60 +1607,65 @@ class _ListRoomFormState extends State<ListRoomForm>
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 800),
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) => Transform.scale(
-        scale: 0.9 + (0.1 * value),
-        child: Opacity(
-          opacity: value,
-          child: Container(
-            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  BuddyTheme.primaryColor.withOpacity(0.1),
-                  BuddyTheme.primaryColor.withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-              border: Border.all(
-                color: BuddyTheme.primaryColor.withOpacity(0.3),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outlined,
-                      color: BuddyTheme.primaryColor,
-                    ),
-                    const SizedBox(width: BuddyTheme.spacingSm),
-                    Text(
-                      'Pricing Tips',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: BuddyTheme.primaryColor,
+      builder:
+          (BuildContext context, double value, Widget? child) =>
+              Transform.scale(
+                scale: 0.9 + (0.1 * value),
+                child: Opacity(
+                  opacity: value,
+                  child: Container(
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          BuddyTheme.primaryColor.withOpacity(0.1),
+                          BuddyTheme.primaryColor.withOpacity(0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                      border: Border.all(
+                        color: BuddyTheme.primaryColor.withOpacity(0.3),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: BuddyTheme.spacingSm),
-                Text(
-                  '• Research similar properties in your area\n'
-                  '• Consider including utilities in rent\n'
-                  '• Security deposit is typically 1-3 months rent\n'
-                  '• Be transparent about additional charges',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: BuddyTheme.textSecondaryColor,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb_outlined,
+                              color: BuddyTheme.primaryColor,
+                            ),
+                            const SizedBox(width: BuddyTheme.spacingSm),
+                            Text(
+                              'Pricing Tips',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: BuddyTheme.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: BuddyTheme.spacingSm),
+                        Text(
+                          '• Research similar properties in your area\n'
+                          '• Consider including utilities in rent\n'
+                          '• Security deposit is typically 1-3 months rent\n'
+                          '• Be transparent about additional charges',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: BuddyTheme.textSecondaryColor),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
+              ),
     );
   }
 
@@ -1599,9 +1713,9 @@ class _ListRoomFormState extends State<ListRoomForm>
         const SizedBox(height: BuddyTheme.spacingMd),
         Text(
           'Please upload photos for each required section',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: BuddyTheme.textSecondaryColor,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: BuddyTheme.textSecondaryColor),
         ),
         const SizedBox(height: BuddyTheme.spacingLg),
         GridView.builder(
@@ -1616,12 +1730,13 @@ class _ListRoomFormState extends State<ListRoomForm>
           itemCount: _requiredPhotoTypes.length,
           itemBuilder: (context, index) {
             final photoType = _requiredPhotoTypes[index];
-            final hasPhotos = _uploadedPhotoUrls[photoType]?.isNotEmpty ?? false;
-            
+            final photoUrl = _uploadedPhotoUrls[photoType];
+            final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+
             return _buildPhotoUploadCard(
               photoType: photoType,
-              hasPhoto: hasPhotos,
-              photoUrls: _uploadedPhotoUrls[photoType],
+              hasPhoto: hasPhoto,
+              photoUrl: photoUrl,
             );
           },
         ),
@@ -1632,14 +1747,15 @@ class _ListRoomFormState extends State<ListRoomForm>
   Widget _buildPhotoUploadCard({
     required String photoType,
     required bool hasPhoto,
-    List<String>? photoUrls,
+    String? photoUrl,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         border: Border.all(
-          color: hasPhoto ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
+          color:
+              hasPhoto ? BuddyTheme.primaryColor : Colors.grey.withOpacity(0.3),
           width: hasPhoto ? 2 : 1,
         ),
       ),
@@ -1653,87 +1769,25 @@ class _ListRoomFormState extends State<ListRoomForm>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (hasPhoto && photoUrls != null && photoUrls.isNotEmpty) ...[
+                if (hasPhoto && photoUrl != null && photoUrl.isNotEmpty) ...[
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CachedNetworkImage(
-                            imageUrl: photoUrls.first,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const Center(
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                      child: CachedNetworkImage(
+                        imageUrl: photoUrl,
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) => const Center(
                               child: CircularProgressIndicator(),
                             ),
-                            errorWidget: (context, url, error) => const Icon(
+                        errorWidget:
+                            (context, url, error) => const Icon(
                               Icons.error_outline,
                               color: Colors.red,
                               size: 32,
                             ),
-                          ),
-                          if (photoUrls.length > 1)
-                            Positioned(
-                              bottom: 8,
-                              right: 8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '+${photoUrls.length - 1}',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _uploadedPhotoUrls[photoType]?.clear();
-                                      _uploadedPhotos[photoType]?.clear();
-                                    });
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.close,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                InkWell(
-                                  onTap: () => _uploadPhoto(photoType),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.add_a_photo,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),
@@ -1757,10 +1811,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                   const SizedBox(height: BuddyTheme.spacingXs),
                   Text(
                     'Tap to upload',
-                    style: TextStyle(
-                      color: textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: textSecondary, fontSize: 12),
                   ),
                 ],
               ],
@@ -1864,4 +1915,4 @@ class _ListRoomFormState extends State<ListRoomForm>
       ),
     );
   }
-    }
+}

@@ -12,6 +12,7 @@ import './display pages/property_details.dart' as property_details;
 import './display pages/flatmate_details.dart';
 import 'edit_profile.dart';
 import 'my_listings.dart';
+import 'display pages/hostelpg_details.dart';
 
 
 // Add RouteObserver
@@ -44,6 +45,11 @@ class BuddyApp extends StatelessWidget {
         '/services': (context) => const ServicesPage(),
         '/editProfile': (context) => const EditProfilePage(),
         '/myListings': (context) => const MyListingsPage(),
+        '/hostelpg_details': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final hostelId = args?['hostelId'] as String? ?? '';
+          return HostelDetailsScreen(propertyId: hostelId);
+        },
         '/propertyDetails': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
           final propertyId = args?['propertyId'] as String? ?? '';
