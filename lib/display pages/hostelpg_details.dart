@@ -360,62 +360,121 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       bottomNavigationBar: _buildBottomActions(),
     );
   }
-
   Widget _buildAppBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
-      backgroundColor: Colors.black,
+      backgroundColor: cardColor,
       elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
+      leading: Container(
+        margin: const EdgeInsets.all(BuddyTheme.spacingXs),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: BuddyTheme.textPrimaryColor,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       actions: [
-        IconButton(
-          icon: Icon(
-            isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-            color: isBookmarked ? BuddyTheme.primaryColor : Colors.white,
+        Container(
+          margin: const EdgeInsets.all(BuddyTheme.spacingXs),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            shape: BoxShape.circle,
           ),
-          onPressed: () {
-            setState(() {
-              isBookmarked = !isBookmarked;
-            });
-            HapticFeedback.lightImpact();
-          },
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => FullScreenImageGallery(
-                  images: hostelImages,
-                  initialIndex: currentImageIndex,
-                ),
-              ),
-            );
-          },
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
+          child: IconButton(
+            icon: Icon(
+              isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+              color: isBookmarked ? BuddyTheme.primaryColor : BuddyTheme.textPrimaryColor,
+            ),
+            onPressed: () {
               setState(() {
-                currentImageIndex = index;
+                isBookmarked = !isBookmarked;
               });
-            },
-            itemCount: hostelImages.length,
-            itemBuilder: (context, index) {
-              return Container(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: NetworkImage(hostelImages[index]),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              );
+              HapticFeedback.lightImpact();
             },
           ),
+        ),
+        Container(
+          margin: const EdgeInsets.all(BuddyTheme.spacingXs),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.share, color: BuddyTheme.textPrimaryColor),
+            onPressed: () {
+              // Handle share
+            },
+          ),
+        ),
+      ],      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => FullScreenImageGallery(
+                      images: hostelImages,
+                      initialIndex: currentImageIndex,
+                    ),
+                  ),
+                );
+              },
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    currentImageIndex = index;
+                  });
+                },
+                itemCount: hostelImages.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(hostelImages[index]),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              bottom: BuddyTheme.spacingMd,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: hostelImages.asMap().entries.map((entry) {
+                  return Container(
+                    width: 8.0,
+                    height: 8.0,
+                    margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: currentImageIndex == entry.key
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.4),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
         ),
       ),
     );

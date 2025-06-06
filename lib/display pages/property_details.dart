@@ -599,74 +599,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder:
-                        (context) => Scaffold(
-                          backgroundColor: Colors.black,
-                          body: Stack(
-                            children: [
-                              GestureDetector(
-                                onVerticalDragEnd: (details) {
-                                  if (details.primaryVelocity! > 0) {
-                                    Navigator.pop(context);
-                                  }
-                                },
-                                child: PageView.builder(
-                                  controller: PageController(
-                                    initialPage: currentImageIndex,
-                                  ),
-                                  itemCount: propertyImages.length,
-                                  itemBuilder: (context, index) {
-                                    return InteractiveViewer(
-                                      minScale: 0.5,
-                                      maxScale: 3.0,
-                                      child: Center(
-                                        child: Image.network(
-                                          propertyImages[index],
-                                          fit: BoxFit.contain,
-                                          loadingBuilder: (
-                                            context,
-                                            child,
-                                            loadingProgress,
-                                          ) {
-                                            if (loadingProgress == null)
-                                              return child;
-                                            return Center(
-                                              child: CircularProgressIndicator(
-                                                value:
-                                                    loadingProgress
-                                                                .expectedTotalBytes !=
-                                                            null
-                                                        ? loadingProgress
-                                                                .cumulativeBytesLoaded /
-                                                            loadingProgress
-                                                                .expectedTotalBytes!
-                                                        : null,
-                                                color: Colors.white,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                child: AppBar(
-                                  backgroundColor: Colors.transparent,
-                                  elevation: 0,
-                                  leading: IconButton(
-                                    icon: const Icon(Icons.close),
-                                    onPressed: () => Navigator.pop(context),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    builder: (context) => FullScreenImageGallery(
+                      images: propertyImages,
+                      initialIndex: currentImageIndex,
+                    ),
                   ),
                 );
               },
@@ -696,21 +632,19 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               right: 0,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children:
-                    propertyImages.asMap().entries.map((entry) {
-                      return Container(
-                        width: 8.0,
-                        height: 8.0,
-                        margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color:
-                              currentImageIndex == entry.key
-                                  ? Colors.white
-                                  : Colors.white.withOpacity(0.4),
-                        ),
-                      );
-                    }).toList(),
+                children: propertyImages.asMap().entries.map((entry) {
+                  return Container(
+                    width: 8.0,
+                    height: 8.0,
+                    margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: currentImageIndex == entry.key
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.4),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
