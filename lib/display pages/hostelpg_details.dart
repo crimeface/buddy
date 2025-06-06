@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
+import '../models/hostel_data.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -116,26 +117,22 @@ class HostelData {
   final String bookingMode;
   final String contactPerson;
   final String description;
-  final String drinkingPolicy;
   final String email;
   final Map<String, bool> facilities;
   final String foodType;
-  final String guestsPolicy;
   final bool hasEntryTimings;
   final String hostelFor;
   final String hostelType;
   final String landmark;
-  final String mapLink;
+  final String googleMapsLink;
   final String minimumStay;
   final String offers;
-  final String petsPolicy;
   final String phone;
   final Map<String, bool> roomTypes;
+  final Map<String, String> preferences;
   final String selectedPlan;
-  final String smokingPolicy;
   final String specialFeatures;
   final double startingAt;
-  final String entryTime;
   final Map<String, String> uploadedPhotos;
   final bool visibility;
 
@@ -146,26 +143,22 @@ class HostelData {
     required this.bookingMode,
     required this.contactPerson,
     required this.description,
-    required this.drinkingPolicy,
     required this.email,
     required this.facilities,
     required this.foodType,
-    required this.guestsPolicy,
     required this.hasEntryTimings,
     required this.hostelFor,
     required this.hostelType,
     required this.landmark,
-    required this.mapLink,
+    required this.googleMapsLink,
     required this.minimumStay,
     required this.offers,
-    required this.petsPolicy,
     required this.phone,
     required this.roomTypes,
     required this.selectedPlan,
-    required this.smokingPolicy,
     required this.specialFeatures,
     required this.startingAt,
-    required this.entryTime,
+    required this.preferences,
     required this.uploadedPhotos,
     required this.visibility,
   });
@@ -174,36 +167,42 @@ class HostelData {
     return HostelData(
       title: data['title'] ?? '',
       address: data['address'] ?? '',
-      availableFromDate: data['availableFromDate'] ?? '',
+      availableFromDate: data['availableFromDate'] != null
+          ? _formatDate(data['availableFromDate'])
+          : '',
       bookingMode: data['bookingMode'] ?? '',
       contactPerson: data['contactPerson'] ?? '',
       description: data['description'] ?? '',
-      drinkingPolicy: data['drinkingPolicy'] ?? '',
+      
       email: data['email'] ?? '',
       facilities: (data['facilities'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value as bool),
           ) ??
           {},
       foodType: data['foodType'] ?? '',
-      guestsPolicy: data['guestsPolicy'] ?? '',
       hasEntryTimings: data['hasEntryTimings'] ?? false,
       hostelFor: data['hostelFor'] ?? '',
       hostelType: data['hostelType'] ?? '',
       landmark: data['landmark'] ?? '',
-      mapLink: data['mapLink'] ?? '',
+      googleMapsLink: data['mapLink'] ?? '',
       minimumStay: data['minimumStay'] ?? '',
       offers: data['offers'] ?? '',
-      petsPolicy: data['petsPolicy'] ?? '',
       phone: data['phone'] ?? '',
       roomTypes: (data['roomTypes'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value as bool),
           ) ??
           {},
       selectedPlan: data['selectedPlan'] ?? '',
-      smokingPolicy: data['smokingPolicy'] ?? '',
       specialFeatures: data['specialFeatures'] ?? '',
+      preferences: {
+            'hostelFor': data['hostelFor']?.toString() ?? '',
+            'foodType': data['foodType']?.toString() ?? '',
+            'smokingPolicy': data['smokingPolicy']?.toString() ?? '',
+            'drinkingPolicy': data['drinkingPolicy']?.toString() ?? '',
+            'guestPolicy': data['guestsPolicy']?.toString() ?? '',
+            'entryTime': data['entryTime']?.toString() ?? '',
+      },
       startingAt: (data['startingAt'] ?? 0).toDouble(),
-      entryTime: data['entryTime'] ?? '',
       uploadedPhotos: (data['uploadedPhotos'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value.toString()),
           ) ??
@@ -212,6 +211,31 @@ class HostelData {
     );
   }
 }
+
+String _formatDate(dynamic date) {
+    if (date == null) return '';
+
+    try {
+      DateTime dateTime;
+      if (date is DateTime) {
+        dateTime = date;
+      } else if (date is Timestamp) {
+        dateTime = date.toDate();
+      } else if (date is String) {
+        // Try to parse the string as a DateTime
+        dateTime = DateTime.parse(date);
+      } else {
+        return '';
+      }
+
+      // Format as DD-MM-YYYY
+      return '${dateTime.day.toString().padLeft(2, '0')}-'
+          '${dateTime.month.toString().padLeft(2, '0')}-'
+          '${dateTime.year}';
+    } catch (e) {
+      return '';
+    }
+  }
 
 class HostelDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -241,61 +265,97 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _fetchHostelDetails() async {
+  }  Future<void> _fetchHostelDetails() async {
     try {
-      final hostelDoc = await _firestore
-          .collection('hostel_listings')
-          .doc(widget.propertyId)
-          .get();
-
-      if (hostelDoc.exists) {
-        final data = hostelDoc.data() as Map<String, dynamic>;
+        final hostelDoc = await _firestore
+            .collection('hostel_listings')
+            .doc(widget.propertyId)
+            .get();
+        if (hostelDoc.exists) {
+          final data = hostelDoc.data() as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              hostelData = HostelData.fromFirestore(data);
+              isLoading = false;
+            });
+          } else {
+            setState(() {
+              error = 'Hostel/PG not found';
+              isLoading = false;
+            });
+          }
+        }
+      } catch (e) {
         setState(() {
-          hostelData = HostelData.fromFirestore(data);
+          error = 'Error loading hostel details: ${e.toString()}';
           isLoading = false;
         });
-      } else {
-        setState(() {
-          error = 'Hostel listing not found';
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        error = 'Error loading hostel details: [1m${e.toString()}[0m';
-        isLoading = false;
-      });
     }
   }
 
   Future<void> _openGoogleMaps() async {
-    if (hostelData.mapLink.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No map link available')),
-      );
+    if (hostelData.googleMapsLink == null ||
+        hostelData.googleMapsLink.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No map link available'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
       return;
     }
-    String url = hostelData.mapLink.trim();
-    if (!url.startsWith('http')) {
+
+    String url = hostelData.googleMapsLink.trim();
+
+    if (url.startsWith('maps.google.com') ||
+        url.startsWith('www.google.com/maps')) {
       url = 'https://' + url;
+    } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      if (url.contains('maps.google.com') || url.contains('goo.gl/maps')) {
+        url = 'https://' + url;
+      } else {
+        url =
+            'https://www.google.com/maps/search/?api=1&query=' +
+            Uri.encodeComponent(url);
+      }
     }
+
     try {
       final Uri mapsUri = Uri.parse(url);
       bool launched = await launchUrl(
         mapsUri,
         mode: LaunchMode.externalApplication,
       );
+
       if (!launched) {
+        final String googleMapsUrl =
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${hostelData.address}, ${hostelData.landmark}')}';
+        final Uri gmapsUri = Uri.parse(googleMapsUrl);
+        launched = await launchUrl(
+          gmapsUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open maps: $url')),
+          SnackBar(
+            content: Text('Could not open maps. URL: $url'),
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open maps: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening maps: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -338,18 +398,39 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHostelHeader(),
+                children: [                  _buildHostelHeader(),
                   const SizedBox(height: BuddyTheme.spacingLg),
                   _buildPricingInfo(),
                   const SizedBox(height: BuddyTheme.spacingLg),
-                  _buildFacilities(),
-                  const SizedBox(height: BuddyTheme.spacingLg),
-                  _buildPolicies(),
-                  const SizedBox(height: BuddyTheme.spacingLg),
-                  _buildDescription(),
-                  const SizedBox(height: BuddyTheme.spacingLg),
-                  _buildContactInfo(),
+                  if (hostelData.facilities.entries.where((e) => e.value).isNotEmpty) ...[
+                    _buildFacilities(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (hostelData.roomTypes.entries.where((e) => e.value).isNotEmpty) ...[
+                    _buildRoomTypes(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (hostelData.preferences.entries.where((e) => e.value?.isNotEmpty ?? false).isNotEmpty) ...[
+                    _buildLifestylePreferences(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (hostelData.landmark.isNotEmpty) ...[
+                    _buildLandmark(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (hostelData.description.isNotEmpty) ...[
+                    _buildDescription(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (hostelData.offers.isNotEmpty) ...[
+                    _buildOffers(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  if (hostelData.specialFeatures.isNotEmpty) ...[
+                    _buildSpecialFeatures(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
+                  _buildOwnerInfo(),
                   const SizedBox(height: BuddyTheme.spacingXl),
                 ],
               ),
@@ -480,83 +561,151 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
     );
   }
 
+  
+
   Widget _buildHostelHeader() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+        ),
+      ),
+      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hostelData.title,
+            style: TextStyle(
+              fontSize: BuddyTheme.fontSizeXl,
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
+          ),
+          const SizedBox(height: BuddyTheme.spacingXs),
+          Row(
+            children: [
+              Icon(
+                Icons.location_on,
+                size: BuddyTheme.iconSizeSm,
+                color: textSecondary,
+              ),
+              const SizedBox(width: BuddyTheme.spacingXs),
+              Expanded(
+                child: Text(
+                  '${hostelData.address}, ${hostelData.landmark}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: textSecondary,
+                    fontSize: BuddyTheme.fontSizeMd,
+                  ),
+                ),
+              ),
+              if (hostelData.googleMapsLink != null &&
+                  hostelData.googleMapsLink.isNotEmpty == true)
+                GestureDetector(
+                  onTap: _openGoogleMaps,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BuddyTheme.spacingSm,
+                      vertical: BuddyTheme.spacingXs,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: BuddyTheme.spacingSm),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: BuddyTheme.spacingSm,
+                    vertical: BuddyTheme.spacingXs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: BuddyTheme.successColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusSm,
+                    ),
+                  ),
+                  child: Text(                    hostelData.availableFromDate.isEmpty
+                        ? 'Available Now'
+                        : 'Available from ${hostelData.availableFromDate}',
+                    style: TextStyle(
+                      fontSize: BuddyTheme.fontSizeSm,
+                      color: BuddyTheme.successColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),              if (hostelData.googleMapsLink.isNotEmpty) ...[
+                const SizedBox(width: BuddyTheme.spacingMd),
+                GestureDetector(
+                  onTap: _openGoogleMaps,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BuddyTheme.spacingSm,
+                      vertical: BuddyTheme.spacingXs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.map,
+                          size: BuddyTheme.iconSizeSm,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: BuddyTheme.spacingXs),
+                        const Text(
+                          'View on Map',
+                          style: TextStyle(
+                            fontSize: BuddyTheme.fontSizeXs,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+
+  Widget _buildPricingInfo() {
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          hostelData.title,
-          style: const TextStyle(
-            fontSize: BuddyTheme.fontSizeXl,
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingXs),
-        Row(
-          children: [
-            const Icon(Icons.location_on, size: BuddyTheme.iconSizeSm, color: BuddyTheme.textSecondaryColor),
-            const SizedBox(width: BuddyTheme.spacingXs),
-            Expanded(
-              child: Text(
-                hostelData.address,
-                style: const TextStyle(
-                  color: BuddyTheme.textSecondaryColor,
-                  fontSize: BuddyTheme.fontSizeMd,
-                ),
-              ),
-            ),
-            if (hostelData.mapLink.isNotEmpty)
-              GestureDetector(
-                onTap: _openGoogleMaps,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingSm, vertical: BuddyTheme.spacingXs),
-                  decoration: BoxDecoration(
-                    color: BuddyTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.map, size: BuddyTheme.iconSizeSm, color: Colors.white),
-                      SizedBox(width: BuddyTheme.spacingXs),
-                      Text('View on Map', style: TextStyle(fontSize: BuddyTheme.fontSizeXs, color: Colors.white, fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: BuddyTheme.spacingSm),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingSm, vertical: BuddyTheme.spacingXs),
-          decoration: BoxDecoration(
-            color: BuddyTheme.successColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-          ),
-          child: Text(
-            hostelData.availableFromDate.isEmpty ? 'Available Now' : 'Available from ${hostelData.availableFromDate}',
-            style: const TextStyle(
-              fontSize: BuddyTheme.fontSizeSm,
-              color: BuddyTheme.successColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPricingInfo() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
           'Pricing Details',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
@@ -604,68 +753,332 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   }
 
   Widget _buildFacilities() {
-    final facilities = hostelData.facilities.entries.where((e) => e.value).map((e) => e.key).toList();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Facilities', style: TextStyle(fontSize: BuddyTheme.fontSizeLg, fontWeight: FontWeight.bold, color: BuddyTheme.textPrimaryColor)),
+        Text(
+          'Facilities & Amenities',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
         const SizedBox(height: BuddyTheme.spacingMd),
-        Wrap(
-          spacing: BuddyTheme.spacingXs,
-          runSpacing: BuddyTheme.spacingXs,
-          children: facilities.map((facility) => Chip(label: Text(facility))).toList(),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          child: Wrap(
+            spacing: BuddyTheme.spacingXs,
+            runSpacing: BuddyTheme.spacingXs,
+            children:
+                hostelData.facilities.entries
+                    .where((entry) => entry.value)
+                    .map((entry) => entry.key)
+                    .map((amenity) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BuddyTheme.spacingSm,
+                      vertical: BuddyTheme.spacingXs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                      border: Border.all(
+                        color: BuddyTheme.primaryColor.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Text(
+                      amenity,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildPolicies() {
+  Widget _buildRoomTypes() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    // Define the order of room types
+    final orderedRoomTypes = [
+      '1 Bed Room (Private)',
+      '2 Bed Room',
+      '3 Bed Room',
+      '4+ Bed Room'
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Policies', style: TextStyle(fontSize: BuddyTheme.fontSizeLg, fontWeight: FontWeight.bold, color: BuddyTheme.textPrimaryColor)),
+        Text(
+          'Available Room Types',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
         const SizedBox(height: BuddyTheme.spacingMd),
-        _buildPolicyItem('Smoking', hostelData.smokingPolicy),
-        _buildPolicyItem('Drinking', hostelData.drinkingPolicy),
-        _buildPolicyItem('Pets', hostelData.petsPolicy),
-        _buildPolicyItem('Guests', hostelData.guestsPolicy),
-        if (hostelData.hasEntryTimings) _buildPolicyItem('Entry Time', hostelData.entryTime),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          child: Wrap(
+            spacing: BuddyTheme.spacingXs,
+            runSpacing: BuddyTheme.spacingXs,
+            children: orderedRoomTypes
+                .where((roomType) => hostelData.roomTypes[roomType] == true)
+                .map((roomType) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: BuddyTheme.spacingSm,
+                  vertical: BuddyTheme.spacingXs,
+                ),
+                decoration: BoxDecoration(
+                  color: BuddyTheme.accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusSm,
+                  ),
+                  border: Border.all(
+                    color: BuddyTheme.accentColor.withOpacity(0.2),
+                  ),
+                ),
+                child: Text(
+                  roomType,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: BuddyTheme.fontSizeSm,
+                    color: BuddyTheme.accentColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildPolicyItem(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
-      child: Row(
-        children: [
-          Text('$title: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-          Expanded(child: Text(value)),
-        ],
-      ),
+  Widget _buildLifestylePreferences() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Lifestyle Preferences',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingMd),
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          child: Column(
+            children: [
+              if (hostelData.preferences['hostelFor']?.isNotEmpty ?? false)
+                _buildPreferenceRow(
+                  Icons.people_alt,
+                  'Hostel For',
+                  hostelData.preferences['hostelFor']!,
+                ),
+              if (hostelData.preferences['foodType']?.isNotEmpty ?? false)
+                _buildPreferenceRow(
+                  Icons.restaurant,
+                  'Food Type',
+                  hostelData.preferences['foodType']!,
+                ),
+              if (hostelData.preferences['smokingPolicy']?.isNotEmpty ?? false)
+                _buildPreferenceRow(
+                  Icons.smoking_rooms,
+                  'Smoking Policy',
+                  hostelData.preferences['smokingPolicy']!,
+                ),
+              if (hostelData.preferences['drinkingPolicy']?.isNotEmpty ?? false)
+                _buildPreferenceRow(
+                  Icons.local_bar,
+                  'Drinking Policy',
+                  hostelData.preferences['drinkingPolicy']!,
+                ),
+              if (hostelData.preferences['guestPolicy']?.isNotEmpty ?? false)
+                _buildPreferenceRow(
+                  Icons.people_outline,
+                  'Guest Policy',
+                  hostelData.preferences['guestPolicy']!,
+                ),
+              if (hostelData.preferences['entryTime']?.isNotEmpty ?? false)
+                _buildPreferenceRow(
+                  Icons.access_time,
+                  'Entry Time Limit',
+                  hostelData.preferences['entryTime']!,
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
-
   Widget _buildDescription() {
+    // Don't show the section if description is empty
+    if (hostelData.description.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Description', style: TextStyle(fontSize: BuddyTheme.fontSizeLg, fontWeight: FontWeight.bold, color: BuddyTheme.textPrimaryColor)),
+        Text(
+          'Description',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
         const SizedBox(height: BuddyTheme.spacingMd),
-        Text(hostelData.description),
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          width: double.infinity,
+          child: Text(
+            hostelData.description,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: BuddyTheme.fontSizeMd,
+              color: textPrimary,
+              height: 1.5,
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildContactInfo() {
+  Widget _buildOwnerInfo() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Contact', style: TextStyle(fontSize: BuddyTheme.fontSizeLg, fontWeight: FontWeight.bold, color: BuddyTheme.textPrimaryColor)),
+        Text(
+          'Listed By',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
         const SizedBox(height: BuddyTheme.spacingMd),
-        _buildContactItem(Icons.person, hostelData.contactPerson),
-        _buildContactItem(Icons.phone, hostelData.phone),
-        _buildContactItem(Icons.email, hostelData.email),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.18 : 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
+                    child: Icon(
+                      Icons.person,
+                      color: BuddyTheme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: BuddyTheme.spacingMd),
+                  Text(
+                    hostelData.contactPerson,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: BuddyTheme.spacingMd),
+              _buildContactItem(Icons.phone, hostelData.phone),
+              _buildContactItem(Icons.email, hostelData.email),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -678,6 +1091,44 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
           Icon(icon, size: BuddyTheme.iconSizeSm, color: BuddyTheme.primaryColor),
           const SizedBox(width: BuddyTheme.spacingSm),
           Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreferenceRow(IconData icon, String title, String value) {
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: BuddyTheme.primaryColor,
+            size: BuddyTheme.iconSizeMd,
+          ),
+          const SizedBox(width: BuddyTheme.spacingMd),
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(color: textSecondary),
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -718,6 +1169,143 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLandmark() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Landmark',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingMd),
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          width: double.infinity,
+          child: Text(
+            hostelData.landmark,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: BuddyTheme.fontSizeMd,
+              color: textPrimary,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOffers() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    // Don't show the section if offers is empty
+    if (hostelData.offers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Offers',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingMd),
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          width: double.infinity,
+          child: Text(
+            hostelData.offers,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: BuddyTheme.fontSizeMd,
+              color: textPrimary,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSpecialFeatures() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    // Don't show the section if specialFeatures is empty
+    if (hostelData.specialFeatures.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Special Features',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingMd),
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+          width: double.infinity,
+          child: Text(
+            hostelData.specialFeatures,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: BuddyTheme.fontSizeMd,
+              color: textPrimary,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

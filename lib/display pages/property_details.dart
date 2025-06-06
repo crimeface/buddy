@@ -786,15 +786,18 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildPricingInfo() {
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Pricing Details',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
             fontWeight: FontWeight.bold,
-            color: BuddyTheme.textPrimaryColor,
+            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
