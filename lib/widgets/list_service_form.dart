@@ -70,7 +70,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   bool _hasPowerSockets = true;
 
   // Mess-specific fields
-  String _foodType = 'Both';
+  String _foodType = 'Veg and Non-Veg';  // Changed from 'Both' to match the options
   final _monthlyPriceController = TextEditingController();
   Map<String, bool> _mealTimings = {
     'Breakfast': true,
@@ -284,7 +284,7 @@ class _ListServiceFormState extends State<ListServiceForm>
       // Library-specific
       if (_serviceType == 'Library') ...{
         'libraryType': _libraryType,
-        'seatingCapacity': _seatingCapacityController.text,
+        'seatingCapacity': int.tryParse(_seatingCapacityController.text) ?? 0,
         'acStatus': _acStatus,
         'charges': _chargesController.text,
         'chargeType': _chargeType,
@@ -302,7 +302,8 @@ class _ListServiceFormState extends State<ListServiceForm>
       // Mess-specific
       if (_serviceType == 'Mess') ...{
         'foodType': _foodType,
-        'monthlyPrice': _monthlyPriceController.text,
+        'charges': _monthlyPriceController.text,
+        'seatingCapacity': int.tryParse(_seatingCapacityController.text) ?? 0,
         'mealTimings': _mealTimings,
         'hasHomeDelivery': _hasHomeDelivery,
         'hasTiffinService': _hasTiffinService,
@@ -773,7 +774,7 @@ class _ListServiceFormState extends State<ListServiceForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -945,7 +946,7 @@ class _ListServiceFormState extends State<ListServiceForm>
                   ),
                 ),
               ),
-            );
+              );
           },
         );
       },
@@ -1144,6 +1145,19 @@ class _ListServiceFormState extends State<ListServiceForm>
           hint: 'Number of seats available',
           icon: Icons.event_seat,
           keyboardType: TextInputType.number,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter seating capacity';
+            }
+            final intValue = int.tryParse(value);
+            if (intValue == null) {
+              return 'Please enter a valid number';
+            }
+            if (intValue <= 0) {
+              return 'Seating capacity must be greater than 0';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: BuddyTheme.spacingLg),
         _buildSelectionCard(
@@ -1232,15 +1246,40 @@ class _ListServiceFormState extends State<ListServiceForm>
         _buildSelectionCard(
           'Food Type',
           _foodType,
-          ['Veg', 'Non-Veg', 'Both'],
-          (value) => setState(() => _foodType = value),
+          ['Veg', 'Non-Veg', 'Veg and Non-Veg'],
+          (String value) {
+            setState(() {
+              _foodType = value;
+            });
+          },
           Icons.restaurant_menu,
         ),
         const SizedBox(height: BuddyTheme.spacingLg),
         _buildAnimatedTextField(
+          controller: _seatingCapacityController,
+          label: 'Seating Capacity',
+          hint: 'Number of seats available',
+          icon: Icons.event_seat,
+          keyboardType: TextInputType.number,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter seating capacity';
+            }
+            final intValue = int.tryParse(value);
+            if (intValue == null) {
+              return 'Please enter a valid number';
+            }
+            if (intValue <= 0) {
+              return 'Seating capacity must be greater than 0';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
+        _buildAnimatedTextField(
           controller: _monthlyPriceController,
-          label: 'Monthly Subscription Price (₹)',
-          hint: 'Enter monthly subscription cost',
+          label: 'Monthly Price (₹)',
+          hint: 'Enter monthly amount',
           icon: Icons.currency_rupee,
           keyboardType: TextInputType.number,
         ),
@@ -1249,7 +1288,7 @@ class _ListServiceFormState extends State<ListServiceForm>
         const SizedBox(height: BuddyTheme.spacingLg),
         _buildSwitchCard(
           'Home Delivery',
-          'Door-to-door meal delivery',
+          'Food delivery service available',
           _hasHomeDelivery,
           (value) => setState(() => _hasHomeDelivery = value),
           Icons.delivery_dining,
@@ -1257,7 +1296,7 @@ class _ListServiceFormState extends State<ListServiceForm>
         const SizedBox(height: BuddyTheme.spacingLg),
         _buildSwitchCard(
           'Tiffin Service',
-          'Packed meal service available',
+          'Tiffin packing service available',
           _hasTiffinService,
           (value) => setState(() => _hasTiffinService = value),
           Icons.bakery_dining,
@@ -1738,6 +1777,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     required IconData icon,
     TextInputType? keyboardType,
     int maxLines = 1,
+    String? Function(String?)? validator,
   }) {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 500),
@@ -1763,7 +1803,7 @@ class _ListServiceFormState extends State<ListServiceForm>
                 controller: controller,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
-                validator: (value) {
+                validator: validator ?? (value) {
                   if (value == null || value.isEmpty) {
                     return 'This field is required';
                   }

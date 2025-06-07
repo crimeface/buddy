@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'display pages/service_details.dart';
 import 'theme.dart';
+import 'display pages/service_details.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({Key? key}) : super(key: key);
@@ -402,8 +404,11 @@ class _ServicesPageState extends State<ServicesPage> {
   ) {
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Viewing ${service['serviceName']} details')),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ServiceDetailsScreen(serviceId: service['key']),
+          ),
         );
       },
       child: Container(
@@ -617,9 +622,13 @@ class _ServicesPageState extends State<ServicesPage> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Handle visit/enquiry - you can launch maps here
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ServiceDetailsScreen(serviceId: service['key']),
+                              ),
+                            );
                           },
-                          icon: const Icon(Icons.directions_outlined, size: 18),
                           label: const Text('View Details'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: accentColor,
