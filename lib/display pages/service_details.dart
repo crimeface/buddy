@@ -138,6 +138,9 @@ class ServiceData {
   final bool visibility;  final String priceRange; // Added for cafe
   final bool hasSeating; // Added for cafe
   final String pricing; // Added for other service type
+  final String cuisineType; // Added for cafe
+  final bool hasWifi; // Added for cafe
+  final bool hasPowerSockets; // Added for cafe
 
   ServiceData({
     required this.serviceName,
@@ -167,6 +170,9 @@ class ServiceData {
     this.hasSeating = false, // Default value
     this.serviceTypeOther = '', // Default value
     this.pricing = '', // Default value
+    this.cuisineType = '', // Default value for cafe
+    this.hasWifi = false, // Default value for cafe
+    this.hasPowerSockets = false, // Default value for cafe
   });
 
   factory ServiceData.fromFirestore(Map<String, dynamic> data) {
@@ -200,7 +206,8 @@ class ServiceData {
       priceRange: data['priceRange'] ?? '',
       hasSeating: data['hasSeating'] ?? false,
       serviceTypeOther: data['serviceTypeOther'] ?? '',
-      pricing: data['pricing'] ?? ''
+      pricing: data['pricing'] ?? '',
+      cuisineType: data['cuisineType'] ?? '',  // Added this field
     );
   }
 }
@@ -373,12 +380,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                     _buildLibraryType(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
-                  if (serviceData.hasInternet || serviceData.hasStudyCabin) ...[
-                    _buildFacilities(),
+                  if (serviceData.serviceType.toLowerCase() == 'café') ...[
+                    _buildCafeInfo(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
-                  if (serviceData.offDay.isNotEmpty) ...[
-                    _buildOffDay(),
+                  if (serviceData.hasInternet || serviceData.hasStudyCabin) ...[
+                    _buildFacilities(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
                   if (serviceData.description.isNotEmpty) ...[
@@ -648,7 +655,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
 
   Widget _buildPricingInfo() {
     final theme = Theme.of(context);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     String leftCardTitle;
     String leftCardValue;
@@ -667,7 +673,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         leftCardValue = '₹${serviceData.priceRange}';
         rightCardTitle = 'Seating';
         rightCardValue = serviceData.hasSeating ? 'Available' : 'Unavailable';
-        break;      case 'mess':
+        break;
+      case 'mess':
         leftCardTitle = 'Monthly Charges';
         leftCardValue = '₹${serviceData.charges}';
         rightCardTitle = 'Seating Capacity';
@@ -694,7 +701,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
             fontWeight: FontWeight.bold,
-            color: textPrimary,
+            color: theme.textTheme.bodyLarge?.color ?? Colors.black,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
@@ -763,6 +770,84 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             ),
           ],
         ),
+        // Add Timings section for all service types
+        if (serviceData.openingTime.isNotEmpty || serviceData.closingTime.isNotEmpty) ...[
+          const SizedBox(height: BuddyTheme.spacingLg),
+          Text(
+            'Timings',
+            style: TextStyle(
+              fontSize: BuddyTheme.fontSizeLg,
+              fontWeight: FontWeight.bold,
+              color: theme.textTheme.bodyLarge?.color ?? Colors.black,
+            ),
+          ),
+          const SizedBox(height: BuddyTheme.spacingMd),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: BuddyTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  ),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Opening Time',
+                        style: TextStyle(
+                          fontSize: BuddyTheme.fontSizeSm,
+                          color: BuddyTheme.textSecondaryColor
+                        )
+                      ),
+                      const SizedBox(height: BuddyTheme.spacingXs),
+                      Text(
+                        serviceData.openingTime,
+                        style: const TextStyle(
+                          fontSize: BuddyTheme.fontSizeLg,
+                          fontWeight: FontWeight.bold,
+                          color: BuddyTheme.primaryColor
+                        )
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: BuddyTheme.spacingMd),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: BuddyTheme.accentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  ),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Closing Time',
+                        style: TextStyle(
+                          fontSize: BuddyTheme.fontSizeSm,
+                          color: BuddyTheme.textSecondaryColor
+                        )
+                      ),
+                      const SizedBox(height: BuddyTheme.spacingXs),
+                      Text(
+                        serviceData.closingTime,
+                        style: const TextStyle(
+                          fontSize: BuddyTheme.fontSizeLg,
+                          fontWeight: FontWeight.bold,
+                          color: BuddyTheme.accentColor
+                        )
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -776,38 +861,123 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Library Type',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: textPrimary,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-            border: Border.all(
-              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-            ),
-          ),
-          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-          child: Text(
-            serviceData.libraryType,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: BuddyTheme.fontSizeMd,
+    return serviceData.serviceType.toLowerCase() == 'library' 
+      ? Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Library Information',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
               color: textPrimary,
-              height: 1.5,
             ),
           ),
-        ),
-      ],
-    );
+          const SizedBox(height: BuddyTheme.spacingMd),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: BuddyTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  ),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Library Type',
+                        style: TextStyle(
+                          fontSize: BuddyTheme.fontSizeSm,
+                          color: BuddyTheme.textSecondaryColor
+                        )
+                      ),
+                      const SizedBox(height: BuddyTheme.spacingXs),
+                      Text(
+                        serviceData.libraryType,
+                        style: const TextStyle(
+                          fontSize: BuddyTheme.fontSizeLg,
+                          fontWeight: FontWeight.bold,
+                          color: BuddyTheme.primaryColor
+                        )
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: BuddyTheme.spacingMd),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: BuddyTheme.accentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  ),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'AC Status',
+                        style: TextStyle(
+                          fontSize: BuddyTheme.fontSizeSm,
+                          color: BuddyTheme.textSecondaryColor
+                        )
+                      ),
+                      const SizedBox(height: BuddyTheme.spacingXs),
+                      Text(
+                        serviceData.acStatus,
+                        style: const TextStyle(
+                          fontSize: BuddyTheme.fontSizeLg,
+                          fontWeight: FontWeight.bold,
+                          color: BuddyTheme.accentColor
+                        )
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (serviceData.offDay.isNotEmpty) ...[
+            const SizedBox(height: BuddyTheme.spacingMd),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    ),
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Off Day',
+                          style: TextStyle(
+                            fontSize: BuddyTheme.fontSizeSm,
+                            color: BuddyTheme.textSecondaryColor
+                          )
+                        ),
+                        const SizedBox(height: BuddyTheme.spacingXs),
+                        Text(
+                          serviceData.offDay,
+                          style: const TextStyle(
+                            fontSize: BuddyTheme.fontSizeLg,
+                            fontWeight: FontWeight.bold,
+                            color: BuddyTheme.primaryColor
+                          )
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      )
+      : const SizedBox.shrink(); // Don't show this section for non-library services
   }
 
   Widget _buildFacilities() {
@@ -985,7 +1155,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ],
     );
   }
-
   Widget _buildOwnerInfo() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -999,7 +1168,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Listed By',
+          'Contact Information',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
@@ -1015,37 +1184,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             border: Border.all(
               color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.18 : 0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
-                    child: Icon(
-                      Icons.person,
-                      color: BuddyTheme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: BuddyTheme.spacingMd),
-                  Text(
-                    serviceData.contact,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: BuddyTheme.spacingMd),
               _buildContactItem(Icons.phone, serviceData.contact),
               _buildContactItem(Icons.email, serviceData.email),
             ],
@@ -1054,15 +1196,23 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ],
     );
   }
+  Widget _buildContactItem(IconData icon, String? text) {
+    if (text == null || text.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-  Widget _buildContactItem(IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
-          Icon(icon, size: BuddyTheme.iconSizeSm, color: BuddyTheme.primaryColor),
+          Icon(icon, size: 20, color: BuddyTheme.primaryColor),
           const SizedBox(width: BuddyTheme.spacingSm),
-          Expanded(child: Text(text)),
+          Text(
+            text,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: BuddyTheme.primaryColor,
+            ),
+          ),
         ],
       ),
     );
@@ -1103,6 +1253,169 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCafeInfo() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    return serviceData.serviceType.toLowerCase() == 'café'
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Café Information',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),              const SizedBox(height: BuddyTheme.spacingMd),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: BuddyTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                      ),
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cuisine Type',
+                            style: TextStyle(
+                              fontSize: BuddyTheme.fontSizeSm,
+                              color: BuddyTheme.textSecondaryColor
+                            )
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingXs),
+                          Text(
+                            serviceData.cuisineType.isNotEmpty 
+                              ? serviceData.cuisineType 
+                              : 'Not specified',
+                            style: const TextStyle(
+                              fontSize: BuddyTheme.fontSizeLg,
+                              fontWeight: FontWeight.bold,
+                              color: BuddyTheme.primaryColor
+                            )
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: BuddyTheme.spacingMd),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: BuddyTheme.accentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                      ),
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Off Day',
+                            style: TextStyle(
+                              fontSize: BuddyTheme.fontSizeSm,
+                              color: BuddyTheme.textSecondaryColor
+                            )
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingXs),
+                          Text(
+                            serviceData.offDay.isNotEmpty 
+                              ? serviceData.offDay 
+                              : 'Not specified',
+                            style: const TextStyle(
+                              fontSize: BuddyTheme.fontSizeLg,
+                              fontWeight: FontWeight.bold,
+                              color: BuddyTheme.accentColor
+                            )
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: BuddyTheme.spacingLg),
+              Text(
+                'Facilities',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),
+              const SizedBox(height: BuddyTheme.spacingMd),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  border: Border.all(
+                    color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  ),
+                ),
+                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                child: Column(
+                  children: [
+                    _buildFacilityItem(
+                      icon: Icons.wifi,
+                      text: 'Wi-Fi',
+                      isAvailable: serviceData.hasWifi,
+                    ),
+                    const SizedBox(height: BuddyTheme.spacingSm),
+                    _buildFacilityItem(
+                      icon: Icons.power,
+                      text: 'Power Sockets',
+                      isAvailable: serviceData.hasPowerSockets,
+                    ),
+                    if (serviceData.hasSeating) ...[
+                      const SizedBox(height: BuddyTheme.spacingSm),
+                      _buildFacilityItem(
+                        icon: Icons.chair,
+                        text: 'Seating Available',
+                        isAvailable: true,
+                      ),                    ],
+                  ],
+                ),
+              ),
+            ],
+          )
+        : const SizedBox.shrink(); // Don't show this section for non-cafe services
+  }
+  Widget _buildFacilityItem({
+    required IconData icon,
+    required String text,
+    required bool isAvailable,
+  }) {
+    // For cafes, always show WiFi and Power sockets in green
+    final isCafe = serviceData.serviceType.toLowerCase() == 'café';
+    final showGreen = isCafe && (text == 'Wi-Fi' || text == 'Power Sockets') ? true : isAvailable;
+    
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: BuddyTheme.iconSizeSm,
+          color: showGreen ? BuddyTheme.successColor : BuddyTheme.errorColor,
+        ),
+        const SizedBox(width: BuddyTheme.spacingMd),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: BuddyTheme.fontSizeMd,
+            color: showGreen ? BuddyTheme.successColor : BuddyTheme.errorColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
