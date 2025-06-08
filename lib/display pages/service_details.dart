@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
-import '../models/hostel_data.dart';
+
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -141,7 +141,12 @@ class ServiceData {
   final String cuisineType; // Added for cafe
   final bool hasWifi; // Added for cafe
   final bool hasPowerSockets; // Added for cafe
-
+  final bool hasHomeDelivery; // Added for mess
+  final bool hasTiffinService; // Added for mess
+  final String foodType; // Added for mess
+  final bool breakfast; // Added for mess meal timings
+  final bool lunch; // Added for mess meal timings
+  final bool dinner; // Added for mess meal timings
   ServiceData({
     required this.serviceName,
     required this.serviceType,
@@ -166,16 +171,26 @@ class ServiceData {
     required this.libraryType,
     required this.mapLink,
     required this.offDay,
-    required this.seatingCapacity,    this.priceRange = '', // Default value
+    required this.seatingCapacity,
+    this.priceRange = '', // Default value
     this.hasSeating = false, // Default value
     this.serviceTypeOther = '', // Default value
     this.pricing = '', // Default value
     this.cuisineType = '', // Default value for cafe
-    this.hasWifi = false, // Default value for cafe
-    this.hasPowerSockets = false, // Default value for cafe
+    required this.hasWifi, // Default value for cafe
+    required this.hasPowerSockets, // Default value for cafe,
+    this.hasHomeDelivery = false, // Default value for mess
+    this.hasTiffinService = false, // Default value for mess
+    this.foodType = '', // Added for mess
+    this.breakfast = false, // Added for mess meal timings
+    this.lunch = false, // Added for mess meal timings
+    this.dinner = false, // Added for mess meal timings
   });
 
   factory ServiceData.fromFirestore(Map<String, dynamic> data) {
+    // Get mealTimings map and extract boolean values, default to false if not present
+    Map<String, dynamic> mealTimings = data['mealTimings'] ?? {};
+    
     return ServiceData(
       acStatus: data['acStatus'] ?? '',
       additionalPhotos: List<String>.from(data['additionalPhotos'] ?? []),
@@ -196,18 +211,28 @@ class ServiceData {
       location: data['location'] ?? '',
       mapLink: data['mapLink'] ?? '',
       offDay: data['offDay'] ?? '',
-      openingTime: data['openingTime'] ?? '',      seatingCapacity: data['seatingCapacity'] is String 
+      openingTime: data['openingTime'] ?? '',
+      seatingCapacity: data['seatingCapacity'] is String 
         ? int.tryParse(data['seatingCapacity']) ?? 0 
         : data['seatingCapacity'] ?? 0,
       selectedPlan: data['selectedPlan'] ?? '',
       serviceName: data['serviceName'] ?? '',
-      serviceType: data['serviceType'] ?? '',      userId: data['userId'] ?? '',
+      serviceType: data['serviceType'] ?? '',
+      userId: data['userId'] ?? '',
+      hasHomeDelivery: data['hasHomeDelivery'] ?? false,
+      hasTiffinService: data['hasTiffinService'] ?? false,
       visibility: data['visibility'] ?? false,
       priceRange: data['priceRange'] ?? '',
       hasSeating: data['hasSeating'] ?? false,
       serviceTypeOther: data['serviceTypeOther'] ?? '',
       pricing: data['pricing'] ?? '',
-      cuisineType: data['cuisineType'] ?? '',  // Added this field
+      cuisineType: data['cuisineType'] ?? '',
+      hasPowerSockets: data['hasPowerSockets'] ?? false,
+      hasWifi: data['hasWifi'] ?? false,
+      foodType: data['foodType'] ?? '', // Added for mess
+      breakfast: mealTimings['Breakfast'] ?? false, // Added for mess meal timings
+      lunch: mealTimings['Lunch'] ?? false, // Added for mess meal timings
+      dinner: mealTimings['Dinner'] ?? false, // Added for mess meal timings
     );
   }
 }
@@ -375,17 +400,16 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 children: [                  _buildServiceHeader(),
                   const SizedBox(height: BuddyTheme.spacingLg),
                   _buildPricingInfo(),
-                  const SizedBox(height: BuddyTheme.spacingLg),
-                  if (serviceData.libraryType.isNotEmpty) ...[
+                  const SizedBox(height: BuddyTheme.spacingLg),                  if (serviceData.libraryType.isNotEmpty) ...[
                     _buildLibraryType(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
-                  if (serviceData.serviceType.toLowerCase() == 'café') ...[
-                    _buildCafeInfo(),
+                  if (serviceData.serviceType.toLowerCase() == 'mess') ...[
+                    _buildMessInfo(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
-                  if (serviceData.hasInternet || serviceData.hasStudyCabin) ...[
-                    _buildFacilities(),
+                  if (serviceData.serviceType.toLowerCase() == 'café' || serviceData.serviceType.toLowerCase() == 'cafe') ...[
+                    _buildCafeInfo(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
                   if (serviceData.description.isNotEmpty) ...[
@@ -768,8 +792,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 ),
               ),
             ),
-          ],
-        ),
+          ],        ),
         // Add Timings section for all service types
         if (serviceData.openingTime.isNotEmpty || serviceData.closingTime.isNotEmpty) ...[
           const SizedBox(height: BuddyTheme.spacingLg),
@@ -847,6 +870,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               ),
             ],
           ),
+        ],        // Add Facilities section after Timings section
+        if (['library', 'café', 'cafe', 'mess'].contains(serviceData.serviceType.toLowerCase())) ...[
+          const SizedBox(height: BuddyTheme.spacingLg),
+          _buildFacilities(),
         ],
       ],
     );
@@ -979,15 +1006,49 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       )
       : const SizedBox.shrink(); // Don't show this section for non-library services
   }
-
-  Widget _buildFacilities() {
-    final theme = Theme.of(context);
+  Widget _buildFacilities() {    
+    final theme = Theme.of(context);    
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor =
-        isDark
-            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final cardColor = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+
+    List<Widget> facilityChips = [];
+
+    // Add service-specific facilities based on lowercase service type
+    final serviceType = serviceData.serviceType.toLowerCase();
+    if (serviceType == 'library') {
+      if (serviceData.hasInternet) {
+        facilityChips.add(_buildFacilityChip('Internet', Icons.wifi));
+      }
+      if (serviceData.hasStudyCabin) {
+        facilityChips.add(_buildFacilityChip('Study Cabin', Icons.book));
+      }
+    } else if (serviceType == 'café') {
+      // Only show wifi if hasWifi is true
+      if (serviceData.hasWifi) {
+        facilityChips.add(_buildFacilityChip('Wi-Fi', Icons.wifi));
+      }
+      // Only show power sockets if hasPowerSockets is true
+      if (serviceData.hasPowerSockets) {
+        facilityChips.add(_buildFacilityChip('Power Sockets', Icons.power));
+      }
+      if (serviceData.hasSeating) {
+        facilityChips.add(_buildFacilityChip('Seating Available', Icons.chair));
+      }
+    } else if (serviceType == 'mess') {
+      if (serviceData.hasHomeDelivery) {
+        facilityChips.add(_buildFacilityChip('Home Delivery', Icons.delivery_dining));
+      }
+      if (serviceData.hasTiffinService) {
+        facilityChips.add(_buildFacilityChip('Tiffin Service', Icons.lunch_dining));
+      }
+    }
+
+    // If no facilities, don't show the section
+    if (facilityChips.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -996,7 +1057,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           'Facilities & Amenities',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: textPrimary,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
@@ -1013,12 +1073,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           child: Wrap(
             spacing: BuddyTheme.spacingXs,
             runSpacing: BuddyTheme.spacingXs,
-            children: [
-              if (serviceData.hasInternet)
-                _buildFacilityChip('Internet', Icons.wifi),
-              if (serviceData.hasStudyCabin)
-                _buildFacilityChip('Study Cabin', Icons.book),
-            ],
+            children: facilityChips,
           ),
         ),
       ],
@@ -1027,8 +1082,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
 
   Widget _buildFacilityChip(String label, IconData icon) {
     final theme = Theme.of(context);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
-
+    
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: BuddyTheme.spacingSm,
@@ -1062,49 +1116,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildOffDay() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor =
-        isDark
-            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Off Day',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: textPrimary,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-            border: Border.all(
-              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-            ),
-          ),
-          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-          child: Text(
-            serviceData.offDay,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: BuddyTheme.fontSizeMd,
-              color: textPrimary,
-              height: 1.5,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -1255,16 +1266,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ),
     );
   }
-
   Widget _buildCafeInfo() {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
-    return serviceData.serviceType.toLowerCase() == 'café'
+    final serviceType = serviceData.serviceType.toLowerCase();
+    return serviceType == 'café' || serviceType == 'cafe'
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1274,7 +1281,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   fontWeight: FontWeight.bold,
                   color: textPrimary,
                 ),
-              ),              const SizedBox(height: BuddyTheme.spacingMd),
+              ),
+              const SizedBox(height: BuddyTheme.spacingMd),
               Row(
                 children: [
                   Expanded(
@@ -1344,76 +1352,111 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: BuddyTheme.spacingLg),
-              Text(
-                'Facilities',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
-                ),
-              ),
-              const SizedBox(height: BuddyTheme.spacingMd),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                  border: Border.all(
-                    color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-                  ),
-                ),
-                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                child: Column(
-                  children: [
-                    _buildFacilityItem(
-                      icon: Icons.wifi,
-                      text: 'Wi-Fi',
-                      isAvailable: serviceData.hasWifi,
-                    ),
-                    const SizedBox(height: BuddyTheme.spacingSm),
-                    _buildFacilityItem(
-                      icon: Icons.power,
-                      text: 'Power Sockets',
-                      isAvailable: serviceData.hasPowerSockets,
-                    ),
-                    if (serviceData.hasSeating) ...[
-                      const SizedBox(height: BuddyTheme.spacingSm),
-                      _buildFacilityItem(
-                        icon: Icons.chair,
-                        text: 'Seating Available',
-                        isAvailable: true,
-                      ),                    ],
-                  ],
-                ),
-              ),
             ],
           )
         : const SizedBox.shrink(); // Don't show this section for non-cafe services
   }
-  Widget _buildFacilityItem({
-    required IconData icon,
-    required String text,
-    required bool isAvailable,
-  }) {
-    // For cafes, always show WiFi and Power sockets in green
-    final isCafe = serviceData.serviceType.toLowerCase() == 'café';
-    final showGreen = isCafe && (text == 'Wi-Fi' || text == 'Power Sockets') ? true : isAvailable;
-    
-    return Row(
+  Widget _buildMessInfo() {
+    final theme = Theme.of(context);    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: BuddyTheme.iconSizeSm,
-          color: showGreen ? BuddyTheme.successColor : BuddyTheme.errorColor,
-        ),
-        const SizedBox(width: BuddyTheme.spacingMd),
         Text(
-          text,
-          style: TextStyle(
-            fontSize: BuddyTheme.fontSizeMd,
-            color: showGreen ? BuddyTheme.successColor : BuddyTheme.errorColor,
-            fontWeight: FontWeight.w500,
+          'Mess Information',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
           ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingMd),
+        Row(
+          children: [            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: BuddyTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                ),
+                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [                    
+                    Text(
+                      'Food Type',
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: BuddyTheme.spacingXs),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        serviceData.foodType.isEmpty ? 'Not Specified' : serviceData.foodType,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: BuddyTheme.fontSizeLg,
+                          color: BuddyTheme.primaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: BuddyTheme.spacingMd),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: BuddyTheme.accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                ),
+                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Off Day',
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: BuddyTheme.spacingXs),
+                    Text(
+                      serviceData.offDay.isEmpty ? 'Not Specified' : serviceData.offDay,
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeLg,
+                        fontWeight: FontWeight.bold,
+                        color: BuddyTheme.accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),        const SizedBox(height: BuddyTheme.spacingLg),
+        Text(
+          'Meals Provided',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingMd),
+        Wrap(
+          spacing: BuddyTheme.spacingSm,
+          runSpacing: BuddyTheme.spacingSm,
+          children: [
+            if (serviceData.breakfast)
+              _buildFacilityChip('Breakfast', Icons.free_breakfast),
+            if (serviceData.lunch)
+              _buildFacilityChip('Lunch', Icons.lunch_dining),
+            if (serviceData.dinner)
+              _buildFacilityChip('Dinner', Icons.dinner_dining),
+          ],
         ),
       ],
     );

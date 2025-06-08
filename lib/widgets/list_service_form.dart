@@ -73,14 +73,13 @@ class _ListServiceFormState extends State<ListServiceForm>
   String _foodType = 'Veg and Non-Veg';  // Changed from 'Both' to match the options
   final _monthlyPriceController = TextEditingController();
   Map<String, bool> _mealTimings = {
-    'Breakfast': true,
-    'Lunch': true,
-    'Dinner': true,
+    'Breakfast': false,
+    'Lunch': false,
+    'Dinner': false,
   };
   bool _hasHomeDelivery = false;
   bool _hasTiffinService = false;
   // Other service fields
-  final _shortDescriptionController = TextEditingController();
   final _pricingController = TextEditingController();
   final _serviceTypeOtherController = TextEditingController();
   final _usefulnessController = TextEditingController();
@@ -170,7 +169,6 @@ class _ListServiceFormState extends State<ListServiceForm>
     _chargesController.dispose();
     _priceRangeController.dispose();
     _monthlyPriceController.dispose();
-    _shortDescriptionController.dispose();
     _pricingController.dispose();
     _serviceTypeOtherController.dispose();
     _usefulnessController.dispose();
@@ -310,7 +308,6 @@ class _ListServiceFormState extends State<ListServiceForm>
       },
       // Other
       if (_serviceType == 'Other') ...{
-        'shortDescription': _shortDescriptionController.text,
         'pricing': _pricingController.text,
         'serviceTypeOther': _serviceTypeOtherController.text,
         'usefulness': _usefulnessController.text,
@@ -1309,14 +1306,6 @@ class _ListServiceFormState extends State<ListServiceForm>
     return Column(
       children: [
         _buildAnimatedTextField(
-          controller: _shortDescriptionController,
-          label: 'Short Description',
-          hint: 'Describe your service briefly',
-          icon: Icons.description_outlined,
-          maxLines: 3,
-        ),
-        const SizedBox(height: BuddyTheme.spacingLg),
-        _buildAnimatedTextField(
           controller: _pricingController,
           label: 'Pricing',
           hint: 'Enter service pricing details',
@@ -1333,7 +1322,7 @@ class _ListServiceFormState extends State<ListServiceForm>
         const SizedBox(height: BuddyTheme.spacingLg),
         _buildAnimatedTextField(
           controller: _usefulnessController,
-          label: 'Usefulness for Students',
+          label: 'Usefulness for Students/Flat Seekers',
           hint: 'How does this help flat seekers/students?',
           icon: Icons.school_outlined,
           maxLines: 3,
@@ -1614,11 +1603,21 @@ class _ListServiceFormState extends State<ListServiceForm>
             children: [
               Icon(Icons.restaurant_menu, color: BuddyTheme.primaryColor),
               const SizedBox(width: BuddyTheme.spacingSm),
-              Text(
-                'Meal Timings',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Meals',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '(Select the meals provided by you)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: BuddyTheme.textSecondaryColor,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1643,12 +1642,11 @@ class _ListServiceFormState extends State<ListServiceForm>
                         color:
                             entry.value
                                 ? BuddyTheme.primaryColor
-                                : Colors.transparent,
+                                : BuddyTheme.primaryColor.withOpacity(0.1),
                         border: Border.all(
-                          color:
-                              entry.value
-                                  ? BuddyTheme.primaryColor
-                                  : BuddyTheme.borderColor,
+                          color: BuddyTheme.primaryColor.withOpacity(
+                            entry.value ? 1 : 0.3,
+                          ),
                         ),
                         borderRadius: BorderRadius.circular(
                           BuddyTheme.borderRadiusSm,
@@ -1660,9 +1658,8 @@ class _ListServiceFormState extends State<ListServiceForm>
                           color:
                               entry.value
                                   ? Colors.white
-                                  : BuddyTheme.textPrimaryColor,
-                          fontWeight:
-                              entry.value ? FontWeight.w600 : FontWeight.normal,
+                                  : BuddyTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
