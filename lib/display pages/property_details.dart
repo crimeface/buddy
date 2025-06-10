@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
@@ -119,6 +121,7 @@ class PropertyData {
   final String bathroom;
   final double monthlyRent;
   final double securityDeposit;
+  final double brokerage;
   final int currentFlatmates;
   final int maxFlatmates;
   final String gender;
@@ -143,6 +146,7 @@ class PropertyData {
     required this.bathroom,
     required this.monthlyRent,
     required this.securityDeposit,
+    required this.brokerage,
     required this.currentFlatmates,
     required this.maxFlatmates,
     required this.gender,
@@ -181,6 +185,7 @@ class PropertyData {
       bathroom: json['bathroom'] ?? '',
       monthlyRent: parseNumericValue(json['monthlyRent']),
       securityDeposit: parseNumericValue(json['securityDeposit']),
+      brokerage: parseNumericValue(json['brokerage']),
       currentFlatmates: parseIntValue(json['currentFlatmates']),
       maxFlatmates: parseIntValue(json['maxFlatmates']),
       gender: json['gender'] ?? '',
@@ -233,15 +238,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   void initState() {
     super.initState();
     _fetchPropertyDetails();
+    _checkIfBookmarked();
   }
 
   Future<void> _fetchPropertyDetails() async {
     try {
-      final propertyDoc =
-          await _firestore
-              .collection('room_listings')
-              .doc(widget.propertyId)
-              .get();
+      final propertyDoc = await _firestore.collection('room_listings').doc(widget.propertyId).get();
 
       if (propertyDoc.exists) {
         final data = propertyDoc.data() as Map<String, dynamic>;
@@ -249,17 +251,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         String ownerName = 'Unknown';
 
         if (ownerEmail != null) {
-          final userQuery =
-              await _firestore
-                  .collection('users')
-                  .where('email', isEqualTo: ownerEmail)
-                  .limit(1)
-                  .get();
+          final userQuery = await _firestore
+              .collection('users')
+              .where('email', isEqualTo: ownerEmail)
+              .limit(1)
+              .get();
 
           if (userQuery.docs.isNotEmpty) {
             ownerName = userQuery.docs.first.data()['username'] ?? 'Unknown';
           }
-        } // Helper functions for data conversion
+        }
+
         double parseDouble(dynamic value) {
           if (value == null) return 0.0;
           if (value is num) return value.toDouble();
@@ -274,42 +276,37 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           return defaultValue;
         }
 
+        // Safely convert uploadedPhotos to Map<String, String>
+        Map<String, String> convertPhotos(dynamic photos) {
+          if (photos == null) return {};
+          if (photos is Map) {
+            return photos.map((key, value) => MapEntry(key.toString(), value.toString()));
+          }
+          return {};
+        }
+
         final convertedData = {
           'title': data['title']?.toString() ?? '',
           'location': data['location']?.toString() ?? '',
-          'availableFromDate':
-              data['availableFromDate'] != null
-                  ? _formatDate(data['availableFromDate'])
-                  : '',
+          'availableFromDate': data['availableFromDate'] != null ? _formatDate(data['availableFromDate']) : '',
           'roomType': data['roomType']?.toString() ?? '',
           'flatSize': data['flatSize']?.toString() ?? '',
           'furnishing': data['furnishing']?.toString() ?? '',
-          'bathroom':
-              data['hasAttachedBathroom'] == true ? 'Attached' : 'Shared',
+          'bathroom': data['hasAttachedBathroom'] == true ? 'Attached' : 'Shared',
           'gender': data['genderComposition']?.toString() ?? '',
           'occupation': data['occupation']?.toString() ?? '',
           'monthlyRent': parseDouble(data['rent']),
           'securityDeposit': parseDouble(data['deposit']),
-          'currentFlatmates': parseInt(
-            data['currentFlatmates'],
-            defaultValue: 1,
-          ),
+          'brokerage': parseDouble(data['brokerage']),
+          'phone': data['phone']?.toString() ?? '',
+          'email': data['email']?.toString() ?? '',
+          'currentFlatmates': parseInt(data['currentFlatmates'], defaultValue: 1),
           'maxFlatmates': parseInt(data['maxFlatmates'], defaultValue: 2),
-          'images':
-              data['uploadedPhotos'] is Map
-                  ? Map<String, String>.from(
-                    data['uploadedPhotos'].map(
-                      (key, value) =>
-                          MapEntry(key.toString(), value.toString()),
-                    ),
-                  )
-                  : {},
+          'images': convertPhotos(data['uploadedPhotos']),
           'amenities': _getFacilities(data['facilities']),
           'description': data['description']?.toString() ?? '',
           'ownerName': ownerName,
           'ownerRating': 0.0,
-          'phone': data['phone']?.toString() ?? '',
-          'email': data['email']?.toString() ?? '',
           'googleMapsLink': data['locationUrl']?.toString() ?? '',
           'preferences': {
             'lookingFor': data['lookingFor']?.toString() ?? '',
@@ -465,6 +462,54 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
   }
 
+  Future<void> _toggleBookmark() async {
+    final authUser = FirebaseAuth.instance.currentUser;
+    if (authUser == null) return;
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(authUser.uid)
+            .get();
+    final bookmarks =
+        (userDoc.data()?['bookmarkedProperties'] as List?)?.cast<String>() ??
+        [];
+    final isBookmarkedNow = bookmarks.contains(widget.propertyId);
+    if (isBookmarkedNow) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(authUser.uid)
+          .update({
+            'bookmarkedProperties': FieldValue.arrayRemove([widget.propertyId]),
+          });
+    } else {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(authUser.uid)
+          .set({
+            'bookmarkedProperties': FieldValue.arrayUnion([widget.propertyId]),
+          }, SetOptions(merge: true));
+    }
+    setState(() {
+      isBookmarked = !isBookmarked;
+    });
+  }
+
+  Future<void> _checkIfBookmarked() async {
+    final authUser = FirebaseAuth.instance.currentUser;
+    if (authUser == null) return;
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(authUser.uid)
+            .get();
+    final bookmarks =
+        (userDoc.data()?['bookmarkedProperties'] as List?)?.cast<String>() ??
+        [];
+    setState(() {
+      isBookmarked = bookmarks.contains(widget.propertyId);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -570,10 +615,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       ? BuddyTheme.primaryColor
                       : BuddyTheme.textPrimaryColor,
             ),
-            onPressed: () {
-              setState(() {
-                isBookmarked = !isBookmarked;
-              });
+            onPressed: () async {
+              await _toggleBookmark();
               HapticFeedback.lightImpact();
             },
           ),
@@ -586,8 +629,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           ),
           child: IconButton(
             icon: const Icon(Icons.share, color: BuddyTheme.textPrimaryColor),
-            onPressed: () {
-              // Handle share
+            onPressed: () async {
+              final String propertyId = widget.propertyId;
+              final String appLink =
+                  'https://buddyapp.page.link/property?type=room&id=$propertyId';
+              final String playStoreUrl =
+                  'https://play.google.com/store/apps/details?id=com.yourcompany.buddy';
+              final String shareText =
+                  'Check out this property: ${propertyData.title}\nLocation: ${propertyData.location}\n\nView details: $appLink\n\nDon\'t have the app? Download here: $playStoreUrl';
+              await Share.share(shareText, subject: propertyData.title);
             },
           ),
         ),
@@ -599,10 +649,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => FullScreenImageGallery(
-                      images: propertyImages,
-                      initialIndex: currentImageIndex,
-                    ),
+                    builder:
+                        (context) => FullScreenImageGallery(
+                          images: propertyImages,
+                          initialIndex: currentImageIndex,
+                        ),
                   ),
                 );
               },
@@ -632,19 +683,21 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               right: 0,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: propertyImages.asMap().entries.map((entry) {
-                  return Container(
-                    width: 8.0,
-                    height: 8.0,
-                    margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: currentImageIndex == entry.key
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.4),
-                    ),
-                  );
-                }).toList(),
+                children:
+                    propertyImages.asMap().entries.map((entry) {
+                      return Container(
+                        width: 8.0,
+                        height: 8.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              currentImageIndex == entry.key
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.4),
+                        ),
+                      );
+                    }).toList(),
               ),
             ),
           ],
@@ -787,7 +840,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   Widget _buildPricingInfo() {
     final theme = Theme.of(context);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : BuddyTheme.textPrimaryColor;
+    final subTextColor = isDark ? Colors.white70 : BuddyTheme.textSecondaryColor;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -797,7 +852,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
             fontWeight: FontWeight.bold,
-            color: textPrimary,
+            color: textColor,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
@@ -815,11 +870,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Monthly Rent',
                       style: TextStyle(
                         fontSize: BuddyTheme.fontSizeSm,
-                        color: BuddyTheme.textSecondaryColor,
+                        color: subTextColor,
                       ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
@@ -848,11 +903,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Security Deposit',
                       style: TextStyle(
                         fontSize: BuddyTheme.fontSizeSm,
-                        color: BuddyTheme.textSecondaryColor,
+                        color: subTextColor,
                       ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
@@ -870,6 +925,42 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             ),
           ],
         ),
+        if (propertyData.brokerage > 0) ...[
+          const SizedBox(height: BuddyTheme.spacingMd),
+          Center(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.45,
+              decoration: BoxDecoration(
+                color: BuddyTheme.secondaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(
+                  BuddyTheme.borderRadiusMd,
+                ),
+              ),
+              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Brokerage',
+                    style: TextStyle(
+                      fontSize: BuddyTheme.fontSizeSm,
+                      color: subTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingXs),
+                  Text(
+                    '₹${propertyData.brokerage.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: BuddyTheme.fontSizeLg,
+                      fontWeight: FontWeight.bold,
+                      color: BuddyTheme.secondaryColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1301,107 +1392,35 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildBottomActions() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor =
-        isDark
-            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
-
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-      decoration: BoxDecoration(
-        color: cardColor,
-        border: Border.all(
-          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-        ),
-      ),
       child: SafeArea(
         child: Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  if (propertyData.phone.isNotEmpty) {
-                    final Uri callUri = Uri.parse('tel:${propertyData.phone}');
-                    try {
-                      if (await canLaunchUrl(callUri)) {
-                        await launchUrl(callUri);
-                      } else {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not make call'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Error making call'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    }
-                  }
+                  final Uri phoneUri = Uri(scheme: 'tel', path: propertyData.phone);
+                  await launchUrl(phoneUri);
                 },
                 icon: const Icon(Icons.phone),
                 label: const Text('Call'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingSm,
-                  ),
-                  side: const BorderSide(color: BuddyTheme.primaryColor),
-                  foregroundColor: BuddyTheme.primaryColor,
-                ),
+                style: OutlinedButton.styleFrom(foregroundColor: BuddyTheme.primaryColor),
               ),
             ),
             const SizedBox(width: BuddyTheme.spacingMd),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  if (propertyData.phone.isNotEmpty) {
-                    final Uri smsUri = Uri.parse('sms:${propertyData.phone}');
-                    try {
-                      if (await canLaunchUrl(smsUri)) {
-                        await launchUrl(smsUri);
-                      } else {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not send message'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Error sending message: ${e.toString()}',
-                            ),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    }
-                  }
+                  final Uri emailUri = Uri(
+                    scheme: 'mailto',
+                    path: propertyData.email,
+                    query: 'subject=Enquiry about ${propertyData.email}',
+                  );
+                  await launchUrl(emailUri);
                 },
-                icon: const Icon(Icons.message),
-                label: const Text('Message'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BuddyTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingSm,
-                  ),
-                ),
+                icon: const Icon(Icons.email),
+                label: const Text('Email'),
               ),
             ),
           ],

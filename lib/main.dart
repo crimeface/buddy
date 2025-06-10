@@ -11,12 +11,14 @@ import 'display pages/property_details.dart';
 import './display pages/property_details.dart' as property_details;
 import './display pages/flatmate_details.dart';
 import 'edit_profile.dart';
+import 'edit_property.dart';
 import 'my_listings.dart';
 import 'display pages/hostelpg_details.dart';
-
+import 'privacy_page.dart';
 
 // Add RouteObserver
-final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,17 +47,25 @@ class BuddyApp extends StatelessWidget {
         '/services': (context) => const ServicesPage(),
         '/editProfile': (context) => const EditProfilePage(),
         '/myListings': (context) => const MyListingsPage(),
+        '/editProperty': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
+          return EditPropertyPage(propertyData: args['propertyData'] as Map<String, dynamic>);
+        },
         '/hostelpg_details': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args = ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           final hostelId = args?['hostelId'] as String? ?? '';
           return HostelDetailsScreen(propertyId: hostelId);
         },
         '/propertyDetails': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           final propertyId = args?['propertyId'] as String? ?? '';
           return PropertyDetailsScreen(propertyId: propertyId);
         },
         // '/flatmateDetails': (context) => const FlatmateDetailsPage(),
+        '/privacyPolicy': (context) => const PrivacyPolicyPage(),
       },
     );
   }

@@ -37,6 +37,7 @@ class _ListRoomFormState extends State<ListRoomForm>
       TextEditingController(); // Not used in this example
   final _rentController = TextEditingController();
   final _depositController = TextEditingController();
+  final _brokerageController = TextEditingController();  // Added controller
   DateTime? _availableFromDate;
   String _roomType = 'Private';
   String _flatSize = '1BHK';
@@ -91,6 +92,7 @@ class _ListRoomFormState extends State<ListRoomForm>
   ];
 
   // Contact Details
+  final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _notesController = TextEditingController();
@@ -177,11 +179,15 @@ class _ListRoomFormState extends State<ListRoomForm>
     _fabAnimationController.dispose();
     _titleController.dispose();
     _locationController.dispose();
+    _locationUrlController.dispose();
     _rentController.dispose();
     _depositController.dispose();
+    _brokerageController.dispose();
+    _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     _notesController.dispose();
+    _nameController.dispose(); // Dispose the controller
     super.dispose();
   }
 
@@ -247,6 +253,8 @@ class _ListRoomFormState extends State<ListRoomForm>
       'locationUrl': _locationUrlController.text,
       'rent': _rentController.text,
       'deposit': _depositController.text,
+      'brokerage': _brokerageController.text,
+      'name': _nameController.text,
       'availableFromDate': _availableFromDate?.toIso8601String(),
       'roomType': _roomType,
       'flatSize': _flatSize,
@@ -271,7 +279,10 @@ class _ListRoomFormState extends State<ListRoomForm>
       'createdAt': now.toIso8601String(),
       'selectedPlan': _selectedPlan,
       'expiryDate': expiryDate.toIso8601String(),
-      'visibility': true, // Always true on creation
+      'visibility': true, // Always true on creation,
+      'phone': _phoneController.text,
+      'email': _emailController.text,
+      'notes': _notesController.text,
     };
 
     try {
@@ -596,6 +607,16 @@ class _ListRoomFormState extends State<ListRoomForm>
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
+            _buildAnimatedTextField(
+              controller: _brokerageController,
+              label: 'Brokerage Amount (₹) (if any)',
+              hint: 'Enter brokerage fee (if any)',
+              icon: Icons.real_estate_agent,
+              keyboardType: TextInputType.number,
+            ),
+
+            const SizedBox(height: BuddyTheme.spacingLg),
+
             _buildPricingTipCard(),
           ],
         ),
@@ -740,9 +761,18 @@ class _ListRoomFormState extends State<ListRoomForm>
             const SizedBox(height: BuddyTheme.spacingMd),
 
             _buildAnimatedTextField(
+              controller: _nameController,
+              label: 'Your Name',
+              hint: 'Enter your name',
+              icon: Icons.person_outline,
+            ),
+
+            const SizedBox(height: BuddyTheme.spacingLg),
+
+            _buildAnimatedTextField(
               controller: _phoneController,
               label: 'Phone Number',
-              hint: 'Enter your contact number',
+              hint: 'Enter phone number',
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
             ),
@@ -1214,7 +1244,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                   ),
                 ),
               ),
-    );
+              );
   }
 
   Widget _buildCounterCard(
@@ -1315,7 +1345,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1487,7 +1517,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                   ),
                 ),
               ),
-    );
+              );
   }
 
   Widget _buildDatePickerCard() {
@@ -1598,7 +1628,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1656,7 +1686,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                         Text(
                           '• Research similar properties in your area\n'
                           '• Consider including utilities in rent\n'
-                          '• Security deposit is typically 1-3 months rent\n'
+                          '• Security deposit is typically 1-2 months rent\n'
                           '• Be transparent about additional charges',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: BuddyTheme.textSecondaryColor),
@@ -1666,7 +1696,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                   ),
                 ),
               ),
-    );
+              );
   }
 
   Widget _buildPolicySection() {

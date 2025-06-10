@@ -80,7 +80,7 @@ class FlatmateDetailsPage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomActions(context, theme),
+      bottomNavigationBar: _buildBottomActions(),
     );
   }
 
@@ -502,61 +502,40 @@ class FlatmateDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomActions(BuildContext context, ThemeData theme) {
-    // Use this for all cardColor assignments in your widgets
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor =
-        isDark
-            ? Color.alphaBlend(
-              Colors.white.withOpacity(0.06),
-              theme.cardColor,
-            ) // lighter in dark mode
-            : Color.alphaBlend(
-              Colors.black.withOpacity(0.04),
-              theme.cardColor,
-            ); // darker in light mode
-
+  Widget _buildBottomActions() {
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-      decoration: BoxDecoration(color: cardColor),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                final Uri callUri = Uri.parse('tel:${flatmateData['phone']}');
-                if (await canLaunchUrl(callUri)) {
-                  await launchUrl(callUri);
-                }
-              },
-              icon: const Icon(Icons.phone),
-              label: const Text('Call'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  vertical: BuddyTheme.spacingSm,
-                ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final Uri phoneUri = Uri(scheme: 'tel', path: flatmateData['phone'] ?? '');
+                  await launchUrl(phoneUri);
+                },
+                icon: const Icon(Icons.phone),
+                label: const Text('Call'),
+                style: OutlinedButton.styleFrom(foregroundColor: BuddyTheme.primaryColor),
               ),
             ),
-          ),
-          const SizedBox(width: BuddyTheme.spacingMd),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final Uri smsUri = Uri.parse('sms:${flatmateData['phone']}');
-                if (await canLaunchUrl(smsUri)) {
-                  await launchUrl(smsUri);
-                }
-              },
-              icon: const Icon(Icons.message),
-              label: const Text('Message'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  vertical: BuddyTheme.spacingSm,
-                ),
+            const SizedBox(width: BuddyTheme.spacingMd),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final Uri emailUri = Uri(
+                    scheme: 'mailto',
+                    path: flatmateData['email'],
+                    query: 'subject=Enquiry about ${flatmateData['email']}',
+                  );
+                  await launchUrl(emailUri);
+                },
+                icon: const Icon(Icons.email),
+                label: const Text('Email'),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

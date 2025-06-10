@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import './display pages/property_details.dart';
+import 'display pages/property_details.dart';
+import 'display pages/hostelpg_details.dart';
+import 'display pages/service_details.dart';
+import 'display pages/flatmate_details.dart';
 
 class MyListingsPage extends StatefulWidget {
   const MyListingsPage({Key? key}) : super(key: key);
@@ -10,14 +13,42 @@ class MyListingsPage extends StatefulWidget {
   State<MyListingsPage> createState() => _MyListingsPageState();
 }
 
-class _MyListingsPageState extends State<MyListingsPage> {
+class _MyListingsPageState extends State<MyListingsPage>
+    with TickerProviderStateMixin {
   List<Map<String, dynamic>> _listings = [];
   bool _isLoading = true;
+  String _selectedFilter = 'All';
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  final List<String> _filterOptions = [
+    'All',
+    'Room',
+    'Hostel/PG',
+    'Service',
+    'Flatmate',
+  ];
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _fetchMyListings();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchMyListings() async {
@@ -39,7 +70,7 @@ class _MyListingsPageState extends State<MyListingsPage> {
               .where('userId', isEqualTo: uid)
               .get();
       // Hostel listings
-      final hostelSnap =
+          final hostelSnap =
           await FirebaseFirestore.instance
               .collection('hostel_listings')
               .where('uid', isEqualTo: uid)
@@ -125,64 +156,909 @@ class _MyListingsPageState extends State<MyListingsPage> {
         _listings = all;
         _isLoading = false;
       });
+
+      _animationController.forward();
     } catch (e) {
       setState(() {
         _listings = [];
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load listings: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load listings: $e'),
+          backgroundColor: Colors.red[400],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredListings {
+    if (_selectedFilter == 'All') return _listings;
+    return _listings
+        .where((listing) => listing['listingType'] == _selectedFilter)
+        .toList();
+  }
+
+  Color _getListingTypeColor(String type) {
+    switch (type) {
+      case 'Room':
+        return const Color(0xFF3B82F6);
+      case 'Hostel/PG':
+        return const Color(0xFF10B981);
+      case 'Service':
+        return const Color(0xFF8B5CF6);
+      case 'Flatmate':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  IconData _getListingTypeIcon(String type) {
+    switch (type) {
+      case 'Room':
+        return Icons.bed_rounded;
+      case 'Hostel/PG':
+        return Icons.apartment_rounded;
+      case 'Service':
+        return Icons.build_rounded;
+      case 'Flatmate':
+        return Icons.people_rounded;
+      default:
+        return Icons.home_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor = theme.scaffoldBackgroundColor;
+    final cardColor =
+        isDark ? Colors.grey[850]! : Colors.white.withOpacity(0.95);
+    final textPrimary =
+        theme.textTheme.bodyLarge?.color ??
+        (isDark ? Colors.white : Colors.black);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey[700]!;
+    final iconColor = isDark ? Colors.white : const Color(0xFF1E293B);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('My Listings')),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _listings.isEmpty
-              ? const Center(child: Text('No listings found.'))
-              : ListView.builder(
-                itemCount: _listings.length,
-                itemBuilder: (context, index) {
-                  final listing = _listings[index];
-                  final image = listing['imageUrl'] ?? '';
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: ListTile(
-                      leading:
-                          image.isNotEmpty
-                              ? Image.network(
-                                image,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder:
-                                    (context, error, stackTrace) =>
-                                        const Icon(Icons.image_not_supported),
-                              )
-                              : const Icon(Icons.home, size: 40),
-                      title: Text(listing['title'] ?? 'No Title'),
-                      subtitle: Text(
-                        '${listing['listingType']}\n${listing['location'] ?? ''}',
+      backgroundColor: backgroundColor,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 120.0,
+              floating: false,
+              pinned: true,
+              elevation: 0,
+              backgroundColor: cardColor,
+              leading: Container(
+                margin: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[900] : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back_ios_new,
+                    color: iconColor,
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              flexibleSpace: FlexibleSpaceBar(
+                title: Text(
+                  'My Listings',
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                  ),
+                ),
+                background: Container(
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
-                      trailing:
-                          listing['rent'] != null
-                              ? Text('₹${listing['rent']}')
-                              : null,
-                      onTap: () {
-                        // You can route to different detail screens based on type if needed
-                      },
-                    ),
-                  );
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (!_isLoading && _listings.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${_filteredListings.length} Properties',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimary,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Active',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 50,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _filterOptions.length,
+                          itemBuilder: (context, index) {
+                            final option = _filterOptions[index];
+                            final isSelected = _selectedFilter == option;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedFilter = option;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                margin: const EdgeInsets.only(right: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isSelected
+                                          ? theme.colorScheme.primary
+                                          : cardColor,
+                                  borderRadius: BorderRadius.circular(25),
+                                  border: Border.all(
+                                    color:
+                                        isSelected
+                                            ? theme.colorScheme.primary
+                                            : (isDark
+                                                ? Colors.grey[800]!
+                                                : Colors.grey[300]!),
+                                  ),
+                                  boxShadow:
+                                      isSelected
+                                          ? [
+                                            BoxShadow(
+                                              color: theme.colorScheme.primary
+                                                  .withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                          : null,
+                                ),
+                                child: Text(
+                                  option,
+                                  style: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? Colors.white
+                                            : textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF3B82F6),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Loading your listings...',
+                        style: TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_filteredListings.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[900] : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(
+                          Icons.home_outlined,
+                          size: 64,
+                          color: isDark ? Colors.grey[700] : Colors.grey[400],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'No listings found',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _selectedFilter == 'All'
+                            ? 'Start creating your first listing'
+                            : 'No ${_selectedFilter.toLowerCase()} listings found',
+                        style: TextStyle(fontSize: 16, color: textSecondary),
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          // Navigate to create listing page
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Create Listing'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_filteredListings.isNotEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final listing = _filteredListings[index];
+                    return _buildListingCard(
+                      listing,
+                      index,
+                      cardColor,
+                      textPrimary,
+                      textSecondary,
+                      isDark,
+                    );
+                  }, childCount: _filteredListings.length),
+                ),
+              ),
+          ],
+        ),
+      ),
+      floatingActionButton:
+          _isLoading
+              ? null
+              : FloatingActionButton.extended(
+                onPressed: () {
+                  // Navigate to create listing page
                 },
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Listing'),
               ),
     );
+  }
+
+  Widget _buildListingCard(
+    Map<String, dynamic> listing,
+    int index,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary,
+    bool isDark,
+  ) {
+    final image = listing['imageUrl'] ?? '';
+    final listingType = listing['listingType'] ?? '';
+    final color = _getListingTypeColor(listingType);
+    final icon = _getListingTypeIcon(listingType);
+
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 300 + (index * 100)),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 50 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: () {
+                    // Navigate to property details
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Image Section
+                      Container(
+                        height: 200,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [color.withOpacity(0.8), color],
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            if (image.isNotEmpty)
+                              Image.network(
+                                image,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) => Center(
+                                      child: Icon(
+                                        icon,
+                                        size: 64,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                              )
+                            else
+                              Center(
+                                child: Icon(
+                                  icon,
+                                  size: 64,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                              ),
+                            // Gradient overlay
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.3),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Type badge
+                            Positioned(
+                              top: 16,
+                              left: 16,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(icon, size: 16, color: color),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      listingType,
+                                      style: TextStyle(
+                                        color: color,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // More options
+                            Positioned(
+                              top: 16,
+                              right: 16,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.more_vert_rounded,
+                                    size: 20,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                  onPressed: () {
+                                    _showOptionsBottomSheet(listing);
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Content Section
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              listing['title'] ?? 'No Title',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            if (listing['location']?.isNotEmpty == true)
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on_rounded,
+                                    size: 16,
+                                    color:
+                                        isDark
+                                            ? Colors.grey[400]
+                                            : Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      listing['location'],
+                                      style: TextStyle(
+                                        color:
+                                            isDark
+                                                ? Colors.grey[400]
+                                                : Colors.grey[600],
+                                        fontSize: 14,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (listing['rent'] != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '₹${listing['rent']}/month',
+                                      style: TextStyle(
+                                        color: color,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    'Active',
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showOptionsBottomSheet(Map<String, dynamic> listing) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        final cardColor = theme.cardColor;
+        final dividerColor = isDark ? Colors.grey[800] : Colors.grey[300];
+        final iconColor = isDark ? Colors.white : const Color(0xFF1E293B);
+
+        final bool canEdit =
+            listing['visibility'] == false || listing['visibility'] == null;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildOptionTile(
+                icon: Icons.visibility_rounded,
+                title: 'View Details',
+                iconColor: iconColor,
+                textColor: iconColor,
+                onTap: () {
+                  Navigator.pop(context);
+                  final type = listing['listingType'];
+                  if (type == 'Room') {
+                    Navigator.pushNamed(
+                      context,
+                      '/propertyDetails',
+                      arguments: {'propertyId': listing['key']},
+                    );
+                  } else if (type == 'Hostel/PG') {
+                    Navigator.pushNamed(
+                      context,
+                      '/hostelpg_details',
+                      arguments: {'hostelId': listing['key']},
+                    );
+                  } else if (type == 'Service') {
+                    // Implement Service Details navigation if needed
+                  } else if (type == 'Flatmate') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                FlatmateDetailsPage(flatmateData: listing),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Unknown listing type')),
+                    );
+                  }
+                },
+              ),
+              if (canEdit)
+                _buildOptionTile(
+                  icon: Icons.edit_rounded,
+                  title: 'Edit Details',
+                  iconColor: theme.colorScheme.secondary,
+                  textColor: theme.colorScheme.secondary,
+                  onTap: () {
+                    _navigateToEditPage(listing);
+                  },
+                ),
+              _buildOptionTile(
+                icon: Icons.share_rounded,
+                title: 'Share',
+                iconColor: iconColor,
+                textColor: iconColor,
+                onTap: () {
+                  Navigator.pop(context);
+                  // Share functionality
+                },
+              ),
+              _buildOptionTile(
+                icon: Icons.delete_rounded,
+                title: 'Delete',
+                iconColor: Colors.red,
+                textColor: Colors.red,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteConfirmation(listing);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _navigateToEditPage(Map<String, dynamic> listing) async {
+    final type = listing['listingType'];
+    final id = listing['key'];
+
+    Navigator.pop(context); // Close bottom sheet
+    
+    switch (type) {
+      case 'Room':
+        await Navigator.pushNamed(
+          context,
+          '/editProperty',
+          arguments: {
+            'propertyId': id,
+            'propertyData': listing,
+            'isEditing': true
+          },
+        );
+        break;
+      case 'Hostel/PG':
+        await Navigator.pushNamed(
+          context,
+          '/editHostelPG',
+          arguments: {
+            'hostelId': id,
+            'hostelData': listing,
+            'isEditing': true
+          },
+        );
+        break;
+      case 'Service':
+        await Navigator.pushNamed(
+          context,
+          '/editService',
+          arguments: {
+            'serviceId': id,
+            'serviceData': listing,
+            'isEditing': true
+          },
+        );
+        break;
+      case 'Flatmate':
+        await Navigator.pushNamed(
+          context,
+          '/editFlatmate',
+          arguments: {
+            'flatmateId': id,
+            'flatmateData': listing,
+            'isEditing': true
+          },
+        );
+        break;
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unknown listing type'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+    }
+    
+    // Refresh listings after returning from edit page
+    await _fetchMyListings();
+  }
+
+  Widget _buildOptionTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? iconColor,
+    Color? textColor,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: iconColor ?? const Color(0xFF1E293B)),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: textColor ?? const Color(0xFF1E293B),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
+  void _showDeleteConfirmation(Map<String, dynamic> listing) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        
+        return AlertDialog(
+          backgroundColor: isDark ? Colors.grey[850] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            'Delete Listing',
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to delete this listing? This action cannot be undone.',
+            style: TextStyle(
+              color: isDark ? Colors.white70 : Colors.grey[800],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteListing(listing);
+              },
+              child: const Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteListing(Map<String, dynamic> listing) async {
+    try {
+      final type = listing['listingType'];
+      final id = listing['key'];
+      
+      switch (type) {
+        case 'Room':
+          await FirebaseFirestore.instance
+              .collection('room_listings')
+              .doc(id)
+              .delete();
+          break;
+        case 'Hostel/PG':
+          await FirebaseFirestore.instance
+              .collection('hostel_listings')
+              .doc(id)
+              .delete();
+          break;
+        case 'Service':
+          await FirebaseFirestore.instance
+              .collection('service_listings')
+              .doc(id)
+              .delete();
+          break;
+        case 'Flatmate':
+          await FirebaseFirestore.instance
+              .collection('roomRequests')
+              .doc(id)
+              .delete();
+          break;
+        default:
+          throw Exception('Unknown listing type: $type');
+      }
+
+      // Remove the listing from local state
+      setState(() {
+        _listings.removeWhere((item) => item['key'] == id);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Listing deleted successfully'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete listing: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
   }
 }

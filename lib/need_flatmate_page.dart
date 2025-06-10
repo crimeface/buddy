@@ -421,11 +421,11 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                   radius: 35,
                   backgroundColor: cardColor,
                   backgroundImage:
-                      flatmate['imageUrl'] != null
-                          ? NetworkImage(flatmate['imageUrl'])
+                      flatmate['profilePhotoUrl'] != null
+                          ? NetworkImage(flatmate['profilePhotoUrl'])
                           : null,
                   child:
-                      flatmate['imageUrl'] == null
+                      flatmate['profilePhotoUrl'] == null
                           ? Icon(
                             Icons.person,
                             color: labelColor,

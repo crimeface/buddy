@@ -7,6 +7,7 @@ import 'widgets/action_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 
 export 'profile_page.dart';
@@ -208,11 +209,13 @@ class _HomePageState extends State<HomePage>
   final ScrollController _scrollController = ScrollController();
   String _userName = '';
   String _selectedLocation = 'Select Location';
+  String? _profileImageUrl;
 
   @override
   void initState() {
     super.initState();
     _loadUserName();
+    _loadProfileImage();
   }
 
   Future<void> _loadUserName() async {
@@ -231,6 +234,23 @@ class _HomePageState extends State<HomePage>
     if (mounted) {
       setState(() {
         _userName = name;
+      });
+    }
+  }
+
+  Future<void> _loadProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    // First try to get from Firestore
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    
+    if (mounted) {
+      setState(() {
+        _profileImageUrl = doc.data()?['profileImageUrl'] ?? user.photoURL;
       });
     }
   }
@@ -303,7 +323,6 @@ class _HomePageState extends State<HomePage>
   Widget _buildUpdatedHeader(BuildContext context) {
     final theme = Theme.of(context);
     final user = FirebaseAuth.instance.currentUser;
-    final String? avatarUrl = user?.photoURL;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -370,24 +389,41 @@ class _HomePageState extends State<HomePage>
                   child: Container(
                     margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
                       color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+                      shape: BoxShape.circle,
                     ),
                     child: ClipOval(
-                      child: CachedNetworkImage(
-                        imageUrl: avatarUrl ?? 'https://via.placeholder.com/150',
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Shimmer.fromColors(
-                          baseColor: theme.colorScheme.surfaceVariant,
-                          highlightColor: theme.colorScheme.surface,
-                          child: Container(color: Colors.white),
-                        ),
-                        errorWidget: (context, url, error) => Icon(
-                          Icons.person,
-                          color: BuddyTheme.primaryColor,
-                          size: 24,
-                        ),
-                      ),
+                      child: _profileImageUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: _profileImageUrl!,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: theme.colorScheme.surfaceVariant,
+                                child: Icon(
+                                  Icons.person,
+                                  color: theme.colorScheme.primary,
+                                  size: 24,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: theme.colorScheme.surfaceVariant,
+                                child: Icon(
+                                  Icons.person,
+                                  color: theme.colorScheme.primary,
+                                  size: 24,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: theme.colorScheme.surfaceVariant,
+                              child: Icon(
+                                Icons.person,
+                                color: theme.colorScheme.primary,
+                                size: 24,
+                              ),
+                            ),
                     ),
                   ),
                 ),

@@ -968,177 +968,198 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
               ? SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_roomDetails!['title']?.isNotEmpty ?? false)
-                        Text(
-                          _roomDetails!['title']!,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: textPrimary,
-                          ),
-                        ),
-                      if (_roomDetails!['location']?.isNotEmpty ?? false) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              color: textLight,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _roomDetails!['location']!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
                         ),
                       ],
-                      if (_roomDetails!['availableFromDate']?.isNotEmpty ??
-                          false) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Available from ${_formatDate(_roomDetails!['availableFromDate'].toString())}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: textLight,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      Row(
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (_roomDetails!['rent']?.isNotEmpty ?? false)
+                          if (_roomDetails!['title']?.isNotEmpty ?? false)
                             Text(
-                              '₹${_roomDetails!['rent']}',
+                              _roomDetails!['title']!,
                               style: TextStyle(
-                                fontSize: 24,
-                                color: primaryColor,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: textPrimary,
                               ),
                             ),
-                          if (_roomDetails!['roomType']?.isNotEmpty ??
+                          if (_roomDetails!['location']?.isNotEmpty ??
                               false) ...[
-                            const SizedBox(width: 16),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  color: textLight,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _roomDetails!['location']!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (_roomDetails!['availableFromDate']?.isNotEmpty ??
+                              false) ...[
+                            const SizedBox(height: 4),
                             Text(
-                              _roomDetails!['roomType']!,
+                              'Available from ${_formatDate(_roomDetails!['availableFromDate'].toString())}',
                               style: TextStyle(
-                                color: accentColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: textLight,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],
-                          if (_roomDetails!['flatSize']?.isNotEmpty ??
-                              false) ...[
-                            const SizedBox(width: 16),
-                            Text(
-                              _roomDetails!['flatSize']!,
-                              style: TextStyle(
-                                color: textSecondary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (_roomDetails!['facilities'] != null &&
-                          (_roomDetails!['facilities'] as Map).entries
-                              .where((e) => e.value == true)
-                              .isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children:
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              if (_roomDetails!['rent']?.isNotEmpty ?? false)
+                                Text(
+                                  '₹${_roomDetails!['rent']}',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              if (_roomDetails!['roomType']?.isNotEmpty ??
+                                  false) ...[
+                                const SizedBox(width: 16),
+                                Text(
+                                  _roomDetails!['roomType']!,
+                                  style: TextStyle(
+                                    color: accentColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                              if (_roomDetails!['flatSize']?.isNotEmpty ??
+                                  false) ...[
+                                const SizedBox(width: 16),
+                                Text(
+                                  _roomDetails!['flatSize']!,
+                                  style: TextStyle(
+                                    color: textSecondary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (_roomDetails!['facilities'] != null &&
                               (_roomDetails!['facilities'] as Map).entries
                                   .where((e) => e.value == true)
-                                  .map(
-                                    (e) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: BuddyTheme.primaryColor
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: borderColor),
-                                      ),
-                                      child: Text(
-                                        e.key,
-                                        style: TextStyle(
-                                          color: textSecondary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
+                                  .isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children:
+                                  (_roomDetails!['facilities'] as Map).entries
+                                      .where((e) => e.value == true)
+                                      .map(
+                                        (e) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: BuddyTheme.primaryColor
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: borderColor,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            e.key,
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                        ),
-                      ],
-                      if (_roomDetails!['description']?.isNotEmpty ??
-                          false) ...[
-                        const SizedBox(height: 20),
-                        Text(
-                          'Description',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _roomDetails!['description']!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: textSecondary,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {
-                                // Handle booking action
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: accentColor,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text(
-                                'Book Now',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                      )
+                                      .toList(),
+                            ),
+                          ],
+                          if (_roomDetails!['description']?.isNotEmpty ??
+                              false) ...[
+                            const SizedBox(height: 20),
+                            Text(
+                              'Description',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: textPrimary,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _roomDetails!['description']!,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: textSecondary,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    // Handle booking action
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: accentColor,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Book Now',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               )

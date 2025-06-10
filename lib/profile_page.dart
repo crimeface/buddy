@@ -260,7 +260,9 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.security_outlined,
             iconColor: BuddyTheme.successColor,
             title: 'Privacy & Security',
-            onTap: () {},
+            onTap: () {
+              Navigator.pushNamed(context, '/privacyPolicy');
+            },
             isDark: isDark,
           ),
           _buildMenuOption(

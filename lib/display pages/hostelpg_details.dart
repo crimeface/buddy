@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 import '../models/hostel_data.dart';
 
@@ -167,15 +169,17 @@ class HostelData {
     return HostelData(
       title: data['title'] ?? '',
       address: data['address'] ?? '',
-      availableFromDate: data['availableFromDate'] != null
-          ? _formatDate(data['availableFromDate'])
-          : '',
+      availableFromDate:
+          data['availableFromDate'] != null
+              ? _formatDate(data['availableFromDate'])
+              : '',
       bookingMode: data['bookingMode'] ?? '',
       contactPerson: data['contactPerson'] ?? '',
       description: data['description'] ?? '',
-      
+
       email: data['email'] ?? '',
-      facilities: (data['facilities'] as Map<String, dynamic>?)?.map(
+      facilities:
+          (data['facilities'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value as bool),
           ) ??
           {},
@@ -188,22 +192,24 @@ class HostelData {
       minimumStay: data['minimumStay'] ?? '',
       offers: data['offers'] ?? '',
       phone: data['phone'] ?? '',
-      roomTypes: (data['roomTypes'] as Map<String, dynamic>?)?.map(
+      roomTypes:
+          (data['roomTypes'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value as bool),
           ) ??
           {},
       selectedPlan: data['selectedPlan'] ?? '',
       specialFeatures: data['specialFeatures'] ?? '',
       preferences: {
-            'hostelFor': data['hostelFor']?.toString() ?? '',
-            'foodType': data['foodType']?.toString() ?? '',
-            'smokingPolicy': data['smokingPolicy']?.toString() ?? '',
-            'drinkingPolicy': data['drinkingPolicy']?.toString() ?? '',
-            'guestPolicy': data['guestsPolicy']?.toString() ?? '',
-            'entryTime': data['entryTime']?.toString() ?? '',
+        'hostelFor': data['hostelFor']?.toString() ?? '',
+        'foodType': data['foodType']?.toString() ?? '',
+        'smokingPolicy': data['smokingPolicy']?.toString() ?? '',
+        'drinkingPolicy': data['drinkingPolicy']?.toString() ?? '',
+        'guestPolicy': data['guestsPolicy']?.toString() ?? '',
+        'entryTime': data['entryTime']?.toString() ?? '',
       },
       startingAt: (data['startingAt'] ?? 0).toDouble(),
-      uploadedPhotos: (data['uploadedPhotos'] as Map<String, dynamic>?)?.map(
+      uploadedPhotos:
+          (data['uploadedPhotos'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value.toString()),
           ) ??
           {},
@@ -213,34 +219,35 @@ class HostelData {
 }
 
 String _formatDate(dynamic date) {
-    if (date == null) return '';
+  if (date == null) return '';
 
-    try {
-      DateTime dateTime;
-      if (date is DateTime) {
-        dateTime = date;
-      } else if (date is Timestamp) {
-        dateTime = date.toDate();
-      } else if (date is String) {
-        // Try to parse the string as a DateTime
-        dateTime = DateTime.parse(date);
-      } else {
-        return '';
-      }
-
-      // Format as DD-MM-YYYY
-      return '${dateTime.day.toString().padLeft(2, '0')}-'
-          '${dateTime.month.toString().padLeft(2, '0')}-'
-          '${dateTime.year}';
-    } catch (e) {
+  try {
+    DateTime dateTime;
+    if (date is DateTime) {
+      dateTime = date;
+    } else if (date is Timestamp) {
+      dateTime = date.toDate();
+    } else if (date is String) {
+      // Try to parse the string as a DateTime
+      dateTime = DateTime.parse(date);
+    } else {
       return '';
     }
+
+    // Format as DD-MM-YYYY
+    return '${dateTime.day.toString().padLeft(2, '0')}-'
+        '${dateTime.month.toString().padLeft(2, '0')}-'
+        '${dateTime.year}';
+  } catch (e) {
+    return '';
   }
+}
 
 class HostelDetailsScreen extends StatefulWidget {
   final String propertyId;
 
-  const HostelDetailsScreen({Key? key, required this.propertyId}) : super(key: key);
+  const HostelDetailsScreen({Key? key, required this.propertyId})
+    : super(key: key);
 
   @override
   _HostelDetailsScreenState createState() => _HostelDetailsScreenState();
@@ -248,6 +255,7 @@ class HostelDetailsScreen extends StatefulWidget {
 
 class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   late HostelData hostelData;
   bool isBookmarked = false;
   int currentImageIndex = 0;
@@ -259,37 +267,99 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   void initState() {
     super.initState();
     _fetchHostelDetails();
+    _checkIfBookmarked();
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }  Future<void> _fetchHostelDetails() async {
+  Future<void> _checkIfBookmarked() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
     try {
-        final hostelDoc = await _firestore
-            .collection('hostel_listings')
-            .doc(widget.propertyId)
-            .get();
-        if (hostelDoc.exists) {
-          final data = hostelDoc.data() as Map<String, dynamic>;
-          if (mounted) {
-            setState(() {
-              hostelData = HostelData.fromFirestore(data);
-              isLoading = false;
-            });
-          } else {
-            setState(() {
-              error = 'Hostel/PG not found';
-              isLoading = false;
-            });
-          }
-        }
-      } catch (e) {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final bookmarks =
+          userDoc.data()?['bookmarkedProperties'] as List<dynamic>?;
+      if (bookmarks != null && bookmarks.contains(widget.propertyId)) {
         setState(() {
-          error = 'Error loading hostel details: ${e.toString()}';
-          isLoading = false;
+          isBookmarked = true;
         });
+      } else {
+        setState(() {
+          isBookmarked = false;
+        });
+      }
+    } catch (e) {
+      // Optionally handle error
+    }
+  }
+
+  Future<void> _toggleBookmark() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to bookmark properties.')),
+      );
+      return;
+    }
+    try {
+      final userRef = _firestore.collection('users').doc(user.uid);
+      final userDoc = await userRef.get();
+      final bookmarks =
+          userDoc.data()?['bookmarkedProperties'] as List<dynamic>? ?? [];
+      if (isBookmarked) {
+        // Remove
+        await userRef.update({
+          'bookmarkedProperties': FieldValue.arrayRemove([widget.propertyId]),
+        });
+        setState(() {
+          isBookmarked = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Removed from bookmarks.')),
+        );
+      } else {
+        // Add
+        await userRef.set({
+          'bookmarkedProperties': FieldValue.arrayUnion([widget.propertyId]),
+        }, SetOptions(merge: true));
+        setState(() {
+          isBookmarked = true;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Added to bookmarks!')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating bookmark: \\${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _fetchHostelDetails() async {
+    try {
+      final hostelDoc =
+          await _firestore
+              .collection('hostel_listings')
+              .doc(widget.propertyId)
+              .get();
+      if (hostelDoc.exists) {
+        final data = hostelDoc.data() as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            hostelData = HostelData.fromFirestore(data);
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            error = 'Hostel/PG not found';
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        error = 'Error loading hostel details: ${e.toString()}';
+        isLoading = false;
+      });
     }
   }
 
@@ -331,7 +401,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
 
       if (!launched) {
         final String googleMapsUrl =
-        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${hostelData.address}, ${hostelData.landmark}')}';
+            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${hostelData.address}, ${hostelData.landmark}')}';
         final Uri gmapsUri = Uri.parse(googleMapsUrl);
         launched = await launchUrl(
           gmapsUri,
@@ -398,19 +468,26 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [                  _buildHostelHeader(),
+                children: [
+                  _buildHostelHeader(),
                   const SizedBox(height: BuddyTheme.spacingLg),
                   _buildPricingInfo(),
                   const SizedBox(height: BuddyTheme.spacingLg),
-                  if (hostelData.facilities.entries.where((e) => e.value).isNotEmpty) ...[
+                  if (hostelData.facilities.entries
+                      .where((e) => e.value)
+                      .isNotEmpty) ...[
                     _buildFacilities(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
-                  if (hostelData.roomTypes.entries.where((e) => e.value).isNotEmpty) ...[
+                  if (hostelData.roomTypes.entries
+                      .where((e) => e.value)
+                      .isNotEmpty) ...[
                     _buildRoomTypes(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
-                  if (hostelData.preferences.entries.where((e) => e.value?.isNotEmpty ?? false).isNotEmpty) ...[
+                  if (hostelData.preferences.entries
+                      .where((e) => e.value?.isNotEmpty ?? false)
+                      .isNotEmpty) ...[
                     _buildLifestylePreferences(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
@@ -441,12 +518,14 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       bottomNavigationBar: _buildBottomActions(),
     );
   }
+
   Widget _buildAppBar(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
 
     return SliverAppBar(
       expandedHeight: 300,
@@ -477,14 +556,12 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
           child: IconButton(
             icon: Icon(
               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              color: isBookmarked ? BuddyTheme.primaryColor : BuddyTheme.textPrimaryColor,
+              color:
+                  isBookmarked
+                      ? BuddyTheme.primaryColor
+                      : BuddyTheme.textPrimaryColor,
             ),
-            onPressed: () {
-              setState(() {
-                isBookmarked = !isBookmarked;
-              });
-              HapticFeedback.lightImpact();
-            },
+            onPressed: _toggleBookmark,
           ),
         ),
         Container(
@@ -495,22 +572,32 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
           ),
           child: IconButton(
             icon: const Icon(Icons.share, color: BuddyTheme.textPrimaryColor),
-            onPressed: () {
-              // Handle share
+            onPressed: () async {
+              // Replace with your actual dynamic link or deep link logic
+              final String propertyId = widget.propertyId;
+              final String appLink =
+                  'https://buddyapp.page.link/property?type=hostel&id=$propertyId';
+              final String playStoreUrl =
+                  'https://play.google.com/store/apps/details?id=com.yourcompany.buddy';
+              final String shareText =
+                  'Check out this hostel/PG: ${hostelData.title}\nAddress: ${hostelData.address}, ${hostelData.landmark}\n\nView details: $appLink\n\nDon\'t have the app? Download here: $playStoreUrl';
+              await Share.share(shareText, subject: hostelData.title);
             },
           ),
         ),
-      ],      flexibleSpace: FlexibleSpaceBar(
+      ],
+      flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           children: [
             GestureDetector(
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => FullScreenImageGallery(
-                      images: hostelImages,
-                      initialIndex: currentImageIndex,
-                    ),
+                    builder:
+                        (context) => FullScreenImageGallery(
+                          images: hostelImages,
+                          initialIndex: currentImageIndex,
+                        ),
                   ),
                 );
               },
@@ -540,19 +627,21 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
               right: 0,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: hostelImages.asMap().entries.map((entry) {
-                  return Container(
-                    width: 8.0,
-                    height: 8.0,
-                    margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: currentImageIndex == entry.key
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.4),
-                    ),
-                  );
-                }).toList(),
+                children:
+                    hostelImages.asMap().entries.map((entry) {
+                      return Container(
+                        width: 8.0,
+                        height: 8.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              currentImageIndex == entry.key
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.4),
+                        ),
+                      );
+                    }).toList(),
               ),
             ),
           ],
@@ -560,8 +649,6 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       ),
     );
   }
-
-  
 
   Widget _buildHostelHeader() {
     final theme = Theme.of(context);
@@ -638,7 +725,8 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                       BuddyTheme.borderRadiusSm,
                     ),
                   ),
-                  child: Text(                    hostelData.availableFromDate.isEmpty
+                  child: Text(
+                    hostelData.availableFromDate.isEmpty
                         ? 'Available Now'
                         : 'Available from ${hostelData.availableFromDate}',
                     style: TextStyle(
@@ -648,7 +736,8 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                     ),
                   ),
                 ),
-              ),              if (hostelData.googleMapsLink.isNotEmpty) ...[
+              ),
+              if (hostelData.googleMapsLink.isNotEmpty) ...[
                 const SizedBox(width: BuddyTheme.spacingMd),
                 GestureDetector(
                   onTap: _openGoogleMaps,
@@ -691,7 +780,6 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       ),
     );
   }
-  
 
   Widget _buildPricingInfo() {
     final theme = Theme.of(context);
@@ -715,15 +803,30 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Starting At', style: TextStyle(fontSize: BuddyTheme.fontSizeSm, color: BuddyTheme.textSecondaryColor)),
+                    const Text(
+                      'Starting At',
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
+                    ),
                     const SizedBox(height: BuddyTheme.spacingXs),
-                    Text('₹${hostelData.startingAt.toStringAsFixed(0)}', style: const TextStyle(fontSize: BuddyTheme.fontSizeLg, fontWeight: FontWeight.bold, color: BuddyTheme.primaryColor)),
+                    Text(
+                      '₹${hostelData.startingAt.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: BuddyTheme.fontSizeLg,
+                        fontWeight: FontWeight.bold,
+                        color: BuddyTheme.primaryColor,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -733,15 +836,30 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Minimum Stay', style: TextStyle(fontSize: BuddyTheme.fontSizeSm, color: BuddyTheme.textSecondaryColor)),
+                    const Text(
+                      'Minimum Stay',
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
+                    ),
                     const SizedBox(height: BuddyTheme.spacingXs),
-                    Text(hostelData.minimumStay, style: const TextStyle(fontSize: BuddyTheme.fontSizeLg, fontWeight: FontWeight.bold, color: BuddyTheme.accentColor)),
+                    Text(
+                      hostelData.minimumStay,
+                      style: const TextStyle(
+                        fontSize: BuddyTheme.fontSizeLg,
+                        fontWeight: FontWeight.bold,
+                        color: BuddyTheme.accentColor,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -790,30 +908,31 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                     .where((entry) => entry.value)
                     .map((entry) => entry.key)
                     .map((amenity) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: BuddyTheme.spacingSm,
-                      vertical: BuddyTheme.spacingXs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: BuddyTheme.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(
-                        BuddyTheme.borderRadiusSm,
-                      ),
-                      border: Border.all(
-                        color: BuddyTheme.primaryColor.withOpacity(0.2),
-                      ),
-                    ),
-                    child: Text(
-                      amenity,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: BuddyTheme.fontSizeSm,
-                        color: BuddyTheme.primaryColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  );
-                }).toList(),
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: BuddyTheme.spacingSm,
+                          vertical: BuddyTheme.spacingXs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: BuddyTheme.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusSm,
+                          ),
+                          border: Border.all(
+                            color: BuddyTheme.primaryColor.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          amenity,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: BuddyTheme.fontSizeSm,
+                            color: BuddyTheme.primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    })
+                    .toList(),
           ),
         ),
       ],
@@ -823,9 +942,10 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   Widget _buildRoomTypes() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     // Define the order of room types
@@ -833,7 +953,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       '1 Bed Room (Private)',
       '2 Bed Room',
       '3 Bed Room',
-      '4+ Bed Room'
+      '4+ Bed Room',
     ];
 
     return Column(
@@ -860,33 +980,35 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
           child: Wrap(
             spacing: BuddyTheme.spacingXs,
             runSpacing: BuddyTheme.spacingXs,
-            children: orderedRoomTypes
-                .where((roomType) => hostelData.roomTypes[roomType] == true)
-                .map((roomType) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BuddyTheme.spacingSm,
-                  vertical: BuddyTheme.spacingXs,
-                ),
-                decoration: BoxDecoration(
-                  color: BuddyTheme.accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    BuddyTheme.borderRadiusSm,
-                  ),
-                  border: Border.all(
-                    color: BuddyTheme.accentColor.withOpacity(0.2),
-                  ),
-                ),
-                child: Text(
-                  roomType,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontSize: BuddyTheme.fontSizeSm,
-                    color: BuddyTheme.accentColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }).toList(),
+            children:
+                orderedRoomTypes
+                    .where((roomType) => hostelData.roomTypes[roomType] == true)
+                    .map((roomType) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: BuddyTheme.spacingSm,
+                          vertical: BuddyTheme.spacingXs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: BuddyTheme.accentColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusSm,
+                          ),
+                          border: Border.all(
+                            color: BuddyTheme.accentColor.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          roomType,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: BuddyTheme.fontSizeSm,
+                            color: BuddyTheme.accentColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    })
+                    .toList(),
           ),
         ),
       ],
@@ -966,6 +1088,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       ],
     );
   }
+
   Widget _buildDescription() {
     // Don't show the section if description is empty
     if (hostelData.description.isEmpty) {
@@ -1058,10 +1181,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                 children: [
                   CircleAvatar(
                     backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
-                    child: Icon(
-                      Icons.person,
-                      color: BuddyTheme.primaryColor,
-                    ),
+                    child: Icon(Icons.person, color: BuddyTheme.primaryColor),
                   ),
                   const SizedBox(width: BuddyTheme.spacingMd),
                   Text(
@@ -1088,7 +1208,11 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
       child: Row(
         children: [
-          Icon(icon, size: BuddyTheme.iconSizeSm, color: BuddyTheme.primaryColor),
+          Icon(
+            icon,
+            size: BuddyTheme.iconSizeSm,
+            color: BuddyTheme.primaryColor,
+          ),
           const SizedBox(width: BuddyTheme.spacingSm),
           Expanded(child: Text(text)),
         ],
@@ -1143,12 +1267,17 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final Uri phoneUri = Uri(scheme: 'tel', path: hostelData.phone);
+                  final Uri phoneUri = Uri(
+                    scheme: 'tel',
+                    path: hostelData.phone,
+                  );
                   await launchUrl(phoneUri);
                 },
                 icon: const Icon(Icons.phone),
                 label: const Text('Call'),
-                style: OutlinedButton.styleFrom(foregroundColor: BuddyTheme.primaryColor),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BuddyTheme.primaryColor,
+                ),
               ),
             ),
             const SizedBox(width: BuddyTheme.spacingMd),
@@ -1218,9 +1347,10 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   Widget _buildOffers() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     // Don't show the section if offers is empty
@@ -1265,9 +1395,10 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   Widget _buildSpecialFeatures() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     // Don't show the section if specialFeatures is empty

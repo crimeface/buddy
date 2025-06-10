@@ -147,6 +147,8 @@ class ServiceData {
   final bool breakfast; // Added for mess meal timings
   final bool lunch; // Added for mess meal timings
   final bool dinner; // Added for mess meal timings
+  final String usefulness;
+
   ServiceData({
     required this.serviceName,
     required this.serviceType,
@@ -172,6 +174,7 @@ class ServiceData {
     required this.mapLink,
     required this.offDay,
     required this.seatingCapacity,
+    this.usefulness = '', // Default value
     this.priceRange = '', // Default value
     this.hasSeating = false, // Default value
     this.serviceTypeOther = '', // Default value
@@ -223,8 +226,7 @@ class ServiceData {
       hasTiffinService: data['hasTiffinService'] ?? false,
       visibility: data['visibility'] ?? false,
       priceRange: data['priceRange'] ?? '',
-      hasSeating: data['hasSeating'] ?? false,
-      serviceTypeOther: data['serviceTypeOther'] ?? '',
+      hasSeating: data['hasSeating'] ?? false,      serviceTypeOther: data['serviceTypeOther'] ?? '',
       pricing: data['pricing'] ?? '',
       cuisineType: data['cuisineType'] ?? '',
       hasPowerSockets: data['hasPowerSockets'] ?? false,
@@ -233,6 +235,7 @@ class ServiceData {
       breakfast: mealTimings['Breakfast'] ?? false, // Added for mess meal timings
       lunch: mealTimings['Lunch'] ?? false, // Added for mess meal timings
       dinner: mealTimings['Dinner'] ?? false, // Added for mess meal timings
+      usefulness: data['usefulness'] ?? '', // Added for other service type
     );
   }
 }
@@ -412,6 +415,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                     _buildCafeInfo(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
+                  if (serviceData.serviceType.toLowerCase() == 'other') ...[
+                    _buildOtherInfo(),
+                    const SizedBox(height: BuddyTheme.spacingLg),
+                  ],
                   if (serviceData.description.isNotEmpty) ...[
                     _buildDescription(),
                     const SizedBox(height: BuddyTheme.spacingLg),
@@ -541,10 +548,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 }).toList(),
               ),
             ),
-          ],
+          ]
+          ),
         ),
-      ),
-    );
+      );
   }
 
   
@@ -1317,11 +1324,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: BuddyTheme.spacingMd),
-                  Expanded(
+                  const SizedBox(width: BuddyTheme.spacingMd),                  Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: BuddyTheme.accentColor.withOpacity(0.1),
+                        color: BuddyTheme.primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
                       ),
                       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -1332,19 +1338,19 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                             'Off Day',
                             style: TextStyle(
                               fontSize: BuddyTheme.fontSizeSm,
-                              color: BuddyTheme.textSecondaryColor
-                            )
+                              color: BuddyTheme.textSecondaryColor,
+                            ),
                           ),
                           const SizedBox(height: BuddyTheme.spacingXs),
                           Text(
                             serviceData.offDay.isNotEmpty 
                               ? serviceData.offDay 
                               : 'Not specified',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: BuddyTheme.fontSizeLg,
                               fontWeight: FontWeight.bold,
-                              color: BuddyTheme.accentColor
-                            )
+                              color: BuddyTheme.primaryColor,
+                            ),
                           ),
                         ],
                       ),
@@ -1425,11 +1431,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
-                      serviceData.offDay.isEmpty ? 'Not Specified' : serviceData.offDay,
-                      style: TextStyle(
-                        fontSize: BuddyTheme.fontSizeLg,
-                        fontWeight: FontWeight.bold,
-                        color: BuddyTheme.accentColor,
+                      serviceData.offDay.isEmpty ? 'Not Specified' : serviceData.offDay,                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeMd,
+                        fontWeight: FontWeight.w500,
+                        color: BuddyTheme.primaryColor,
                       ),
                     ),
                   ],
@@ -1456,6 +1461,98 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               _buildFacilityChip('Lunch', Icons.lunch_dining),
             if (serviceData.dinner)
               _buildFacilityChip('Dinner', Icons.dinner_dining),
+          ],
+        ),
+      ],
+    );
+  }
+  Widget _buildOtherInfo() {
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
+    if (serviceData.serviceType.toLowerCase() != 'other') {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Other Information',
+          style: TextStyle(
+            fontSize: BuddyTheme.fontSizeLg,
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: BuddyTheme.spacingMd),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (serviceData.offDay.isNotEmpty && serviceData.offDay != 'None')
+              SizedBox(
+                width: MediaQuery.of(context).size.width * 0.45,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: BuddyTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  ),
+                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Off Day',
+                        style: TextStyle(
+                          fontSize: BuddyTheme.fontSizeSm,
+                          color: BuddyTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: BuddyTheme.spacingXs),
+                      Text(
+                        serviceData.offDay,
+                        style: const TextStyle(
+                          fontSize: BuddyTheme.fontSizeLg,
+                          fontWeight: FontWeight.bold,
+                          color: BuddyTheme.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (serviceData.usefulness.isNotEmpty) ...[
+              const SizedBox(height: BuddyTheme.spacingMd),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: BuddyTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                ),
+                padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Usefulness',
+                      style: TextStyle(
+                        fontSize: BuddyTheme.fontSizeSm,
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: BuddyTheme.spacingXs),
+                    Text(
+                      serviceData.usefulness,
+                      style: const TextStyle(
+                        fontSize: BuddyTheme.fontSizeLg,
+                        fontWeight: FontWeight.bold,
+                        color: BuddyTheme.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ],
