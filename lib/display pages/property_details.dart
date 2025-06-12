@@ -243,24 +243,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   Future<void> _fetchPropertyDetails() async {
     try {
-      final propertyDoc = await _firestore.collection('room_listings').doc(widget.propertyId).get();
+      final propertyDoc =
+          await _firestore
+              .collection('room_listings')
+              .doc(widget.propertyId)
+              .get();
 
       if (propertyDoc.exists) {
         final data = propertyDoc.data() as Map<String, dynamic>;
-        final ownerEmail = data['email'] as String?;
-        String ownerName = 'Unknown';
-
-        if (ownerEmail != null) {
-          final userQuery = await _firestore
-              .collection('users')
-              .where('email', isEqualTo: ownerEmail)
-              .limit(1)
-              .get();
-
-          if (userQuery.docs.isNotEmpty) {
-            ownerName = userQuery.docs.first.data()['username'] ?? 'Unknown';
-          }
-        }
+        // Use the correct Firestore field for username: 'name'
+        final ownerName = data['name']?.toString() ?? 'Unknown';
 
         double parseDouble(dynamic value) {
           if (value == null) return 0.0;
@@ -276,11 +268,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           return defaultValue;
         }
 
-        // Safely convert uploadedPhotos to Map<String, String>
         Map<String, String> convertPhotos(dynamic photos) {
           if (photos == null) return {};
           if (photos is Map) {
-            return photos.map((key, value) => MapEntry(key.toString(), value.toString()));
+            return photos.map(
+              (key, value) => MapEntry(key.toString(), value.toString()),
+            );
           }
           return {};
         }
@@ -288,11 +281,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         final convertedData = {
           'title': data['title']?.toString() ?? '',
           'location': data['location']?.toString() ?? '',
-          'availableFromDate': data['availableFromDate'] != null ? _formatDate(data['availableFromDate']) : '',
+          'availableFromDate':
+              data['availableFromDate'] != null
+                  ? _formatDate(data['availableFromDate'])
+                  : '',
           'roomType': data['roomType']?.toString() ?? '',
           'flatSize': data['flatSize']?.toString() ?? '',
           'furnishing': data['furnishing']?.toString() ?? '',
-          'bathroom': data['hasAttachedBathroom'] == true ? 'Attached' : 'Shared',
+          'bathroom':
+              data['hasAttachedBathroom'] == true ? 'Attached' : 'Shared',
           'gender': data['genderComposition']?.toString() ?? '',
           'occupation': data['occupation']?.toString() ?? '',
           'monthlyRent': parseDouble(data['rent']),
@@ -300,7 +297,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           'brokerage': parseDouble(data['brokerage']),
           'phone': data['phone']?.toString() ?? '',
           'email': data['email']?.toString() ?? '',
-          'currentFlatmates': parseInt(data['currentFlatmates'], defaultValue: 1),
+          'currentFlatmates': parseInt(
+            data['currentFlatmates'],
+            defaultValue: 1,
+          ),
           'maxFlatmates': parseInt(data['maxFlatmates'], defaultValue: 2),
           'images': convertPhotos(data['uploadedPhotos']),
           'amenities': _getFacilities(data['facilities']),
@@ -329,7 +329,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       }
     } catch (e) {
       setState(() {
-        error = 'Error loading property details: ${e.toString()}';
+        error = 'Error loading property details:  ${e.toString()}';
         isLoading = false;
       });
     }
@@ -454,12 +454,23 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       !isLoading ? propertyData.images.values.toList() : [];
   List<String> get amenities => !isLoading ? propertyData.amenities : [];
   String _getInitials(String name) {
-    if (name.isEmpty) return 'UK';
-    final parts = name.split(' ');
+    // Trim the name to remove leading and trailing spaces
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) return 'UK';
+    
+    // Split by one or more spaces to handle multiple spaces between words
+    final parts = trimmedName.split(RegExp(r'\s+'));
     if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      // Make sure parts are not empty before accessing their characters
+      final firstInitial = parts[0].isNotEmpty ? parts[0][0] : '';
+      final secondInitial = parts[1].isNotEmpty ? parts[1][0] : '';
+      if (firstInitial.isNotEmpty && secondInitial.isNotEmpty) {
+        return '$firstInitial$secondInitial'.toUpperCase();
+      }
     }
-    return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
+    
+    // For single names or fallback
+    return trimmedName.substring(0, trimmedName.length >= 2 ? 2 : 1).toUpperCase();
   }
 
   Future<void> _toggleBookmark() async {
@@ -842,8 +853,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : BuddyTheme.textPrimaryColor;
-    final subTextColor = isDark ? Colors.white70 : BuddyTheme.textSecondaryColor;
-    
+    final subTextColor =
+        isDark ? Colors.white70 : BuddyTheme.textSecondaryColor;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -932,9 +944,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               width: MediaQuery.of(context).size.width * 0.45,
               decoration: BoxDecoration(
                 color: BuddyTheme.secondaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(
-                  BuddyTheme.borderRadiusMd,
-                ),
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
               ),
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               child: Column(
@@ -1308,6 +1318,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     final textSecondary =
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
+    // Always use the ownerName from the database (propertyData.ownerName)
+    final String ownerName =
+        propertyData.ownerName.isNotEmpty ? propertyData.ownerName : 'Unknown';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1342,7 +1356,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 radius: 25,
                 backgroundColor: BuddyTheme.primaryColor,
                 child: Text(
-                  _getInitials(propertyData.ownerName),
+                  _getInitials(ownerName),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -1355,7 +1369,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      propertyData.ownerName,
+                      ownerName,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: textPrimary,
@@ -1400,12 +1414,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final Uri phoneUri = Uri(scheme: 'tel', path: propertyData.phone);
+                  final Uri phoneUri = Uri(
+                    scheme: 'tel',
+                    path: propertyData.phone,
+                  );
                   await launchUrl(phoneUri);
                 },
                 icon: const Icon(Icons.phone),
                 label: const Text('Call'),
-                style: OutlinedButton.styleFrom(foregroundColor: BuddyTheme.primaryColor),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BuddyTheme.primaryColor,
+                ),
               ),
             ),
             const SizedBox(width: BuddyTheme.spacingMd),

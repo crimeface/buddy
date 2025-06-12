@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-class EditPropertyPage extends StatefulWidget {
-  final Map<String, dynamic> propertyData;
-  const EditPropertyPage({Key? key, required this.propertyData})
-      : super(key: key);
+class EditServicePage extends StatefulWidget {
+  final String serviceId;
+  final Map<String, dynamic> serviceData;
+
+  const EditServicePage({
+    Key? key,
+    required this.serviceId,
+    required this.serviceData,
+  }) : super(key: key);
 
   @override
-  State<EditPropertyPage> createState() => _EditPropertyPageState();
+  State<EditServicePage> createState() => _EditServicePageState();
 }
 
-class _EditPropertyPageState extends State<EditPropertyPage> {
+class _EditServicePageState extends State<EditServicePage> {
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
   
   // Payment Plan
   String? selectedPlan;
@@ -20,61 +26,69 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
   bool _isPlanPricesLoading = true;
   String? _planPricesError;
 
-  late TextEditingController _titleController;
-  late TextEditingController _locationController;
-  late TextEditingController _rentController;
-  late TextEditingController _securityDepositController;
-  late TextEditingController _brokerageController;
-  late TextEditingController _currentFlatmatesController;
-  late TextEditingController _maxFlatmatesController;
-  late TextEditingController _descriptionController;
-  DateTime? _availableFrom;
+  // Common Fields
+  final TextEditingController _serviceNameController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _contactController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+
+  // Service Type
+  late String _serviceType;
+  
+  // Form controllers for different service types
+  final TextEditingController _seatingCapacityController = TextEditingController();
+  final TextEditingController _monthlyChargesController = TextEditingController();
+  final TextEditingController _monthlyPriceController = TextEditingController();
+  final TextEditingController _priceRangeMinController = TextEditingController();
+  final TextEditingController _priceRangeMaxController = TextEditingController();
+  final TextEditingController _pricingController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetchPlanPrices();
-    _titleController = TextEditingController(
-      text: widget.propertyData['title'] ?? '',
-    );
-    _locationController = TextEditingController(
-      text: widget.propertyData['location'] ?? '',
-    );
-    _rentController = TextEditingController(
-      text: widget.propertyData['monthlyRent']?.toString() ?? '',
-    );
-    _securityDepositController = TextEditingController(
-      text: widget.propertyData['securityDeposit']?.toString() ?? '',
-    );
-    _brokerageController = TextEditingController(
-      text: widget.propertyData['brokerage']?.toString() ?? '',
-    );
-    _currentFlatmatesController = TextEditingController(
-      text: widget.propertyData['currentFlatmates']?.toString() ?? '',
-    );
-    _maxFlatmatesController = TextEditingController(
-      text: widget.propertyData['maxFlatmates']?.toString() ?? '',
-    );
-    _descriptionController = TextEditingController(
-      text: widget.propertyData['description'] ?? '',
-    );
-    _availableFrom = widget.propertyData['availableFrom'] != null &&
-            widget.propertyData['availableFrom'].toString().isNotEmpty
-        ? DateTime.tryParse(widget.propertyData['availableFrom'])
-        : null;
+    _serviceType = widget.serviceData['serviceType'] ?? 'Other';
+    selectedPlan = widget.serviceData['selectedPlan'];
 
-    _fetchPlanPrices();
+    // Initialize controllers based on service type
+    switch (_serviceType) {
+      case 'Library':
+        _seatingCapacityController.text = widget.serviceData['seatingCapacity']?.toString() ?? '';
+        _monthlyChargesController.text = widget.serviceData['monthlyCharges']?.toString() ?? '';
+        break;      case 'Café':
+        _seatingCapacityController.text = widget.serviceData['seatingCapacity']?.toString() ?? '';
+        _monthlyPriceController.text = widget.serviceData['monthlyPrice']?.toString() ?? '';
+        break;
+      case 'Mess':
+        _seatingCapacityController.text = widget.serviceData['seatingCapacity']?.toString() ?? '';
+        _monthlyPriceController.text = widget.serviceData['monthlyPrice']?.toString() ?? '';
+        break;
+      case 'Other':
+        _pricingController.text = widget.serviceData['pricing']?.toString() ?? '';
+        break;
+    }
+
+    // Initialize common fields
+    _serviceNameController.text = widget.serviceData['serviceName'] ?? '';
+    _locationController.text = widget.serviceData['location'] ?? '';
+    _contactController.text = widget.serviceData['contact'] ?? '';
+    _emailController.text = widget.serviceData['email'] ?? '';
+    _descriptionController.text = widget.serviceData['description'] ?? '';
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
+    _seatingCapacityController.dispose();
+    _monthlyChargesController.dispose();
+    _monthlyPriceController.dispose();
+    _priceRangeMinController.dispose();
+    _priceRangeMaxController.dispose();
+    _pricingController.dispose();
+    _serviceNameController.dispose();
     _locationController.dispose();
-    _rentController.dispose();
-    _securityDepositController.dispose();
-    _brokerageController.dispose();
-    _currentFlatmatesController.dispose();
-    _maxFlatmatesController.dispose();
+    _contactController.dispose();
+    _emailController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -84,12 +98,14 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
       _isPlanPricesLoading = true;
       _planPricesError = null;
     });
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection('plan_prices')
-          .doc('list_room')
+          .doc('list_service')
           .collection('day_wise_prices')
           .get();
+
       Map<String, Map<String, double>> prices = {};
       for (var d in doc.docs) {
         final data = d.data();
@@ -99,99 +115,116 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
         double? discounted = (data['discounted_price'] is int)
             ? (data['discounted_price'] as int).toDouble()
             : (data['discounted_price'] as num?)?.toDouble();
-        prices[d.id] = {'actual': actual ?? 0, 'discounted': discounted ?? 0};
+        prices[d.id] = {
+          'actual': actual ?? 0,
+          'discounted': discounted ?? 0
+        };
       }
-      // Map Firestore keys to your plan keys
+
       Map<String, String> firestoreToPlanKey = {
         '1 day': '1Day',
         '7 days': '7Day',
         '15 days': '15Day',
         '1 month': '1Month',
       };
+
       Map<String, Map<String, double>> mappedPrices = {};
       firestoreToPlanKey.forEach((firestoreKey, planKey) {
         if (prices.containsKey(firestoreKey)) {
           mappedPrices[planKey] = prices[firestoreKey]!;
         }
       });
+
       setState(() {
         _planPrices = mappedPrices;
         _isPlanPricesLoading = false;
-        if (_planPrices.isNotEmpty && !_planPrices.containsKey(selectedPlan)) {
+        if (_planPrices.isNotEmpty && selectedPlan == null) {
           selectedPlan = _planPrices.keys.first;
         }
       });
     } catch (e) {
       setState(() {
-        _planPricesError = 'Failed to load plan prices';
         _isPlanPricesLoading = false;
+        _planPricesError = e.toString();
       });
     }
   }
 
-  void _pickAvailableFrom() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _availableFrom ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: const Color(0xFF4A9EFF),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() {
-        _availableFrom = picked;
-      });
-    }
-  }
+  Future<void> _updateServiceDetails() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  void _saveChanges() {
-    if (_formKey.currentState!.validate()) {
-      if (selectedPlan == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please select a payment plan'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Build the data map based on service type
+      final Map<String, dynamic> data = {
+        'serviceName': _serviceNameController.text,
+        'location': _locationController.text,
+        'contact': _contactController.text,
+        'email': _emailController.text,
+        'description': _descriptionController.text,
+        'selectedPlan': selectedPlan,
+        'visibility': true,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+
+      // Add service-specific fields
+      switch (_serviceType) {
+        case 'Library':
+          data['seatingCapacity'] = int.parse(_seatingCapacityController.text);
+          data['monthlyCharges'] = int.parse(_monthlyChargesController.text);
+          break;      case 'Café':
+          data['seatingCapacity'] = int.parse(_seatingCapacityController.text);
+          data['monthlyPrice'] = int.parse(_monthlyPriceController.text);
+          break;
+        case 'Mess':
+          data['seatingCapacity'] = int.parse(_seatingCapacityController.text);
+          data['monthlyPrice'] = int.parse(_monthlyPriceController.text);
+          break;
+        case 'Other':
+          data['pricing'] = _pricingController.text;
+          break;
       }
 
-      final selectedPlanData = _planPrices[selectedPlan];
+      await FirebaseFirestore.instance
+          .collection('services')
+          .doc(widget.serviceId)
+          .update(data);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Room details updated!'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      Navigator.pop(context, {
-        'title': _titleController.text,
-        'monthlyRent': double.tryParse(_rentController.text) ?? 0,
-        'securityDeposit': double.tryParse(_securityDepositController.text) ?? 0,
-        'brokerage': double.tryParse(_brokerageController.text) ?? 0,
-        'currentFlatmates': int.tryParse(_currentFlatmatesController.text) ?? 0,
-        'maxFlatmates': int.tryParse(_maxFlatmatesController.text) ?? 0,
-        'availableFrom': _availableFrom != null
-            ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
-            : '',
-        'selectedPlan': selectedPlan,
-        'planDays': selectedPlanData?['days'],
-        'planPrice': selectedPlanData?['price'],
-        'isVisible': true,
-      });
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Service details updated successfully'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update details: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -226,25 +259,27 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 14,
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -260,20 +295,23 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
-    int maxLines = 1,
+    String? prefixText,
     String? Function(String?)? validator,
-    bool readOnly = false,
-    VoidCallback? onTap,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
-        maxLines: maxLines,
-        readOnly: readOnly,
-        onTap: onTap,
-        validator: validator,
+        validator: validator ?? (value) {
+          if (value == null || value.isEmpty) {
+            return 'This field is required';
+          }
+          if (keyboardType == TextInputType.number && int.tryParse(value) == null) {
+            return 'Please enter a valid number';
+          }
+          return null;
+        },
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           labelText: label,
@@ -286,6 +324,8 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
             color: const Color(0xFF4A9EFF),
             size: 20,
           ),
+          prefixText: prefixText,
+          prefixStyle: const TextStyle(color: Colors.white),
           filled: true,
           fillColor: const Color(0xFF3A3D46),
           border: OutlineInputBorder(
@@ -320,6 +360,94 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildServiceDetailsSection() {
+    switch (_serviceType) {
+      case 'Library':
+        return _buildSectionCard(
+          title: 'Library Details',
+          subtitle: 'Enter library specific details',
+          icon: Icons.local_library_rounded,
+          children: [
+            _buildTextField(
+              controller: _seatingCapacityController,
+              label: 'Seating Capacity',
+              icon: Icons.chair_rounded,
+              keyboardType: TextInputType.number,
+            ),
+            _buildTextField(
+              controller: _monthlyChargesController,
+              label: 'Monthly Charges',
+              icon: Icons.currency_rupee_rounded,
+              keyboardType: TextInputType.number,
+              prefixText: '₹ ',
+            ),
+          ],
+        );
+        case 'Café':
+        return _buildSectionCard(
+          title: 'Café Details',
+          subtitle: 'Enter café specific details',
+          icon: Icons.local_cafe_rounded,
+          children: [
+            _buildTextField(
+              controller: _seatingCapacityController,
+              label: 'Seating Capacity',
+              icon: Icons.chair_rounded,
+              keyboardType: TextInputType.number,
+            ),
+            _buildTextField(
+              controller: _monthlyPriceController,
+              label: 'Price range per person',
+              icon: Icons.currency_rupee_rounded,
+              keyboardType: TextInputType.number,
+              prefixText: '₹ ',
+            ),
+          ],
+        );
+      
+      case 'Mess':
+        return _buildSectionCard(
+          title: 'Mess Details',
+          subtitle: 'Enter mess specific details',
+          icon: Icons.restaurant_rounded,
+          children: [
+            _buildTextField(
+              controller: _seatingCapacityController,
+              label: 'Seating Capacity',
+              icon: Icons.chair_rounded,
+              keyboardType: TextInputType.number,
+            ),
+            _buildTextField(
+              controller: _monthlyPriceController,
+              label: 'Monthly Price',
+              icon: Icons.currency_rupee_rounded,
+              keyboardType: TextInputType.number,
+              prefixText: '₹ ',
+            ),
+          ],
+        );
+      
+      case 'Other':
+        return _buildSectionCard(
+          title: 'Service Details',
+          subtitle: 'Enter service specific details',
+          icon: Icons.miscellaneous_services_rounded,
+          children: [
+            _buildTextField(
+              controller: _pricingController,
+              label: 'Pricing',
+              icon: Icons.currency_rupee_rounded,
+              keyboardType: TextInputType.number,
+              prefixText: '₹ ',
+            ),
+          ],
+        );
+      
+      default:
+        return Container();
+    }
   }
 
   Widget _buildPaymentPlanSection() {
@@ -465,7 +593,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Edit Room Details',
+          'Edit Service Details',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -481,107 +609,19 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Basic Details Section
-              _buildSectionCard(
-                title: 'Basic Details',
-                subtitle: 'Room title and availability',
-                icon: Icons.home_rounded,
-                children: [
-                  _buildTextField(
-                    controller: _titleController,
-                    label: 'Listing Title',
-                    icon: Icons.title_rounded,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter listing title'
-                        : null,
-                  ),
-                  _buildTextField(
-                    controller: TextEditingController(
-                      text: _availableFrom != null
-                          ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
-                          : '',
-                    ),
-                    label: 'Available From',
-                    icon: Icons.date_range_rounded,
-                    readOnly: true,
-                    onTap: _pickAvailableFrom,
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Select available from date'
-                        : null,
-                  ),
-                ],
-              ),
-
-              // Financial Details Section
-              _buildSectionCard(
-                title: 'Financial Details',
-                subtitle: 'Rent and deposit information\n(per person)',
-                icon: Icons.currency_rupee_rounded,
-                children: [
-                  _buildTextField(
-                    controller: _rentController,
-                    label: 'Monthly Rent (₹ per person)',
-                    icon: Icons.currency_rupee_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter monthly rent'
-                        : null,
-                  ),
-                  _buildTextField(
-                    controller: _securityDepositController,
-                    label: 'Security Deposit (₹ per person)',
-                    icon: Icons.lock_outline_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter security deposit'
-                        : null,
-                  ),
-                  _buildTextField(
-                    controller: _brokerageController,
-                    label: 'Brokerage (₹ per person)',
-                    icon: Icons.account_balance_wallet_rounded,
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
-              ),
-
-              // Flatmate Details Section
-              _buildSectionCard(
-                title: 'Flatmate Details',
-                subtitle: 'Current and maximum occupancy',
-                icon: Icons.people_alt_rounded,
-                children: [
-                  _buildTextField(
-                    controller: _currentFlatmatesController,
-                    label: 'Current Flatmates',
-                    icon: Icons.people_alt_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter current number of flatmates'
-                        : null,
-                  ),
-                  _buildTextField(
-                    controller: _maxFlatmatesController,
-                    label: 'Maximum Flatmates',
-                    icon: Icons.group_add_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter maximum number of flatmates'
-                        : null,
-                  ),
-                ],
-              ),
+              // Service-specific fields
+              _buildServiceDetailsSection(),
 
               // Payment Plan Section
               _buildPaymentPlanSection(),
 
               const SizedBox(height: 20),
 
-              // Submit Button
+              // Update Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveChanges,
+                  onPressed: _isLoading ? null : _updateServiceDetails,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4A9EFF),
                     foregroundColor: Colors.white,
@@ -591,23 +631,32 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                     ),
                     elevation: 0,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Resubmit Listing',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Update Details',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 18,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 18,
-                      ),
-                    ],
-                  ),
                 ),
               ),
               

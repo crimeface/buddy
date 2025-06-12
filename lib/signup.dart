@@ -50,11 +50,19 @@ class _SignUpPageState extends State<SignUpPage> {
 
         // Store user data in Firestore
         final userId = userCredential.user!.uid;
+        final userEmail = _emailController.text.trim();
         await FirebaseFirestore.instance.collection('users').doc(userId).set({
           'username': _fullNameController.text.trim(),
-          'email': _emailController.text.trim(),
+          'email': userEmail,
           'createdAt': DateTime.now().toIso8601String(),
         });
+
+        // If the user is the admin, add to 'admins' collection
+        if (userEmail.toLowerCase() == 'campusnest12@gmail.com') {
+          await FirebaseFirestore.instance.collection('admins').doc(userId).set(
+            {'email': userEmail, 'createdAt': DateTime.now().toIso8601String()},
+          );
+        }
 
         setState(() {
           _isLoading = false;

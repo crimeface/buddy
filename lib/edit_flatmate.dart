@@ -1,82 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-class EditPropertyPage extends StatefulWidget {
-  final Map<String, dynamic> propertyData;
-  const EditPropertyPage({Key? key, required this.propertyData})
-      : super(key: key);
+class EditFlatmatePage extends StatefulWidget {
+  final String flatmateId;
+  final Map<String, dynamic> flatmateData;
+
+  const EditFlatmatePage({
+    Key? key,
+    required this.flatmateId,
+    required this.flatmateData,
+  }) : super(key: key);
 
   @override
-  State<EditPropertyPage> createState() => _EditPropertyPageState();
+  State<EditFlatmatePage> createState() => _EditFlatmatePageState();
 }
 
-class _EditPropertyPageState extends State<EditPropertyPage> {
+class _EditFlatmatePageState extends State<EditFlatmatePage> {
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  DateTime? _selectedDate;
   
   // Payment Plan
   String? selectedPlan;
   Map<String, Map<String, double>> _planPrices = {};
   bool _isPlanPricesLoading = true;
   String? _planPricesError;
-
-  late TextEditingController _titleController;
-  late TextEditingController _locationController;
-  late TextEditingController _rentController;
-  late TextEditingController _securityDepositController;
-  late TextEditingController _brokerageController;
-  late TextEditingController _currentFlatmatesController;
-  late TextEditingController _maxFlatmatesController;
-  late TextEditingController _descriptionController;
-  DateTime? _availableFrom;
+  
+  // Form controllers
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _minBudgetController = TextEditingController();
+  final TextEditingController _maxBudgetController = TextEditingController();
+  final TextEditingController _moveInDateController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetchPlanPrices();
-    _titleController = TextEditingController(
-      text: widget.propertyData['title'] ?? '',
-    );
-    _locationController = TextEditingController(
-      text: widget.propertyData['location'] ?? '',
-    );
-    _rentController = TextEditingController(
-      text: widget.propertyData['monthlyRent']?.toString() ?? '',
-    );
-    _securityDepositController = TextEditingController(
-      text: widget.propertyData['securityDeposit']?.toString() ?? '',
-    );
-    _brokerageController = TextEditingController(
-      text: widget.propertyData['brokerage']?.toString() ?? '',
-    );
-    _currentFlatmatesController = TextEditingController(
-      text: widget.propertyData['currentFlatmates']?.toString() ?? '',
-    );
-    _maxFlatmatesController = TextEditingController(
-      text: widget.propertyData['maxFlatmates']?.toString() ?? '',
-    );
-    _descriptionController = TextEditingController(
-      text: widget.propertyData['description'] ?? '',
-    );
-    _availableFrom = widget.propertyData['availableFrom'] != null &&
-            widget.propertyData['availableFrom'].toString().isNotEmpty
-        ? DateTime.tryParse(widget.propertyData['availableFrom'])
-        : null;
-
-    _fetchPlanPrices();
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _locationController.dispose();
-    _rentController.dispose();
-    _securityDepositController.dispose();
-    _brokerageController.dispose();
-    _currentFlatmatesController.dispose();
-    _maxFlatmatesController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
+    // Initialize controllers with existing data
+    _locationController.text = widget.flatmateData['location'] ?? '';
+    _minBudgetController.text = widget.flatmateData['minBudget']?.toString() ?? '';
+    _maxBudgetController.text = widget.flatmateData['maxBudget']?.toString() ?? '';
+    selectedPlan = widget.flatmateData['selectedPlan'];
+    
+    if (widget.flatmateData['moveInDate'] != null) {
+      if (widget.flatmateData['moveInDate'] is Timestamp) {
+        _selectedDate = (widget.flatmateData['moveInDate'] as Timestamp).toDate();
+      } else if (widget.flatmateData['moveInDate'] is String) {
+        _selectedDate = DateTime.tryParse(widget.flatmateData['moveInDate']);
+      }
+      if (_selectedDate != null) {
+        _moveInDateController.text = DateFormat('dd/MM/yyyy').format(_selectedDate!);
+      }
+    }
   }
 
   Future<void> _fetchPlanPrices() async {
@@ -84,12 +60,13 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
       _isPlanPricesLoading = true;
       _planPricesError = null;
     });
-    try {
-      final doc = await FirebaseFirestore.instance
+
+    try {      final doc = await FirebaseFirestore.instance
           .collection('plan_prices')
-          .doc('list_room')
+          .doc('room_request')
           .collection('day_wise_prices')
           .get();
+
       Map<String, Map<String, double>> prices = {};
       for (var d in doc.docs) {
         final data = d.data();
@@ -99,8 +76,12 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
         double? discounted = (data['discounted_price'] is int)
             ? (data['discounted_price'] as int).toDouble()
             : (data['discounted_price'] as num?)?.toDouble();
-        prices[d.id] = {'actual': actual ?? 0, 'discounted': discounted ?? 0};
+        prices[d.id] = {
+          'actual': actual ?? 0,
+          'discounted': discounted ?? 0
+        };
       }
+
       // Map Firestore keys to your plan keys
       Map<String, String> firestoreToPlanKey = {
         '1 day': '1Day',
@@ -108,16 +89,20 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
         '15 days': '15Day',
         '1 month': '1Month',
       };
+
       Map<String, Map<String, double>> mappedPrices = {};
       firestoreToPlanKey.forEach((firestoreKey, planKey) {
         if (prices.containsKey(firestoreKey)) {
           mappedPrices[planKey] = prices[firestoreKey]!;
         }
       });
+
       setState(() {
         _planPrices = mappedPrices;
         _isPlanPricesLoading = false;
-        if (_planPrices.isNotEmpty && !_planPrices.containsKey(selectedPlan)) {
+
+        // Set initial selected plan if none is selected
+        if (_planPrices.isNotEmpty && selectedPlan == null) {
           selectedPlan = _planPrices.keys.first;
         }
       });
@@ -129,12 +114,20 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     }
   }
 
-  void _pickAvailableFrom() async {
-    final picked = await showDatePicker(
+  @override
+  void dispose() {
+    _locationController.dispose();
+    _minBudgetController.dispose();
+    _maxBudgetController.dispose();
+    _moveInDateController.dispose();
+    super.dispose();
+  }
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _availableFrom ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -146,52 +139,82 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
         );
       },
     );
+
     if (picked != null) {
       setState(() {
-        _availableFrom = picked;
+        _selectedDate = picked;
+        _moveInDateController.text = DateFormat('dd/MM/yyyy').format(picked);
       });
     }
   }
 
-  void _saveChanges() {
-    if (_formKey.currentState!.validate()) {
-      if (selectedPlan == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please select a payment plan'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        return;
-      }
+  Future<void> _updateFlatmateDetails() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      final selectedPlanData = _planPrices[selectedPlan];
-
+    if (selectedPlan == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Room details updated!'),
-          backgroundColor: Colors.green,
+          content: const Text('Please select a payment plan'),
+          backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
-      Navigator.pop(context, {
-        'title': _titleController.text,
-        'monthlyRent': double.tryParse(_rentController.text) ?? 0,
-        'securityDeposit': double.tryParse(_securityDepositController.text) ?? 0,
-        'brokerage': double.tryParse(_brokerageController.text) ?? 0,
-        'currentFlatmates': int.tryParse(_currentFlatmatesController.text) ?? 0,
-        'maxFlatmates': int.tryParse(_maxFlatmatesController.text) ?? 0,
-        'availableFrom': _availableFrom != null
-            ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
-            : '',
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final data = {
+        'location': _locationController.text,
+        'minBudget': int.parse(_minBudgetController.text),
+        'maxBudget': int.parse(_maxBudgetController.text),
+        'moveInDate': _selectedDate?.toIso8601String(),
         'selectedPlan': selectedPlan,
-        'planDays': selectedPlanData?['days'],
-        'planPrice': selectedPlanData?['price'],
-        'isVisible': true,
-      });
+        'visibility': true, // Set visibility to true when updating
+        'lastUpdated': DateTime.now().toIso8601String(),
+      };
+
+      await FirebaseFirestore.instance
+          .collection('roomRequests')
+          .doc(widget.flatmateId)
+          .update(data);
+
+      if (mounted) {
+        Navigator.pop(context); // Return to previous screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Details updated successfully'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update details: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -226,25 +249,27 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 14,
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -264,6 +289,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     String? Function(String?)? validator,
     bool readOnly = false,
     VoidCallback? onTap,
+    String? prefixText,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -286,6 +312,13 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
             color: const Color(0xFF4A9EFF),
             size: 20,
           ),
+          prefixText: prefixText,
+          prefixStyle: const TextStyle(color: Colors.white),
+          suffixIcon: readOnly ? Icon(
+            Icons.calendar_today_rounded,
+            color: Colors.white.withOpacity(0.7),
+            size: 20,
+          ) : null,
           filled: true,
           fillColor: const Color(0xFF3A3D46),
           border: OutlineInputBorder(
@@ -321,7 +354,6 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
       ),
     );
   }
-
   Widget _buildPaymentPlanSection() {
     return _buildSectionCard(
       title: 'Payment Plan',
@@ -465,7 +497,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Edit Room Details',
+          'Edit Flatmate Details',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -481,93 +513,90 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Basic Details Section
+              // Location Details Section
               _buildSectionCard(
-                title: 'Basic Details',
-                subtitle: 'Room title and availability',
-                icon: Icons.home_rounded,
+                title: 'Location Preferences',
+                subtitle: 'Where you want to live',
+                icon: Icons.location_on_rounded,
                 children: [
                   _buildTextField(
-                    controller: _titleController,
-                    label: 'Listing Title',
-                    icon: Icons.title_rounded,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter listing title'
-                        : null,
-                  ),
-                  _buildTextField(
-                    controller: TextEditingController(
-                      text: _availableFrom != null
-                          ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
-                          : '',
-                    ),
-                    label: 'Available From',
-                    icon: Icons.date_range_rounded,
-                    readOnly: true,
-                    onTap: _pickAvailableFrom,
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Select available from date'
-                        : null,
+                    controller: _locationController,
+                    label: 'Preferred Location(s)',
+                    icon: Icons.location_on_rounded,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter preferred location(s)';
+                      }
+                      return null;
+                    },
                   ),
                 ],
               ),
 
-              // Financial Details Section
+              // Budget Details Section (Fixed Layout)
               _buildSectionCard(
-                title: 'Financial Details',
-                subtitle: 'Rent and deposit information\n(per person)',
+                title: 'Budget Range',
+                subtitle: 'Your budget preferences\n(₹ per month)',
                 icon: Icons.currency_rupee_rounded,
                 children: [
                   _buildTextField(
-                    controller: _rentController,
-                    label: 'Monthly Rent (₹ per person)',
+                    controller: _minBudgetController,
+                    label: 'Minimum Budget',
                     icon: Icons.currency_rupee_rounded,
                     keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter monthly rent'
-                        : null,
+                    prefixText: '₹ ',
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter minimum budget';
+                      }
+                      if (int.tryParse(value) == null) {
+                        return 'Please enter valid amount';
+                      }
+                      return null;
+                    },
                   ),
                   _buildTextField(
-                    controller: _securityDepositController,
-                    label: 'Security Deposit (₹ per person)',
-                    icon: Icons.lock_outline_rounded,
+                    controller: _maxBudgetController,
+                    label: 'Maximum Budget',
+                    icon: Icons.currency_rupee_rounded,
                     keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter security deposit'
-                        : null,
-                  ),
-                  _buildTextField(
-                    controller: _brokerageController,
-                    label: 'Brokerage (₹ per person)',
-                    icon: Icons.account_balance_wallet_rounded,
-                    keyboardType: TextInputType.number,
+                    prefixText: '₹ ',
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter maximum budget';
+                      }
+                      if (int.tryParse(value) == null) {
+                        return 'Please enter valid amount';
+                      }
+                      final min = int.tryParse(_minBudgetController.text) ?? 0;
+                      final max = int.tryParse(value) ?? 0;
+                      if (max < min) {
+                        return 'Maximum should be greater than minimum';
+                      }
+                      return null;
+                    },
                   ),
                 ],
               ),
 
-              // Flatmate Details Section
+              // Move-in Details Section
               _buildSectionCard(
-                title: 'Flatmate Details',
-                subtitle: 'Current and maximum occupancy',
-                icon: Icons.people_alt_rounded,
+                title: 'Move-in Details',
+                subtitle: 'When you plan to move in',
+                icon: Icons.date_range_rounded,
                 children: [
                   _buildTextField(
-                    controller: _currentFlatmatesController,
-                    label: 'Current Flatmates',
-                    icon: Icons.people_alt_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter current number of flatmates'
-                        : null,
-                  ),
-                  _buildTextField(
-                    controller: _maxFlatmatesController,
-                    label: 'Maximum Flatmates',
-                    icon: Icons.group_add_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter maximum number of flatmates'
-                        : null,
+                    controller: _moveInDateController,
+                    label: 'Move-in Date',
+                    icon: Icons.date_range_rounded,
+                    readOnly: true,
+                    onTap: () => _selectDate(context),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select move-in date';
+                      }
+                      return null;
+                    },
                   ),
                 ],
               ),
@@ -577,11 +606,11 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
 
               const SizedBox(height: 20),
 
-              // Submit Button
+              // Update Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveChanges,
+                  onPressed: _isLoading ? null : _updateFlatmateDetails,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4A9EFF),
                     foregroundColor: Colors.white,
@@ -591,23 +620,32 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                     ),
                     elevation: 0,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Resubmit Listing',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Update Details',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 18,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 18,
-                      ),
-                    ],
-                  ),
                 ),
               ),
               

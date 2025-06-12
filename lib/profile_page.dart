@@ -27,6 +27,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfileImageUrl() async {
     final user = FirebaseAuth.instance.currentUser;
+    final bool isAdmin = user?.email?.toLowerCase() == 'campusnest12@gmail.com';
     if (user == null) return;
     final doc =
         await FirebaseFirestore.instance
@@ -212,7 +213,10 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingMd),
       decoration: BuddyTheme.cardDecoration.copyWith(
-        color: isDark ? Colors.grey[900] : BuddyTheme.cardDecoration.color,
+        color:
+            isDark
+                ? Colors.grey[900]
+                : const Color.fromARGB(255, 240, 238, 238),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +228,7 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(
                 fontSize: BuddyTheme.fontSizeLg,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : BuddyTheme.primaryColor,
+                color: isDark ? Colors.white : Colors.black,
               ),
             ),
           ),
@@ -242,6 +246,19 @@ class _ProfilePageState extends State<ProfilePage> {
             },
             isDark: isDark,
           ),
+          // --- Add Change Price button here for admin ---
+          if (FirebaseAuth.instance.currentUser?.email?.toLowerCase() ==
+              'campusnest12@gmail.com')
+            _buildMenuOption(
+              icon: Icons.price_change,
+              iconColor: Colors.green,
+              title: 'Change Price',
+              onTap: () {
+                _showChangePriceDialog(context);
+              },
+              isDark: isDark,
+            ),
+          // --- End Change Price button ---
           _buildMenuOption(
             icon: Icons.chat_bubble_outline,
             iconColor: BuddyTheme.secondaryColor,
@@ -397,6 +414,166 @@ class _ProfilePageState extends State<ProfilePage> {
               child: const Text('Logout'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showChangePriceDialog(BuildContext context) {
+    final List<String> services = [
+      'list_hostelpg',
+      'list_room',
+      'room_request',
+      'list_service',
+    ];
+    final List<String> dayOptions = ['1 day', '7 days', '15 days', '1 month'];
+
+    String? selectedService;
+    String? selectedDay;
+    final actualPriceController = TextEditingController();
+    final discountedPriceController = TextEditingController();
+
+    Future<void> fetchPrices() async {
+      if (selectedService != null && selectedDay != null) {
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('plan_prices')
+                .doc(selectedService)
+                .collection('day_wise_prices')
+                .doc(selectedDay)
+                .get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          actualPriceController.text = data['actual_price']?.toString() ?? '';
+          discountedPriceController.text =
+              data['discounted_price']?.toString() ?? '';
+        } else {
+          actualPriceController.text = '';
+          discountedPriceController.text = '';
+        }
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder:
+              (context, setState) => AlertDialog(
+                title: const Text('Change Price'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: selectedService,
+                        hint: const Text('Select Service'),
+                        items:
+                            services
+                                .map(
+                                  (s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(s),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged: (val) async {
+                          setState(() {
+                            selectedService = val;
+                            selectedDay = null;
+                            actualPriceController.clear();
+                            discountedPriceController.clear();
+                          });
+                          // If both are selected, fetch prices
+                          if (val != null && selectedDay != null) {
+                            await fetchPrices();
+                            setState(() {});
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: selectedDay,
+                        hint: const Text('Select Days'),
+                        items:
+                            dayOptions
+                                .map(
+                                  (d) => DropdownMenuItem(
+                                    value: d,
+                                    child: Text(d),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            selectedService == null
+                                ? null
+                                : (val) async {
+                                  setState(() {
+                                    selectedDay = val;
+                                  });
+                                  if (selectedService != null && val != null) {
+                                    await fetchPrices();
+                                    setState(() {});
+                                  }
+                                },
+                        disabledHint: const Text('Select Service First'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: actualPriceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Actual Price',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: discountedPriceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Discounted Price',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (selectedService == null || selectedDay == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select service and days'),
+                          ),
+                        );
+                        return;
+                      }
+                      final actualPrice =
+                          double.tryParse(actualPriceController.text) ?? 0;
+                      final discountedPrice =
+                          double.tryParse(discountedPriceController.text) ?? 0;
+                      await FirebaseFirestore.instance
+                          .collection('plan_prices')
+                          .doc(selectedService)
+                          .collection('day_wise_prices')
+                          .doc(selectedDay)
+                          .set({
+                            'actual_price': actualPrice,
+                            'discounted_price': discountedPrice,
+                          }, SetOptions(merge: true));
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Price updated!')),
+                      );
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
         );
       },
     );

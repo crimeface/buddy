@@ -527,15 +527,10 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                         Text(
                           flatmate['moveInDate'] != null
                               ? (flatmate['moveInDate'] is Timestamp
-                                  ? (flatmate['moveInDate'] as Timestamp)
-                                      .toDate()
-                                      .toLocal()
-                                      .toString()
-                                      .split(' ')[0]
-                                  : (DateTime.tryParse(
-                                        flatmate['moveInDate'].toString(),
-                                      )?.toLocal().toString().split(' ')[0] ??
-                                      ''))
+                                  ? _formatDate((flatmate['moveInDate'] as Timestamp).toDate())
+                                  : (DateTime.tryParse(flatmate['moveInDate'].toString()) != null
+                                      ? _formatDate(DateTime.parse(flatmate['moveInDate'].toString()))
+                                      : ''))
                               : '',
                           style: Theme.of(
                             context,
@@ -752,5 +747,9 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
         );
       },
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
   }
 }

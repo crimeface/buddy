@@ -38,12 +38,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   // Payment Plan
   String _selectedPlan = '1Day';
-  final Map<String, int> _planPrices = {
-    '1Day': 29,
-    '7Day': 149,
-    '15Day': 239,
-    '1Month': 499,
-  };
+  Map<String, Map<String, double>> _planPrices = {};
+  bool _isPlanPricesLoading = true;
+  String? _planPricesError;
 
   // Basic Info
   final _nameController = TextEditingController();
@@ -137,6 +134,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     _progressAnimationController.forward();
     _slideAnimationController.forward();
     _fabAnimationController.forward();
+    _fetchPlanPrices();
   }
 
   @override
@@ -353,6 +351,59 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  Future<void> _fetchPlanPrices() async {
+    setState(() {
+      _isPlanPricesLoading = true;
+      _planPricesError = null;
+    });
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('plan_prices')
+              .doc('room_request')
+              .collection('day_wise_prices')
+              .get();
+      Map<String, Map<String, double>> prices = {};
+      for (var d in doc.docs) {
+        final data = d.data();
+        double? actual =
+            (data['actual_price'] is int)
+                ? (data['actual_price'] as int).toDouble()
+                : (data['actual_price'] as num?)?.toDouble();
+        double? discounted =
+            (data['discounted_price'] is int)
+                ? (data['discounted_price'] as int).toDouble()
+                : (data['discounted_price'] as num?)?.toDouble();
+        prices[d.id] = {'actual': actual ?? 0, 'discounted': discounted ?? 0};
+      }
+      // Map Firestore keys to your plan keys
+      Map<String, String> firestoreToPlanKey = {
+        '1 day': '1Day',
+        '7 days': '7Day',
+        '15 days': '15Day',
+        '1 month': '1Month',
+      };
+      Map<String, Map<String, double>> mappedPrices = {};
+      firestoreToPlanKey.forEach((firestoreKey, planKey) {
+        if (prices.containsKey(firestoreKey)) {
+          mappedPrices[planKey] = prices[firestoreKey]!;
+        }
+      });
+      setState(() {
+        _planPrices = mappedPrices;
+        _isPlanPricesLoading = false;
+        if (_planPrices.isNotEmpty && !_planPrices.containsKey(_selectedPlan)) {
+          _selectedPlan = _planPrices.keys.first;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _planPricesError = 'Failed to load plan prices';
+        _isPlanPricesLoading = false;
+      });
     }
   }
 
@@ -735,23 +786,40 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               'Choose how long to keep your listing active',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-
-            ..._planPrices.entries
-                .map(
-                  (plan) => Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: BuddyTheme.spacingMd,
+            if (_isPlanPricesLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_planPricesError != null)
+              Center(
+                child: Text(
+                  _planPricesError!,
+                  style: TextStyle(color: Colors.red),
+                ),
+              )
+            else if (_planPrices.isEmpty)
+              Center(
+                child: Text(
+                  'No plans available',
+                  style: TextStyle(color: Colors.red),
+                ),
+              )
+            else
+              ..._planPrices.entries
+                  .map(
+                    (plan) => Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: BuddyTheme.spacingMd,
+                      ),
+                      child: _buildPlanCard(
+                        plan.key,
+                        plan.value['actual'] ?? 0,
+                        discountedPrice: plan.value['discounted'] ?? 0,
+                        isSelected: _selectedPlan == plan.key,
+                        onSelect:
+                            () => setState(() => _selectedPlan = plan.key),
+                      ),
                     ),
-                    child: _buildPlanCard(
-                      plan.key,
-                      plan.value.toDouble(),
-                      isSelected: _selectedPlan == plan.key,
-                      onSelect: () => setState(() => _selectedPlan = plan.key),
-                    ),
-                  ),
-                )
-                .toList(),
-
+                  )
+                  .toList(),
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
           ],
@@ -762,13 +830,16 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   Widget _buildPlanCard(
     String planName,
-    double price, {
+    double actualPrice, {
+    double discountedPrice = 0,
     required bool isSelected,
     required VoidCallback onSelect,
   }) {
     String duration = planName;
-    String formattedPrice = '₹${price.toStringAsFixed(0)}';
-
+    bool hasDiscount = discountedPrice > 0 && discountedPrice < actualPrice;
+    String formattedActual = '₹${actualPrice.toStringAsFixed(0)}';
+    String formattedDiscounted =
+        hasDiscount ? '₹${discountedPrice.toStringAsFixed(0)}' : '';
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 600),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -841,17 +912,41 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                           ],
                         ),
                       ),
-                      Text(
-                        formattedPrice,
-                        style: TextStyle(
-                          color:
-                              isSelected
-                                  ? BuddyTheme.primaryColor
-                                  : textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                      if (hasDiscount) ...[
+                        Text(
+                          formattedDiscounted,
+                          style: TextStyle(
+                            color:
+                                isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Text(
+                          formattedActual,
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          formattedActual,
+                          style: TextStyle(
+                            color:
+                                isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

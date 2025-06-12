@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
-
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -110,7 +111,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> {
   }
 }
 
-class ServiceData {  
+class ServiceData {
   final String acStatus;
   final List<String> additionalPhotos;
   final String chargeType;
@@ -135,7 +136,8 @@ class ServiceData {
   final String serviceType;
   final String serviceTypeOther; // Added for Other type
   final String userId;
-  final bool visibility;  final String priceRange; // Added for cafe
+  final bool visibility;
+  final String priceRange; // Added for cafe
   final bool hasSeating; // Added for cafe
   final String pricing; // Added for other service type
   final String cuisineType; // Added for cafe
@@ -193,7 +195,7 @@ class ServiceData {
   factory ServiceData.fromFirestore(Map<String, dynamic> data) {
     // Get mealTimings map and extract boolean values, default to false if not present
     Map<String, dynamic> mealTimings = data['mealTimings'] ?? {};
-    
+
     return ServiceData(
       acStatus: data['acStatus'] ?? '',
       additionalPhotos: List<String>.from(data['additionalPhotos'] ?? []),
@@ -202,9 +204,8 @@ class ServiceData {
       closingTime: data['closingTime'] ?? '',
       contact: data['contact'] ?? '',
       coverPhoto: data['coverPhoto'] ?? '',
-      createdAt: data['createdAt'] != null
-        ? _formatDate(data['createdAt']) 
-        : '',
+      createdAt:
+          data['createdAt'] != null ? _formatDate(data['createdAt']) : '',
       description: data['description'] ?? '',
       email: data['email'] ?? '',
       expiryDate: data['expiryDate'] ?? '',
@@ -215,9 +216,10 @@ class ServiceData {
       mapLink: data['mapLink'] ?? '',
       offDay: data['offDay'] ?? '',
       openingTime: data['openingTime'] ?? '',
-      seatingCapacity: data['seatingCapacity'] is String 
-        ? int.tryParse(data['seatingCapacity']) ?? 0 
-        : data['seatingCapacity'] ?? 0,
+      seatingCapacity:
+          data['seatingCapacity'] is String
+              ? int.tryParse(data['seatingCapacity']) ?? 0
+              : data['seatingCapacity'] ?? 0,
       selectedPlan: data['selectedPlan'] ?? '',
       serviceName: data['serviceName'] ?? '',
       serviceType: data['serviceType'] ?? '',
@@ -226,13 +228,15 @@ class ServiceData {
       hasTiffinService: data['hasTiffinService'] ?? false,
       visibility: data['visibility'] ?? false,
       priceRange: data['priceRange'] ?? '',
-      hasSeating: data['hasSeating'] ?? false,      serviceTypeOther: data['serviceTypeOther'] ?? '',
+      hasSeating: data['hasSeating'] ?? false,
+      serviceTypeOther: data['serviceTypeOther'] ?? '',
       pricing: data['pricing'] ?? '',
       cuisineType: data['cuisineType'] ?? '',
       hasPowerSockets: data['hasPowerSockets'] ?? false,
       hasWifi: data['hasWifi'] ?? false,
       foodType: data['foodType'] ?? '', // Added for mess
-      breakfast: mealTimings['Breakfast'] ?? false, // Added for mess meal timings
+      breakfast:
+          mealTimings['Breakfast'] ?? false, // Added for mess meal timings
       lunch: mealTimings['Lunch'] ?? false, // Added for mess meal timings
       dinner: mealTimings['Dinner'] ?? false, // Added for mess meal timings
       usefulness: data['usefulness'] ?? '', // Added for other service type
@@ -241,34 +245,35 @@ class ServiceData {
 }
 
 String _formatDate(dynamic date) {
-    if (date == null) return '';
+  if (date == null) return '';
 
-    try {
-      DateTime dateTime;
-      if (date is DateTime) {
-        dateTime = date;
-      } else if (date is Timestamp) {
-        dateTime = date.toDate();
-      } else if (date is String) {
-        // Try to parse the string as a DateTime
-        dateTime = DateTime.parse(date);
-      } else {
-        return '';
-      }
-
-      // Format as DD-MM-YYYY
-      return '${dateTime.day.toString().padLeft(2, '0')}-'
-          '${dateTime.month.toString().padLeft(2, '0')}-'
-          '${dateTime.year}';
-    } catch (e) {
+  try {
+    DateTime dateTime;
+    if (date is DateTime) {
+      dateTime = date;
+    } else if (date is Timestamp) {
+      dateTime = date.toDate();
+    } else if (date is String) {
+      // Try to parse the string as a DateTime
+      dateTime = DateTime.parse(date);
+    } else {
       return '';
     }
+
+    // Format as DD-MM-YYYY
+    return '${dateTime.day.toString().padLeft(2, '0')}-'
+        '${dateTime.month.toString().padLeft(2, '0')}-'
+        '${dateTime.year}';
+  } catch (e) {
+    return '';
   }
+}
 
 class ServiceDetailsScreen extends StatefulWidget {
   final String serviceId;
 
-  const ServiceDetailsScreen({Key? key, required this.serviceId}) : super(key: key);
+  const ServiceDetailsScreen({Key? key, required this.serviceId})
+    : super(key: key);
 
   @override
   _ServiceDetailsScreenState createState() => _ServiceDetailsScreenState();
@@ -287,6 +292,56 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   void initState() {
     super.initState();
     _fetchServiceDetails();
+    _checkIfBookmarked();
+  }
+
+  Future<void> _toggleBookmark() async {
+    // You may want to use FirebaseAuth to get the current user
+    final user = await FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+    final bookmarks =
+        (userDoc.data()?['bookmarkedServices'] as List?)?.cast<String>() ?? [];
+    final isBookmarkedNow = bookmarks.contains(widget.serviceId);
+    if (isBookmarkedNow) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
+        {
+          'bookmarkedServices': FieldValue.arrayRemove([widget.serviceId]),
+        },
+      );
+    } else {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'bookmarkedServices': FieldValue.arrayUnion([widget.serviceId]),
+      }, SetOptions(merge: true));
+    }
+    setState(() {
+      isBookmarked = !isBookmarked;
+    });
+  }
+
+  Future<void> _checkIfBookmarked() async {
+    final user = await FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+    final bookmarks =
+        (userDoc.data()?['bookmarkedServices'] as List?)?.cast<String>() ?? [];
+    setState(() {
+      isBookmarked = bookmarks.contains(widget.serviceId);
+    });
+  }
+
+  Future<void> _shareService() async {
+    final String shareText =
+        'Check out this service: ${serviceData.serviceName}\nLocation: ${serviceData.location}\n\nDescription: ${serviceData.description}\n';
+    await Share.share(shareText, subject: serviceData.serviceName);
   }
 
   @override
@@ -297,11 +352,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
 
   Future<void> _fetchServiceDetails() async {
     try {
-      final serviceDoc = await _firestore
-          .collection('service_listings')
-          .doc(widget.serviceId)
-          .get();
-          
+      final serviceDoc =
+          await _firestore
+              .collection('service_listings')
+              .doc(widget.serviceId)
+              .get();
+
       if (serviceDoc.exists) {
         final data = serviceDoc.data() as Map<String, dynamic>;
         if (mounted) {
@@ -327,9 +383,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   Future<void> _openGoogleMaps() async {
     if (serviceData.mapLink.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Map link not available')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Map link not available')));
       }
       return;
     }
@@ -347,21 +403,24 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       );
 
       if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open map')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open map')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid map link')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Invalid map link')));
       }
     }
   }
 
-  List<String> get serviceImages => 
-    [serviceData.coverPhoto, ...serviceData.additionalPhotos].where((url) => url.isNotEmpty).toList();
+  List<String> get serviceImages =>
+      [
+        serviceData.coverPhoto,
+        ...serviceData.additionalPhotos,
+      ].where((url) => url.isNotEmpty).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -400,10 +459,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [                  _buildServiceHeader(),
+                children: [
+                  _buildServiceHeader(),
                   const SizedBox(height: BuddyTheme.spacingLg),
                   _buildPricingInfo(),
-                  const SizedBox(height: BuddyTheme.spacingLg),                  if (serviceData.libraryType.isNotEmpty) ...[
+                  const SizedBox(height: BuddyTheme.spacingLg),
+                  if (serviceData.libraryType.isNotEmpty) ...[
                     _buildLibraryType(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
@@ -411,7 +472,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                     _buildMessInfo(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
-                  if (serviceData.serviceType.toLowerCase() == 'café' || serviceData.serviceType.toLowerCase() == 'cafe') ...[
+                  if (serviceData.serviceType.toLowerCase() == 'café' ||
+                      serviceData.serviceType.toLowerCase() == 'cafe') ...[
                     _buildCafeInfo(),
                     const SizedBox(height: BuddyTheme.spacingLg),
                   ],
@@ -434,12 +496,14 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       bottomNavigationBar: _buildBottomActions(),
     );
   }
+
   Widget _buildAppBar(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
 
     return SliverAppBar(
       expandedHeight: 300,
@@ -470,12 +534,13 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           child: IconButton(
             icon: Icon(
               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              color: isBookmarked ? BuddyTheme.primaryColor : BuddyTheme.textPrimaryColor,
+              color:
+                  isBookmarked
+                      ? BuddyTheme.primaryColor
+                      : BuddyTheme.textPrimaryColor,
             ),
-            onPressed: () {
-              setState(() {
-                isBookmarked = !isBookmarked;
-              });
+            onPressed: () async {
+              await _toggleBookmark();
               HapticFeedback.lightImpact();
             },
           ),
@@ -488,22 +553,22 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           ),
           child: IconButton(
             icon: const Icon(Icons.share, color: BuddyTheme.textPrimaryColor),
-            onPressed: () {
-              // Handle share
-            },
+            onPressed: _shareService,
           ),
         ),
-      ],      flexibleSpace: FlexibleSpaceBar(
+      ],
+      flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           children: [
             GestureDetector(
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => FullScreenImageGallery(
-                      images: serviceImages,
-                      initialIndex: currentImageIndex,
-                    ),
+                    builder:
+                        (context) => FullScreenImageGallery(
+                          images: serviceImages,
+                          initialIndex: currentImageIndex,
+                        ),
                   ),
                 );
               },
@@ -533,28 +598,28 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               right: 0,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: serviceImages.asMap().entries.map((entry) {
-                  return Container(
-                    width: 8.0,
-                    height: 8.0,
-                    margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: currentImageIndex == entry.key
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.4),
-                    ),
-                  );
-                }).toList(),
+                children:
+                    serviceImages.asMap().entries.map((entry) {
+                      return Container(
+                        width: 8.0,
+                        height: 8.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              currentImageIndex == entry.key
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.4),
+                        ),
+                      );
+                    }).toList(),
               ),
             ),
-          ]
-          ),
+          ],
         ),
-      );
+      ),
+    );
   }
-
-  
 
   Widget _buildServiceHeader() {
     final theme = Theme.of(context);
@@ -602,7 +667,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                     fontSize: BuddyTheme.fontSizeMd,
                   ),
                 ),
-              ),              if (serviceData.mapLink.isNotEmpty)
+              ),
+              if (serviceData.mapLink.isNotEmpty)
                 GestureDetector(
                   onTap: _openGoogleMaps,
                   child: Container(
@@ -629,7 +695,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       BuddyTheme.borderRadiusSm,
                     ),
                   ),
-                  child: Text(                    serviceData.createdAt.isEmpty
+                  child: Text(
+                    serviceData.createdAt.isEmpty
                         ? 'Available Now'
                         : 'Available from ${serviceData.createdAt}',
                     style: TextStyle(
@@ -639,7 +706,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                     ),
                   ),
                 ),
-              ),              if (serviceData.mapLink.isNotEmpty) ...[
+              ),
+              if (serviceData.mapLink.isNotEmpty) ...[
                 const SizedBox(width: BuddyTheme.spacingMd),
                 GestureDetector(
                   onTap: _openGoogleMaps,
@@ -682,7 +750,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ),
     );
   }
-  
 
   Widget _buildPricingInfo() {
     final theme = Theme.of(context);
@@ -742,7 +809,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
@@ -752,8 +821,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       leftCardTitle,
                       style: const TextStyle(
                         fontSize: BuddyTheme.fontSizeSm,
-                        color: BuddyTheme.textSecondaryColor
-                      )
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
@@ -761,8 +830,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       style: const TextStyle(
                         fontSize: BuddyTheme.fontSizeLg,
                         fontWeight: FontWeight.bold,
-                        color: BuddyTheme.primaryColor
-                      )
+                        color: BuddyTheme.primaryColor,
+                      ),
                     ),
                   ],
                 ),
@@ -773,7 +842,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
@@ -783,8 +854,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       rightCardTitle,
                       style: const TextStyle(
                         fontSize: BuddyTheme.fontSizeSm,
-                        color: BuddyTheme.textSecondaryColor
-                      )
+                        color: BuddyTheme.textSecondaryColor,
+                      ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
@@ -792,16 +863,18 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       style: const TextStyle(
                         fontSize: BuddyTheme.fontSizeLg,
                         fontWeight: FontWeight.bold,
-                        color: BuddyTheme.accentColor
-                      )
+                        color: BuddyTheme.accentColor,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          ],        ),
+          ],
+        ),
         // Add Timings section for all service types
-        if (serviceData.openingTime.isNotEmpty || serviceData.closingTime.isNotEmpty) ...[
+        if (serviceData.openingTime.isNotEmpty ||
+            serviceData.closingTime.isNotEmpty) ...[
           const SizedBox(height: BuddyTheme.spacingLg),
           Text(
             'Timings',
@@ -818,7 +891,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: BuddyTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                   ),
                   padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                   child: Column(
@@ -828,8 +903,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                         'Opening Time',
                         style: TextStyle(
                           fontSize: BuddyTheme.fontSizeSm,
-                          color: BuddyTheme.textSecondaryColor
-                        )
+                          color: BuddyTheme.textSecondaryColor,
+                        ),
                       ),
                       const SizedBox(height: BuddyTheme.spacingXs),
                       Text(
@@ -837,8 +912,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                         style: const TextStyle(
                           fontSize: BuddyTheme.fontSizeLg,
                           fontWeight: FontWeight.bold,
-                          color: BuddyTheme.primaryColor
-                        )
+                          color: BuddyTheme.primaryColor,
+                        ),
                       ),
                     ],
                   ),
@@ -849,7 +924,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: BuddyTheme.accentColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                   ),
                   padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                   child: Column(
@@ -859,8 +936,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                         'Closing Time',
                         style: TextStyle(
                           fontSize: BuddyTheme.fontSizeSm,
-                          color: BuddyTheme.textSecondaryColor
-                        )
+                          color: BuddyTheme.textSecondaryColor,
+                        ),
                       ),
                       const SizedBox(height: BuddyTheme.spacingXs),
                       Text(
@@ -868,8 +945,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                         style: const TextStyle(
                           fontSize: BuddyTheme.fontSizeLg,
                           fontWeight: FontWeight.bold,
-                          color: BuddyTheme.accentColor
-                        )
+                          color: BuddyTheme.accentColor,
+                        ),
                       ),
                     ],
                   ),
@@ -877,8 +954,13 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               ),
             ],
           ),
-        ],        // Add Facilities section after Timings section
-        if (['library', 'café', 'cafe', 'mess'].contains(serviceData.serviceType.toLowerCase())) ...[
+        ], // Add Facilities section after Timings section
+        if ([
+          'library',
+          'café',
+          'cafe',
+          'mess',
+        ].contains(serviceData.serviceType.toLowerCase())) ...[
           const SizedBox(height: BuddyTheme.spacingLg),
           _buildFacilities(),
         ],
@@ -895,84 +977,17 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
-    return serviceData.serviceType.toLowerCase() == 'library' 
-      ? Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Library Information',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
+    return serviceData.serviceType.toLowerCase() == 'library'
+        ? Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Library Information',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: BuddyTheme.spacingMd),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: BuddyTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                  ),
-                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Library Type',
-                        style: TextStyle(
-                          fontSize: BuddyTheme.fontSizeSm,
-                          color: BuddyTheme.textSecondaryColor
-                        )
-                      ),
-                      const SizedBox(height: BuddyTheme.spacingXs),
-                      Text(
-                        serviceData.libraryType,
-                        style: const TextStyle(
-                          fontSize: BuddyTheme.fontSizeLg,
-                          fontWeight: FontWeight.bold,
-                          color: BuddyTheme.primaryColor
-                        )
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: BuddyTheme.spacingMd),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: BuddyTheme.accentColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                  ),
-                  padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'AC Status',
-                        style: TextStyle(
-                          fontSize: BuddyTheme.fontSizeSm,
-                          color: BuddyTheme.textSecondaryColor
-                        )
-                      ),
-                      const SizedBox(height: BuddyTheme.spacingXs),
-                      Text(
-                        serviceData.acStatus,
-                        style: const TextStyle(
-                          fontSize: BuddyTheme.fontSizeLg,
-                          fontWeight: FontWeight.bold,
-                          color: BuddyTheme.accentColor
-                        )
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (serviceData.offDay.isNotEmpty) ...[
             const SizedBox(height: BuddyTheme.spacingMd),
             Row(
               children: [
@@ -980,27 +995,62 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: BuddyTheme.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
                     ),
                     padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Off Day',
+                          'Library Type',
                           style: TextStyle(
                             fontSize: BuddyTheme.fontSizeSm,
-                            color: BuddyTheme.textSecondaryColor
-                          )
+                            color: BuddyTheme.textSecondaryColor,
+                          ),
                         ),
                         const SizedBox(height: BuddyTheme.spacingXs),
                         Text(
-                          serviceData.offDay,
+                          serviceData.libraryType,
                           style: const TextStyle(
                             fontSize: BuddyTheme.fontSizeLg,
                             fontWeight: FontWeight.bold,
-                            color: BuddyTheme.primaryColor
-                          )
+                            color: BuddyTheme.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: BuddyTheme.spacingMd),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.accentColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'AC Status',
+                          style: TextStyle(
+                            fontSize: BuddyTheme.fontSizeSm,
+                            color: BuddyTheme.textSecondaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: BuddyTheme.spacingXs),
+                        Text(
+                          serviceData.acStatus,
+                          style: const TextStyle(
+                            fontSize: BuddyTheme.fontSizeLg,
+                            fontWeight: FontWeight.bold,
+                            color: BuddyTheme.accentColor,
+                          ),
                         ),
                       ],
                     ),
@@ -1008,17 +1058,57 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 ),
               ],
             ),
+            if (serviceData.offDay.isNotEmpty) ...[
+              const SizedBox(height: BuddyTheme.spacingMd),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: BuddyTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusMd,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Off Day',
+                            style: TextStyle(
+                              fontSize: BuddyTheme.fontSizeSm,
+                              color: BuddyTheme.textSecondaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingXs),
+                          Text(
+                            serviceData.offDay,
+                            style: const TextStyle(
+                              fontSize: BuddyTheme.fontSizeLg,
+                              fontWeight: FontWeight.bold,
+                              color: BuddyTheme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
-      )
-      : const SizedBox.shrink(); // Don't show this section for non-library services
+        )
+        : const SizedBox.shrink(); // Don't show this section for non-library services
   }
-  Widget _buildFacilities() {    
-    final theme = Theme.of(context);    
+
+  Widget _buildFacilities() {
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
 
     List<Widget> facilityChips = [];
 
@@ -1045,10 +1135,14 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       }
     } else if (serviceType == 'mess') {
       if (serviceData.hasHomeDelivery) {
-        facilityChips.add(_buildFacilityChip('Home Delivery', Icons.delivery_dining));
+        facilityChips.add(
+          _buildFacilityChip('Home Delivery', Icons.delivery_dining),
+        );
       }
       if (serviceData.hasTiffinService) {
-        facilityChips.add(_buildFacilityChip('Tiffin Service', Icons.lunch_dining));
+        facilityChips.add(
+          _buildFacilityChip('Tiffin Service', Icons.lunch_dining),
+        );
       }
     }
 
@@ -1089,7 +1183,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
 
   Widget _buildFacilityChip(String label, IconData icon) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: BuddyTheme.spacingSm,
@@ -1097,12 +1191,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ),
       decoration: BoxDecoration(
         color: BuddyTheme.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(
-          BuddyTheme.borderRadiusSm,
-        ),
-        border: Border.all(
-          color: BuddyTheme.primaryColor.withOpacity(0.2),
-        ),
+        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+        border: Border.all(color: BuddyTheme.primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1173,6 +1263,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ],
     );
   }
+
   Widget _buildOwnerInfo() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -1214,6 +1305,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ],
     );
   }
+
   Widget _buildContactItem(IconData icon, String? text) {
     if (text == null || text.isEmpty) {
       return const SizedBox.shrink();
@@ -1227,9 +1319,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           const SizedBox(width: BuddyTheme.spacingSm),
           Text(
             text,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: BuddyTheme.primaryColor,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: BuddyTheme.primaryColor),
           ),
         ],
       ),
@@ -1245,12 +1337,17 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final Uri phoneUri = Uri(scheme: 'tel', path: serviceData.contact);
+                  final Uri phoneUri = Uri(
+                    scheme: 'tel',
+                    path: serviceData.contact,
+                  );
                   await launchUrl(phoneUri);
                 },
                 icon: const Icon(Icons.phone),
                 label: const Text('Call'),
-                style: OutlinedButton.styleFrom(foregroundColor: BuddyTheme.primaryColor),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BuddyTheme.primaryColor,
+                ),
               ),
             ),
             const SizedBox(width: BuddyTheme.spacingMd),
@@ -1273,6 +1370,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ),
     );
   }
+
   Widget _buildCafeInfo() {
     final theme = Theme.of(context);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
@@ -1280,90 +1378,97 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
     final serviceType = serviceData.serviceType.toLowerCase();
     return serviceType == 'café' || serviceType == 'cafe'
         ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Café Information',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Café Information',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(height: BuddyTheme.spacingMd),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Cuisine Type',
+                          style: TextStyle(
+                            fontSize: BuddyTheme.fontSizeSm,
+                            color: BuddyTheme.textSecondaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: BuddyTheme.spacingXs),
+                        Text(
+                          serviceData.cuisineType.isNotEmpty
+                              ? serviceData.cuisineType
+                              : 'Not specified',
+                          style: const TextStyle(
+                            fontSize: BuddyTheme.fontSizeLg,
+                            fontWeight: FontWeight.bold,
+                            color: BuddyTheme.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: BuddyTheme.spacingMd),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: BuddyTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                      ),
-                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Cuisine Type',
-                            style: TextStyle(
-                              fontSize: BuddyTheme.fontSizeSm,
-                              color: BuddyTheme.textSecondaryColor
-                            )
-                          ),
-                          const SizedBox(height: BuddyTheme.spacingXs),
-                          Text(
-                            serviceData.cuisineType.isNotEmpty 
-                              ? serviceData.cuisineType 
-                              : 'Not specified',
-                            style: const TextStyle(
-                              fontSize: BuddyTheme.fontSizeLg,
-                              fontWeight: FontWeight.bold,
-                              color: BuddyTheme.primaryColor
-                            )
-                          ),
-                        ],
+                const SizedBox(width: BuddyTheme.spacingMd),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: BuddyTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: BuddyTheme.spacingMd),                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: BuddyTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                      ),
-                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Off Day',
-                            style: TextStyle(
-                              fontSize: BuddyTheme.fontSizeSm,
-                              color: BuddyTheme.textSecondaryColor,
-                            ),
+                    padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Off Day',
+                          style: TextStyle(
+                            fontSize: BuddyTheme.fontSizeSm,
+                            color: BuddyTheme.textSecondaryColor,
                           ),
-                          const SizedBox(height: BuddyTheme.spacingXs),
-                          Text(
-                            serviceData.offDay.isNotEmpty 
-                              ? serviceData.offDay 
+                        ),
+                        const SizedBox(height: BuddyTheme.spacingXs),
+                        Text(
+                          serviceData.offDay.isNotEmpty
+                              ? serviceData.offDay
                               : 'Not specified',
-                            style: TextStyle(
-                              fontSize: BuddyTheme.fontSizeLg,
-                              fontWeight: FontWeight.bold,
-                              color: BuddyTheme.primaryColor,
-                            ),
+                          style: TextStyle(
+                            fontSize: BuddyTheme.fontSizeLg,
+                            fontWeight: FontWeight.bold,
+                            color: BuddyTheme.primaryColor,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ],
-          )
+                ),
+              ],
+            ),
+          ],
+        )
         : const SizedBox.shrink(); // Don't show this section for non-cafe services
   }
+
   Widget _buildMessInfo() {
-    final theme = Theme.of(context);    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1377,16 +1482,19 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Row(
-          children: [            Expanded(
+          children: [
+            Expanded(
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [                    
+                  children: [
                     Text(
                       'Food Type',
                       style: TextStyle(
@@ -1399,7 +1507,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        serviceData.foodType.isEmpty ? 'Not Specified' : serviceData.foodType,
+                        serviceData.foodType.isEmpty
+                            ? 'Not Specified'
+                            : serviceData.foodType,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: BuddyTheme.fontSizeLg,
                           color: BuddyTheme.primaryColor,
@@ -1416,7 +1526,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: BuddyTheme.accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(
@@ -1431,7 +1543,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
-                      serviceData.offDay.isEmpty ? 'Not Specified' : serviceData.offDay,                      style: TextStyle(
+                      serviceData.offDay.isEmpty
+                          ? 'Not Specified'
+                          : serviceData.offDay,
+                      style: TextStyle(
                         fontSize: BuddyTheme.fontSizeMd,
                         fontWeight: FontWeight.w500,
                         color: BuddyTheme.primaryColor,
@@ -1442,7 +1557,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               ),
             ),
           ],
-        ),        const SizedBox(height: BuddyTheme.spacingLg),
+        ),
+        const SizedBox(height: BuddyTheme.spacingLg),
         Text(
           'Meals Provided',
           style: theme.textTheme.titleLarge?.copyWith(
@@ -1466,6 +1582,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       ],
     );
   }
+
   Widget _buildOtherInfo() {
     final theme = Theme.of(context);
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
@@ -1495,7 +1612,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: BuddyTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
                   ),
                   padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                   child: Column(
@@ -1527,7 +1646,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                  borderRadius: BorderRadius.circular(
+                    BuddyTheme.borderRadiusMd,
+                  ),
                 ),
                 padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                 child: Column(

@@ -32,12 +32,9 @@ class _ListServiceFormState extends State<ListServiceForm>
   final _formKey = GlobalKey<FormState>();
 
   String _selectedPlan = '1Day';
-  final Map<String, int> _planPrices = {
-    '1Day': 29,
-    '7Day': 149,
-    '15Day': 239,
-    '1Month': 499,
-  };
+  Map<String, Map<String, double>> _planPrices = {};
+  bool _isPlanPricesLoading = true;
+  String? _planPricesError;
 
   // Basic Service Details
   String _serviceType = 'Library';
@@ -70,7 +67,8 @@ class _ListServiceFormState extends State<ListServiceForm>
   bool _hasPowerSockets = true;
 
   // Mess-specific fields
-  String _foodType = 'Veg and Non-Veg';  // Changed from 'Both' to match the options
+  String _foodType =
+      'Veg and Non-Veg'; // Changed from 'Both' to match the options
   final _monthlyPriceController = TextEditingController();
   Map<String, bool> _mealTimings = {
     'Breakfast': false,
@@ -111,6 +109,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   void initState() {
     super.initState();
     _pageController = PageController();
+    _fetchPlanPrices();
 
     // Add listener to sync page changes with step counter
     _pageController.addListener(() {
@@ -173,6 +172,59 @@ class _ListServiceFormState extends State<ListServiceForm>
     _serviceTypeOtherController.dispose();
     _usefulnessController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchPlanPrices() async {
+    setState(() {
+      _isPlanPricesLoading = true;
+      _planPricesError = null;
+    });
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('plan_prices')
+              .doc('list_service')
+              .collection('day_wise_prices')
+              .get();
+      Map<String, Map<String, double>> prices = {};
+      for (var d in doc.docs) {
+        final data = d.data();
+        double? actual =
+            (data['actual_price'] is int)
+                ? (data['actual_price'] as int).toDouble()
+                : (data['actual_price'] as num?)?.toDouble();
+        double? discounted =
+            (data['discounted_price'] is int)
+                ? (data['discounted_price'] as int).toDouble()
+                : (data['discounted_price'] as num?)?.toDouble();
+        prices[d.id] = {'actual': actual ?? 0, 'discounted': discounted ?? 0};
+      }
+      // Map Firestore keys to your plan keys
+      Map<String, String> firestoreToPlanKey = {
+        '1 day': '1Day',
+        '7 days': '7Day',
+        '15 days': '15Day',
+        '1 month': '1Month',
+      };
+      Map<String, Map<String, double>> mappedPrices = {};
+      firestoreToPlanKey.forEach((firestoreKey, planKey) {
+        if (prices.containsKey(firestoreKey)) {
+          mappedPrices[planKey] = prices[firestoreKey]!;
+        }
+      });
+      setState(() {
+        _planPrices = mappedPrices;
+        _isPlanPricesLoading = false;
+        if (_planPrices.isNotEmpty && !_planPrices.containsKey(_selectedPlan)) {
+          _selectedPlan = _planPrices.keys.first;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _planPricesError = 'Failed to load plan prices';
+        _isPlanPricesLoading = false;
+      });
+    }
   }
 
   void _nextStep() {
@@ -648,23 +700,40 @@ class _ListServiceFormState extends State<ListServiceForm>
               'Choose how long to keep your listing active',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
-
-            ..._planPrices.entries
-                .map(
-                  (plan) => Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: BuddyTheme.spacingMd,
+            if (_isPlanPricesLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_planPricesError != null)
+              Center(
+                child: Text(
+                  _planPricesError!,
+                  style: TextStyle(color: Colors.red),
+                ),
+              )
+            else if (_planPrices.isEmpty)
+              Center(
+                child: Text(
+                  'No plans available',
+                  style: TextStyle(color: Colors.red),
+                ),
+              )
+            else
+              ..._planPrices.entries
+                  .map(
+                    (plan) => Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: BuddyTheme.spacingMd,
+                      ),
+                      child: _buildPlanCard(
+                        plan.key,
+                        plan.value['actual'] ?? 0,
+                        discountedPrice: plan.value['discounted'] ?? 0,
+                        isSelected: _selectedPlan == plan.key,
+                        onSelect:
+                            () => setState(() => _selectedPlan = plan.key),
+                      ),
                     ),
-                    child: _buildPlanCard(
-                      plan.key,
-                      plan.value.toDouble(),
-                      isSelected: _selectedPlan == plan.key,
-                      onSelect: () => setState(() => _selectedPlan = plan.key),
-                    ),
-                  ),
-                )
-                .toList(),
-
+                  )
+                  .toList(),
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
           ],
@@ -675,13 +744,16 @@ class _ListServiceFormState extends State<ListServiceForm>
 
   Widget _buildPlanCard(
     String planName,
-    double price, {
+    double actualPrice, {
+    double discountedPrice = 0,
     required bool isSelected,
     required VoidCallback onSelect,
   }) {
     String duration = planName;
-    String formattedPrice = '₹${price.toStringAsFixed(0)}';
-
+    bool hasDiscount = discountedPrice > 0 && discountedPrice < actualPrice;
+    String formattedActual = '₹${actualPrice.toStringAsFixed(0)}';
+    String formattedDiscounted =
+        hasDiscount ? '₹${discountedPrice.toStringAsFixed(0)}' : '';
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 600),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -713,13 +785,6 @@ class _ListServiceFormState extends State<ListServiceForm>
                               : Colors.grey.withOpacity(0.3),
                       width: isSelected ? 2 : 1,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
                   child: Row(
                     children: [
@@ -754,24 +819,48 @@ class _ListServiceFormState extends State<ListServiceForm>
                           ],
                         ),
                       ),
-                      Text(
-                        formattedPrice,
-                        style: TextStyle(
-                          color:
-                              isSelected
-                                  ? BuddyTheme.primaryColor
-                                  : textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                      if (hasDiscount) ...[
+                        Text(
+                          formattedDiscounted,
+                          style: TextStyle(
+                            color:
+                                isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Text(
+                          formattedActual,
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          formattedActual,
+                          style: TextStyle(
+                            color:
+                                isSelected
+                                    ? BuddyTheme.primaryColor
+                                    : textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
             ),
           ),
-          );
+        );
       },
     );
   }
@@ -943,7 +1032,7 @@ class _ListServiceFormState extends State<ListServiceForm>
                   ),
                 ),
               ),
-              );
+            );
           },
         );
       },
@@ -1608,7 +1697,9 @@ class _ListServiceFormState extends State<ListServiceForm>
                 children: [
                   Text(
                     'Meals',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -1800,12 +1891,14 @@ class _ListServiceFormState extends State<ListServiceForm>
                 controller: controller,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
-                validator: validator ?? (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'This field is required';
-                  }
-                  return null;
-                },
+                validator:
+                    validator ??
+                    (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'This field is required';
+                      }
+                      return null;
+                    },
                 style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   labelText: label,

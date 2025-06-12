@@ -8,13 +8,14 @@ import 'home_page.dart';
 import 'Hostelpg_page.dart';
 import 'service_page.dart';
 import 'display pages/property_details.dart';
-import './display pages/property_details.dart' as property_details;
-import './display pages/flatmate_details.dart';
 import 'edit_profile.dart';
 import 'edit_property.dart';
+import 'edit_service.dart';
 import 'my_listings.dart';
 import 'display pages/hostelpg_details.dart';
 import 'privacy_page.dart';
+import 'edit_hostelpg.dart';
+import 'landing_screen.dart';
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
@@ -48,11 +49,25 @@ class BuddyApp extends StatelessWidget {
         '/editProfile': (context) => const EditProfilePage(),
         '/myListings': (context) => const MyListingsPage(),
         '/editProperty': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
-          return EditPropertyPage(propertyData: args['propertyData'] as Map<String, dynamic>);
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>;
+          return EditPropertyPage(
+            propertyData: args['propertyData'] as Map<String, dynamic>,
+          );
+        },
+        '/editHostelPG': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          if (args == null || args['hostelData'] == null) {
+            return const Scaffold(
+              body: Center(child: Text('Invalid hostel data')),
+            );
+          }
+          return EditHostelPGPage(hostelData: args['hostelData'] as Map<String, dynamic>);
         },
         '/hostelpg_details': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments
+          final args =
+              ModalRoute.of(context)?.settings.arguments
                   as Map<String, dynamic>?;
           final hostelId = args?['hostelId'] as String? ?? '';
           return HostelDetailsScreen(propertyId: hostelId);
@@ -64,6 +79,18 @@ class BuddyApp extends StatelessWidget {
           final propertyId = args?['propertyId'] as String? ?? '';
           return PropertyDetailsScreen(propertyId: propertyId);
         },
+        '/editService': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          if (args == null) {
+            return const Scaffold(
+              body: Center(child: Text('Invalid service data')),
+            );
+          }
+          return EditServicePage(
+            serviceId: args['serviceId'] as String,
+            serviceData: args['serviceData'] as Map<String, dynamic>,
+          );
+        },
         // '/flatmateDetails': (context) => const FlatmateDetailsPage(),
         '/privacyPolicy': (context) => const PrivacyPolicyPage(),
       },
@@ -72,6 +99,8 @@ class BuddyApp extends StatelessWidget {
 }
 
 class AuthStateHandler extends StatelessWidget {
+  const AuthStateHandler({super.key});
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -82,9 +111,34 @@ class AuthStateHandler extends StatelessWidget {
         } else if (snapshot.hasData) {
           return const HomeScreen();
         } else {
-          return const LoginPage();
+          // Show LandingScreen first, then navigate to LoginPage
+          return LandingScreenWrapper();
         }
       },
     );
+  }
+}
+
+class LandingScreenWrapper extends StatefulWidget {
+  @override
+  State<LandingScreenWrapper> createState() => _LandingScreenWrapperState();
+}
+
+class _LandingScreenWrapperState extends State<LandingScreenWrapper> {
+  bool _showLanding = true;
+
+  void _onLandingComplete() {
+    setState(() {
+      _showLanding = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showLanding) {
+      return LandingScreen(onContinue: _onLandingComplete);
+    } else {
+      return const LoginPage();
+    }
   }
 }

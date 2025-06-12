@@ -39,8 +39,16 @@ class _LoginPageState extends State<LoginPage> {
           password: password,
         );
 
+        // Check for admin email
+        bool isAdmin = email.toLowerCase() == 'campusnest12@gmail.com';
+
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
+          // Pass isAdmin as an argument, or set in your app state/provider
+          Navigator.pushReplacementNamed(
+            context,
+            '/home',
+            arguments: {'isAdmin': isAdmin},
+          );
         }
       } on FirebaseAuthException catch (e) {
         String errorMsg = 'Login failed';
@@ -52,15 +60,15 @@ class _LoginPageState extends State<LoginPage> {
           errorMsg = 'Invalid email address.';
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMsg)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(errorMsg)));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('An error occurred')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('An error occurred')));
         }
       } finally {
         if (mounted) {
@@ -119,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // Email field
                           TextFormField(
                             controller: _emailController,
@@ -127,7 +135,9 @@ class _LoginPageState extends State<LoginPage> {
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Email',
-                              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.1),
                               border: OutlineInputBorder(
@@ -144,7 +154,7 @@ class _LoginPageState extends State<LoginPage> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           // Password field
                           TextFormField(
                             controller: _passwordController,
@@ -152,7 +162,9 @@ class _LoginPageState extends State<LoginPage> {
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Password',
-                              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.1),
                               border: OutlineInputBorder(
@@ -162,7 +174,9 @@ class _LoginPageState extends State<LoginPage> {
                               contentPadding: const EdgeInsets.all(16),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                  _isPasswordVisible
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Colors.white70,
                                 ),
                                 onPressed: () {
@@ -180,14 +194,18 @@ class _LoginPageState extends State<LoginPage> {
                             },
                           ),
                           const SizedBox(height: 12),
-                          
+
                           // Forgot password
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Forgot password functionality will be implemented soon')),
+                                  const SnackBar(
+                                    content: Text(
+                                      'Forgot password functionality will be implemented soon',
+                                    ),
+                                  ),
                                 );
                               },
                               style: TextButton.styleFrom(
@@ -198,14 +216,12 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               child: const Text(
                                 'Forgot Password?',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                ),
+                                style: TextStyle(fontSize: 14),
                               ),
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // Sign in button
                           SizedBox(
                             width: double.infinity,
@@ -220,26 +236,30 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 elevation: 0,
                               ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              child:
+                                  _isLoading
+                                      ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      )
+                                      : const Text(
+                                        'Sign In',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    )
-                                  : const Text(
-                                      'Sign In',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                             ),
                           ),
                           const SizedBox(height: 20),
-                          
+
                           // Sign up option
                           Center(
                             child: Row(
@@ -247,9 +267,7 @@ class _LoginPageState extends State<LoginPage> {
                               children: [
                                 const Text(
                                   'Don\'t have an account?',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                  ),
+                                  style: TextStyle(color: Colors.white70),
                                 ),
                                 TextButton(
                                   onPressed: () {
@@ -259,7 +277,8 @@ class _LoginPageState extends State<LoginPage> {
                                     foregroundColor: Colors.blue,
                                     padding: const EdgeInsets.only(left: 4),
                                     minimumSize: const Size(0, 0),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   child: const Text(
                                     'Sign Up',

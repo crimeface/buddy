@@ -13,8 +13,6 @@ import 'dart:async';
 export 'profile_page.dart';
 export 'need_room_page.dart';
 export 'need_flatmate_page.dart';
-import 'Hostelpg_page.dart';
-import 'service_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,10 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _pages = [
-      HomePage(
-        key: const Key('home'),
-        onTabChange: _onItemTapped,
-      ),
+      HomePage(key: const Key('home'), onTabChange: _onItemTapped),
       const NeedRoomPage(key: Key('needroom')),
       const NeedFlatmatePage(key: Key('needflatmate')),
       const ProfilePage(key: Key('profile')),
@@ -64,89 +59,101 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final navBarColor = theme.brightness == Brightness.dark
+    final navBarColor =
+        theme.brightness == Brightness.dark
             ? const Color(0xFF23262F)
             : const Color(0xFFF5F6FA);
-    final navBarIconColor = theme.brightness == Brightness.dark 
-            ? Colors.white 
+    final navBarIconColor =
+        theme.brightness == Brightness.dark
+            ? Colors.white
             : BuddyTheme.textSecondaryColor;
     final navBarSelectedColor = BuddyTheme.primaryColor;
 
-    return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder:
-            (child, animation) =>
-                FadeTransition(opacity: animation, child: child),
-        child: _pages[_selectedIndex],
-      ),
-      floatingActionButton:
-          _selectedIndex == 0
-              ? Container(
-                decoration: BuddyTheme.fabShadowDecoration,
-                child: FloatingActionButton(
-                  onPressed: () => _showActionSheet(context),
-                  backgroundColor: BuddyTheme.primaryColor,
-                  shape: const CircleBorder(),
-                  elevation: BuddyTheme.elevationSm,
-                  child: const Icon(
-                    Icons.add,
-                    size: BuddyTheme.iconSizeMd,
-                    color: BuddyTheme.textLightColor,
+    return WillPopScope(
+      onWillPop: () async {
+        setState(() {
+          _selectedIndex = 0;
+        });
+        return false;
+      },
+      child: Scaffold(
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder:
+              (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
+          child: _pages[_selectedIndex],
+        ),
+        floatingActionButton:
+            _selectedIndex == 0
+                ? Container(
+                  decoration: BuddyTheme.fabShadowDecoration,
+                  child: FloatingActionButton(
+                    onPressed: () => _showActionSheet(context),
+                    backgroundColor: BuddyTheme.primaryColor,
+                    shape: const CircleBorder(),
+                    elevation: BuddyTheme.elevationSm,
+                    child: const Icon(
+                      Icons.add,
+                      size: BuddyTheme.iconSizeMd,
+                      color: BuddyTheme.textLightColor,
+                    ),
                   ),
+                )
+                : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: BottomAppBar(
+          notchMargin: BuddyTheme.spacingSm,
+          elevation: BuddyTheme.elevationMd,
+          padding: EdgeInsets.zero,
+          color: navBarColor,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.black26,
+          shape: const CircularNotchedRectangle(),
+          clipBehavior: Clip.antiAlias,
+          child: Container(
+            height: 60,
+            padding: const EdgeInsets.symmetric(
+              horizontal: BuddyTheme.spacingSm,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildNavItem(
+                  0,
+                  Icons.home_outlined,
+                  Icons.home,
+                  'Home',
+                  navBarIconColor,
+                  navBarSelectedColor,
                 ),
-              )
-              : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        notchMargin: BuddyTheme.spacingSm,
-        elevation: BuddyTheme.elevationMd,
-        padding: EdgeInsets.zero,
-        color: navBarColor,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black26,
-        shape: const CircularNotchedRectangle(),
-        clipBehavior: Clip.antiAlias,
-        child: Container(
-          height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingSm),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildNavItem(
-                0,
-                Icons.home_outlined,
-                Icons.home,
-                'Home',
-                navBarIconColor,
-                navBarSelectedColor,
-              ),
-              _buildNavItem(
-                1,
-                Icons.hotel_outlined,
-                Icons.hotel,
-                'Need\nRoom',
-                navBarIconColor,
-                navBarSelectedColor,
-              ),
-              if (_selectedIndex == 0) const SizedBox(width: 56),
-              _buildNavItem(
-                2,
-                Icons.group_outlined,
-                Icons.group,
-                'Need\nFlatmate',
-                navBarIconColor,
-                navBarSelectedColor,
-              ),
-              _buildNavItem(
-                3,
-                Icons.person_outline,
-                Icons.person,
-                'Profile',
-                navBarIconColor,
-                navBarSelectedColor,
-              ),
-            ],
+                _buildNavItem(
+                  1,
+                  Icons.hotel_outlined,
+                  Icons.hotel,
+                  'Need\nRoom',
+                  navBarIconColor,
+                  navBarSelectedColor,
+                ),
+                if (_selectedIndex == 0) const SizedBox(width: 56),
+                _buildNavItem(
+                  2,
+                  Icons.group_outlined,
+                  Icons.group,
+                  'Need\nFlatmate',
+                  navBarIconColor,
+                  navBarSelectedColor,
+                ),
+                _buildNavItem(
+                  3,
+                  Icons.person_outline,
+                  Icons.person,
+                  'Profile',
+                  navBarIconColor,
+                  navBarSelectedColor,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -241,13 +248,14 @@ class _HomePageState extends State<HomePage>
   Future<void> _loadProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    
+
     // First try to get from Firestore
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
     if (mounted) {
       setState(() {
         _profileImageUrl = doc.data()?['profileImageUrl'] ?? user.photoURL;
@@ -267,7 +275,7 @@ class _HomePageState extends State<HomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final theme = Theme.of(context);
+    Theme.of(context);
 
     return SafeArea(
       child: RefreshIndicator(
@@ -282,11 +290,15 @@ class _HomePageState extends State<HomePage>
           ),
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.only(left: BuddyTheme.spacingMd, right: BuddyTheme.spacingMd, bottom: BuddyTheme.spacingMd),
+              padding: const EdgeInsets.only(
+                left: BuddyTheme.spacingMd,
+                right: BuddyTheme.spacingMd,
+                bottom: BuddyTheme.spacingMd,
+              ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildUpdatedHeader(context),
-                  
+
                   // Section header for Hostels & PGs
                   _buildSectionHeader(context, 'Hostels & PGs'),
                   const SizedBox(height: BuddyTheme.spacingMd),
@@ -298,19 +310,18 @@ class _HomePageState extends State<HomePage>
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildServicesBannerSection(context),
                   const SizedBox(height: BuddyTheme.spacingXl),
-                  
+
                   // Section header for Rooms
                   _buildSectionHeader(context, 'Rooms'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildRoomsBannerSection(context),
                   const SizedBox(height: BuddyTheme.spacingLg),
-                  
+
                   // Section header for Flatmates
                   _buildSectionHeader(context, 'Flatmates'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildFlatmatesBannerSection(context),
                   const SizedBox(height: BuddyTheme.spacingLg),
-                  
                 ]),
               ),
             ),
@@ -322,7 +333,6 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildUpdatedHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final user = FirebaseAuth.instance.currentUser;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -341,7 +351,10 @@ class _HomePageState extends State<HomePage>
                       style: theme.textTheme.titleLarge!.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 22,
-                        color: theme.brightness == Brightness.dark ? Colors.white : Colors.black87,
+                        color:
+                            theme.brightness == Brightness.dark
+                                ? Colors.white
+                                : Colors.black87,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -356,14 +369,20 @@ class _HomePageState extends State<HomePage>
                         children: [
                           Icon(
                             Icons.location_on_outlined,
-                            color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.7) : Colors.black54,
+                            color:
+                                theme.brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.7)
+                                    : Colors.black54,
                             size: 16,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             _selectedLocation,
                             style: theme.textTheme.bodyMedium!.copyWith(
-                              color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.7) : Colors.black54,
+                              color:
+                                  theme.brightness == Brightness.dark
+                                      ? Colors.white.withOpacity(0.7)
+                                      : Colors.black54,
                               fontSize: 14,
                             ),
                           ),
@@ -375,31 +394,59 @@ class _HomePageState extends State<HomePage>
               ),
               // Profile Avatar with black circle border and tap functionality
               GestureDetector(
-                onTap: () => widget.onTabChange?.call(3), // Navigate to Profile tab
+                onTap:
+                    () =>
+                        widget.onTabChange?.call(3), // Navigate to Profile tab
                 child: Container(
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.4) : Colors.black.withOpacity(0.4),
+                      color:
+                          theme.brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.4)
+                              : Colors.black.withOpacity(0.4),
                       width: 2,
                     ),
                   ),
                   child: Container(
                     margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+                      color:
+                          theme.brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.black.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: ClipOval(
-                      child: _profileImageUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: _profileImageUrl!,
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
+                      child:
+                          _profileImageUrl != null
+                              ? CachedNetworkImage(
+                                imageUrl: _profileImageUrl!,
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                                placeholder:
+                                    (context, url) => Container(
+                                      color: theme.colorScheme.surfaceVariant,
+                                      child: Icon(
+                                        Icons.person,
+                                        color: theme.colorScheme.primary,
+                                        size: 24,
+                                      ),
+                                    ),
+                                errorWidget:
+                                    (context, url, error) => Container(
+                                      color: theme.colorScheme.surfaceVariant,
+                                      child: Icon(
+                                        Icons.person,
+                                        color: theme.colorScheme.primary,
+                                        size: 24,
+                                      ),
+                                    ),
+                              )
+                              : Container(
                                 color: theme.colorScheme.surfaceVariant,
                                 child: Icon(
                                   Icons.person,
@@ -407,23 +454,6 @@ class _HomePageState extends State<HomePage>
                                   size: 24,
                                 ),
                               ),
-                              errorWidget: (context, url, error) => Container(
-                                color: theme.colorScheme.surfaceVariant,
-                                child: Icon(
-                                  Icons.person,
-                                  color: theme.colorScheme.primary,
-                                  size: 24,
-                                ),
-                              ),
-                            )
-                          : Container(
-                              color: theme.colorScheme.surfaceVariant,
-                              child: Icon(
-                                Icons.person,
-                                color: theme.colorScheme.primary,
-                                size: 24,
-                              ),
-                            ),
                     ),
                   ),
                 ),
@@ -440,32 +470,36 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildPromoBannerCarousel(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Define your promotional banners
     final List<Map<String, dynamic>> banners = [
       {
         'title': 'HOSTEL & PGs',
         'subtitle': 'Find Your Perfect Accommodation',
         'icon': Icons.home_work,
-        'image': 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80'
+        'image':
+            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80',
       },
       {
         'title': 'NEEDY SERVICES',
         'subtitle': 'Get Connected with Local Services',
         'icon': Icons.support_agent,
-        'image': 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=400&q=80',
+        'image':
+            'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=400&q=80',
       },
       {
         'title': 'FLATMATES FINDER',
         'subtitle': 'Connect With Perfect Roommates',
         'icon': Icons.people,
-        'image': 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80',
+        'image':
+            'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80',
       },
       {
         'title': 'ROOM FINDER',
         'subtitle': 'Discover Your Ideal Space',
         'icon': Icons.bed,
-        'image': 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80',
+        'image':
+            'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80',
       },
     ];
 
@@ -484,9 +518,9 @@ class _HomePageState extends State<HomePage>
             children: [
               Text(
                 'Select Location',
-                style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               ListTile(
@@ -538,7 +572,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildHostelsBannerSection(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return InkWell(
       onTap: () => Navigator.pushNamed(context, '/hostelpg'),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
@@ -559,20 +593,30 @@ class _HomePageState extends State<HomePage>
             ClipRRect(
               borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
               child: CachedNetworkImage(
-                imageUrl: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
+                imageUrl:
+                    'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Shimmer.fromColors(
-                  baseColor: theme.colorScheme.surfaceVariant,
-                  highlightColor: theme.colorScheme.surface,
-                  child: Container(height: 180, color: theme.colorScheme.surfaceVariant),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 180,
-                  color: theme.colorScheme.surfaceVariant,
-                  child: Icon(Icons.business, color: BuddyTheme.primaryColor, size: 50),
-                ),
+                placeholder:
+                    (context, url) => Shimmer.fromColors(
+                      baseColor: theme.colorScheme.surfaceVariant,
+                      highlightColor: theme.colorScheme.surface,
+                      child: Container(
+                        height: 180,
+                        color: theme.colorScheme.surfaceVariant,
+                      ),
+                    ),
+                errorWidget:
+                    (context, url, error) => Container(
+                      height: 180,
+                      color: theme.colorScheme.surfaceVariant,
+                      child: Icon(
+                        Icons.business,
+                        color: BuddyTheme.primaryColor,
+                        size: 50,
+                      ),
+                    ),
               ),
             ),
             Container(
@@ -581,7 +625,10 @@ class _HomePageState extends State<HomePage>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.7)],
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.7),
+                  ],
                 ),
               ),
             ),
@@ -603,7 +650,10 @@ class _HomePageState extends State<HomePage>
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(18),
@@ -629,7 +679,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildRoomsBannerSection(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return InkWell(
       onTap: () => widget.onTabChange?.call(1), // Navigate to Need Room tab
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
@@ -650,20 +700,30 @@ class _HomePageState extends State<HomePage>
             ClipRRect(
               borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
               child: CachedNetworkImage(
-                imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=800&q=80',
+                imageUrl:
+                    'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=800&q=80',
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Shimmer.fromColors(
-                  baseColor: theme.colorScheme.surfaceVariant,
-                  highlightColor: theme.colorScheme.surface,
-                  child: Container(height: 180, color: theme.colorScheme.surfaceVariant),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 180,
-                  color: theme.colorScheme.surfaceVariant,
-                  child: Icon(Icons.hotel, color: BuddyTheme.successColor, size: 50),
-                ),
+                placeholder:
+                    (context, url) => Shimmer.fromColors(
+                      baseColor: theme.colorScheme.surfaceVariant,
+                      highlightColor: theme.colorScheme.surface,
+                      child: Container(
+                        height: 180,
+                        color: theme.colorScheme.surfaceVariant,
+                      ),
+                    ),
+                errorWidget:
+                    (context, url, error) => Container(
+                      height: 180,
+                      color: theme.colorScheme.surfaceVariant,
+                      child: Icon(
+                        Icons.hotel,
+                        color: BuddyTheme.successColor,
+                        size: 50,
+                      ),
+                    ),
               ),
             ),
             Container(
@@ -672,7 +732,10 @@ class _HomePageState extends State<HomePage>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.7)],
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.7),
+                  ],
                 ),
               ),
             ),
@@ -694,7 +757,10 @@ class _HomePageState extends State<HomePage>
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(18),
@@ -720,7 +786,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildFlatmatesBannerSection(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return InkWell(
       onTap: () => widget.onTabChange?.call(2), // Navigate to Need Flatmate tab
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
@@ -741,20 +807,30 @@ class _HomePageState extends State<HomePage>
             ClipRRect(
               borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
               child: CachedNetworkImage(
-                imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
+                imageUrl:
+                    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Shimmer.fromColors(
-                  baseColor: theme.colorScheme.surfaceVariant,
-                  highlightColor: theme.colorScheme.surface,
-                  child: Container(height: 180, color: theme.colorScheme.surfaceVariant),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 180,
-                  color: theme.colorScheme.surfaceVariant,
-                  child: Icon(Icons.group, color: BuddyTheme.warningColor, size: 50),
-                ),
+                placeholder:
+                    (context, url) => Shimmer.fromColors(
+                      baseColor: theme.colorScheme.surfaceVariant,
+                      highlightColor: theme.colorScheme.surface,
+                      child: Container(
+                        height: 180,
+                        color: theme.colorScheme.surfaceVariant,
+                      ),
+                    ),
+                errorWidget:
+                    (context, url, error) => Container(
+                      height: 180,
+                      color: theme.colorScheme.surfaceVariant,
+                      child: Icon(
+                        Icons.group,
+                        color: BuddyTheme.warningColor,
+                        size: 50,
+                      ),
+                    ),
               ),
             ),
             Container(
@@ -763,7 +839,10 @@ class _HomePageState extends State<HomePage>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.7)],
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.7),
+                  ],
                 ),
               ),
             ),
@@ -785,7 +864,10 @@ class _HomePageState extends State<HomePage>
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(18),
@@ -811,7 +893,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildServicesBannerSection(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return InkWell(
       onTap: () => Navigator.pushNamed(context, '/services'),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
@@ -832,20 +914,30 @@ class _HomePageState extends State<HomePage>
             ClipRRect(
               borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
               child: CachedNetworkImage(
-                imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80',
+                imageUrl:
+                    'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80',
                 height: 220,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Shimmer.fromColors(
-                  baseColor: theme.colorScheme.surfaceVariant,
-                  highlightColor: theme.colorScheme.surface,
-                  child: Container(height: 220, color: theme.colorScheme.surfaceVariant),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 220,
-                  color: theme.colorScheme.surfaceVariant,
-                  child: Icon(Icons.room_service, color: BuddyTheme.accentColor, size: 50),
-                ),
+                placeholder:
+                    (context, url) => Shimmer.fromColors(
+                      baseColor: theme.colorScheme.surfaceVariant,
+                      highlightColor: theme.colorScheme.surface,
+                      child: Container(
+                        height: 220,
+                        color: theme.colorScheme.surfaceVariant,
+                      ),
+                    ),
+                errorWidget:
+                    (context, url, error) => Container(
+                      height: 220,
+                      color: theme.colorScheme.surfaceVariant,
+                      child: Icon(
+                        Icons.room_service,
+                        color: BuddyTheme.accentColor,
+                        size: 50,
+                      ),
+                    ),
               ),
             ),
             Container(
@@ -854,7 +946,10 @@ class _HomePageState extends State<HomePage>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.8)],
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.8),
+                  ],
                 ),
               ),
             ),
@@ -881,14 +976,17 @@ class _HomePageState extends State<HomePage>
                     runSpacing: 6,
                     children: [
                       _buildServiceChip('📚 Library', BuddyTheme.primaryColor),
-                      _buildServiceChip('🍽️ Mess', BuddyTheme.successColor),
+                      _buildServiceChip('🍽 Mess', BuddyTheme.successColor),
                       _buildServiceChip('☕ Cafe', BuddyTheme.accentColor),
                       _buildServiceChip('🎯 More', BuddyTheme.secondaryColor),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(18),
@@ -971,10 +1069,7 @@ class _BannerCarouselWidget extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
   final ThemeData theme;
 
-  const _BannerCarouselWidget({
-    required this.banners,
-    required this.theme,
-  });
+  const _BannerCarouselWidget({required this.banners, required this.theme});
 
   @override
   State<_BannerCarouselWidget> createState() => _BannerCarouselWidgetState();
@@ -1052,23 +1147,26 @@ class _BannerCarouselWidgetState extends State<_BannerCarouselWidget> {
                         height: 120,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Shimmer.fromColors(
-                          baseColor: widget.theme.colorScheme.surfaceVariant,
-                          highlightColor: widget.theme.colorScheme.surface,
-                          child: Container(
-                            height: 120,
-                            color: widget.theme.colorScheme.surfaceVariant,
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          height: 120,
-                          color: widget.theme.colorScheme.surface,
-                          child: Icon(
-                            banner['icon'] as IconData,
-                            size: 40,
-                            color: widget.theme.colorScheme.primary,
-                          ),
-                        ),
+                        placeholder:
+                            (context, url) => Shimmer.fromColors(
+                              baseColor:
+                                  widget.theme.colorScheme.surfaceVariant,
+                              highlightColor: widget.theme.colorScheme.surface,
+                              child: Container(
+                                height: 120,
+                                color: widget.theme.colorScheme.surfaceVariant,
+                              ),
+                            ),
+                        errorWidget:
+                            (context, url, error) => Container(
+                              height: 120,
+                              color: widget.theme.colorScheme.surface,
+                              child: Icon(
+                                banner['icon'] as IconData,
+                                size: 40,
+                                color: widget.theme.colorScheme.primary,
+                              ),
+                            ),
                       ),
                     ),
                     // Dark overlay for better text readability
@@ -1090,19 +1188,21 @@ class _BannerCarouselWidgetState extends State<_BannerCarouselWidget> {
                               children: [
                                 Text(
                                   banner['title'] as String,
-                                  style: widget.theme.textTheme.titleLarge?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
+                                  style: widget.theme.textTheme.titleLarge
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   banner['subtitle'] as String,
-                                  style: widget.theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: 14,
-                                  ),
+                                  style: widget.theme.textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 14,
+                                      ),
                                 ),
                               ],
                             ),
@@ -1133,9 +1233,10 @@ class _BannerCarouselWidgetState extends State<_BannerCarouselWidget> {
               height: 4,
               width: _currentIndex == index ? 16 : 4,
               decoration: BoxDecoration(
-                color: _currentIndex == index
-                    ? BuddyTheme.primaryColor
-                    : BuddyTheme.primaryColor.withOpacity(0.3),
+                color:
+                    _currentIndex == index
+                        ? BuddyTheme.primaryColor
+                        : BuddyTheme.primaryColor.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
