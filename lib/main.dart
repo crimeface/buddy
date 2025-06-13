@@ -15,7 +15,7 @@ import 'my_listings.dart';
 import 'display pages/hostelpg_details.dart';
 import 'privacy_page.dart';
 import 'edit_hostelpg.dart';
-import 'landing_screen.dart';
+import 'onboarding_screen.dart'; // Changed from landing_screen.dart
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
@@ -111,32 +111,32 @@ class AuthStateHandler extends StatelessWidget {
         } else if (snapshot.hasData) {
           return const HomeScreen();
         } else {
-          // Show LandingScreen first, then navigate to LoginPage
-          return LandingScreenWrapper();
+          // Show OnboardingScreen first, then navigate to LoginPage
+          return OnboardingScreenWrapper(); // Changed from LandingScreenWrapper
         }
       },
     );
   }
 }
 
-class LandingScreenWrapper extends StatefulWidget {
+class OnboardingScreenWrapper extends StatefulWidget { // Renamed class
   @override
-  State<LandingScreenWrapper> createState() => _LandingScreenWrapperState();
+  State<OnboardingScreenWrapper> createState() => _OnboardingScreenWrapperState();
 }
 
-class _LandingScreenWrapperState extends State<LandingScreenWrapper> {
-  bool _showLanding = true;
+class _OnboardingScreenWrapperState extends State<OnboardingScreenWrapper> { // Updated class name
+  bool _showOnboarding = true; // Renamed variable
 
-  void _onLandingComplete() {
+  void _onOnboardingComplete() { // Renamed method
     setState(() {
-      _showLanding = false;
+      _showOnboarding = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_showLanding) {
-      return LandingScreen(onContinue: _onLandingComplete);
+    if (_showOnboarding) {
+      return OnboardingScreen(onComplete: _onOnboardingComplete); // Changed to OnboardingScreen
     } else {
       return const LoginPage();
     }

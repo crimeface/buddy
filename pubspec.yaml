@@ -55,6 +55,8 @@ dependencies:
   carousel_slider: ^5.0.0
   firebase_storage: ^11.7.7
   share_plus: ^10.0.0
+  lottie: ^2.7.0
+  animations: ^2.0.11
 
 dev_dependencies:
   flutter_test:
@@ -82,3 +84,7 @@ flutter:
   assets:
     - assets/images/background.jpg
     - assets/images/Landing screen of campusnest(final).png
+    - assets/animations/Cafe.json
+    - assets/animations/Flatmate.json
+    - assets/animations/Hostel.json
+    - assets/animations/Room.json
