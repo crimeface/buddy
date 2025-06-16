@@ -221,9 +221,8 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
       ),
     );
   }
-
   void _navigateToEmailAuth() {
-    Navigator.pushNamed(context, '/signup');
+    Navigator.pushNamed(context, '/login');
   }
 
   void _navigateToPhoneAuth() {
