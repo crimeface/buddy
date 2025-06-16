@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show FieldValue;
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/cloudinary_service.dart';
@@ -273,7 +274,8 @@ class _ListRoomFormState extends State<ListRoomForm>
         (url) => url.isNotEmpty,
         orElse: () => '',
       ),
-      'createdAt': now.toIso8601String(),
+      'timestamp': FieldValue.serverTimestamp(), // Use server timestamp for consistent sorting
+      'createdAt': FieldValue.serverTimestamp(), // Use server timestamp instead of client time
       'selectedPlan': _selectedPlan,
       'expiryDate': expiryDate.toIso8601String(),
       'visibility': true, // Always true on creation,

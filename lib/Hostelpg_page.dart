@@ -50,68 +50,100 @@ class _HostelPgPageState extends State<HostelPgPage> {
   Future<void> _fetchHostels() async {
     setState(() => _isLoading = true);
     try {
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('hostel_listings')
-              .where('visibility', isEqualTo: true) // Only visible hostels
-              .get();
+      final now = DateTime.now();
+      // Fetch all visible listings
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('hostel_listings')
+          .where('visibility', isEqualTo: true)
+          .get();
 
       final List<Map<String, dynamic>> loadedHostels = [];
+      final batch = FirebaseFirestore.instance.batch();
+      
       for (var doc in querySnapshot.docs) {
         final v = doc.data();
-        loadedHostels.add({
-          ...v,
-          'key': doc.id,
-          // Aliases for filtering and display
-          'location': v['address'] ?? '',
-          'type': v['hostelType'] ?? '',
-          'amenities': v['facilities'] ?? [],
-          'imageUrl':
-              (v['uploadedPhotos'] is Map &&
-                      (v['uploadedPhotos'] as Map).containsKey(
-                        'Building Front',
-                      ))
-                  ? (v['uploadedPhotos'] as Map)['Building Front']
-                  : (v['uploadedPhotos'] is Map &&
-                      (v['uploadedPhotos'] as Map).isNotEmpty)
-                  ? (v['uploadedPhotos'] as Map).values.first
-                  : (v['uploadedPhotos'] is List &&
-                      (v['uploadedPhotos'] as List).isNotEmpty)
-                  ? v['uploadedPhotos'][0]
-                  : '',
-          'price':
-              (v['roomTypes'] is List && (v['roomTypes'] as List).isNotEmpty)
-                  ? (v['roomTypes'][0]['rentPerPerson']?.toString() ?? '')
-                  : '',
-          // The rest are your original fields
-          'title': v['title'] ?? '',
-          'hostelType': v['hostelType'] ?? '',
-          'hostelFor': v['hostelFor'] ?? '',
-          'contactPerson': v['contactPerson'] ?? '',
-          'phone': v['phone'] ?? '',
-          'email': v['email'] ?? '',
-          'address': v['address'] ?? '',
-          'landmark': v['landmark'] ?? '',
-          'mapLink': v['mapLink'] ?? '',
-          'roomTypes': v['roomTypes'] ?? [],
-          'facilities': v['facilities'] ?? [],
-          'hasEntryTimings': v['hasEntryTimings'] ?? false,
-          'entryTime': v['entryTime'] ?? '',
-          'smokingPolicy': v['smokingPolicy'] ?? '',
-          'drinkingPolicy': v['drinkingPolicy'] ?? '',
-          'guestsPolicy': v['guestsPolicy'] ?? '',
-          'petsPolicy': v['petsPolicy'] ?? '',
-          'foodType': v['foodType'] ?? '',
-          'availableFromDate': v['availableFromDate'] ?? '',
-          'minimumStay': v['minimumStay'] ?? '',
-          'bookingMode': v['bookingMode'] ?? '',
-          'uploadedPhotos': v['uploadedPhotos'] ?? [],
-          'description': v['description'] ?? '',
-          'offers': v['offers'] ?? '',
-          'specialFeatures': v['specialFeatures'] ?? '',
-          'createdAt': v['createdAt'] ?? '',
-        });
+        bool isExpired = false;
+        
+        // Check if listing is expired
+        DateTime? expiryDate;
+        if (v['expiryDate'] != null) {
+          if (v['expiryDate'] is Timestamp) {
+            expiryDate = (v['expiryDate'] as Timestamp).toDate();
+          } else if (v['expiryDate'] is String) {
+            expiryDate = DateTime.tryParse(v['expiryDate']);
+          }
+        }
+
+        // If expired, mark for visibility update
+        if (expiryDate != null && expiryDate.isBefore(now)) {
+          isExpired = true;
+          if (v['visibility'] == true) {  // Only update if currently visible
+            batch.update(doc.reference, {'visibility': false});
+          }
+        }
+
+        // Only add to display list if not expired and visible
+        if (!isExpired && v['visibility'] == true) {
+          loadedHostels.add({
+            ...v,
+            'key': doc.id,
+            // Aliases for filtering and display
+            'location': v['address'] ?? '',
+            'type': v['hostelType'] ?? '',
+            'amenities': v['facilities'] ?? [],
+            'imageUrl':
+                (v['uploadedPhotos'] is Map &&
+                        (v['uploadedPhotos'] as Map).containsKey(
+                          'Building Front',
+                        ))
+                    ? (v['uploadedPhotos'] as Map)['Building Front']
+                    : (v['uploadedPhotos'] is Map &&
+                        (v['uploadedPhotos'] as Map).isNotEmpty)
+                    ? (v['uploadedPhotos'] as Map).values.first
+                    : (v['uploadedPhotos'] is List &&
+                        (v['uploadedPhotos'] as List).isNotEmpty)
+                    ? v['uploadedPhotos'][0]
+                    : '',
+            // ... existing fields ...
+            'createdAt': v['createdAt'] ?? '',
+          });
+        }
       }
+
+      // Sort hostels by createdAt timestamp, newest first
+      loadedHostels.sort((a, b) {
+        var aTime = a['createdAt'];
+        var bTime = b['createdAt'];
+
+        // Convert to DateTime if needed
+        if (aTime is Timestamp) {
+          aTime = aTime.toDate();
+        } else if (aTime is String) {
+          aTime = DateTime.tryParse(aTime);
+        }
+
+        if (bTime is Timestamp) {
+          bTime = bTime.toDate();
+        } else if (bTime is String) {
+          bTime = DateTime.tryParse(bTime);
+        }
+
+        // Handle null cases
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+
+        // Sort in descending order (newest first)
+        return bTime.compareTo(aTime);
+      });
+      
+      // Commit all visibility updates in one batch
+      try {
+        await batch.commit();
+      } catch (e) {
+        print('Error updating expired listings: $e');
+      }
+      
       setState(() {
         _hostels = loadedHostels;
         _isLoading = false;
@@ -121,9 +153,12 @@ class _HostelPgPageState extends State<HostelPgPage> {
         _hostels = [];
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load hostels: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load hostels: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

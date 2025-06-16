@@ -62,6 +62,33 @@ class _ServicesPageState extends State<ServicesPage> {
           loaded.add(data); // <-- FIXED: was _services.add(data)
         }
       }
+      // Sort services by createdAt timestamp, newest first
+      loaded.sort((a, b) {
+        var aTime = a['createdAt'];
+        var bTime = b['createdAt'];
+
+        // Convert to DateTime if needed
+        if (aTime is Timestamp) {
+          aTime = aTime.toDate();
+        } else if (aTime is String) {
+          aTime = DateTime.tryParse(aTime);
+        }
+
+        if (bTime is Timestamp) {
+          bTime = bTime.toDate();
+        } else if (bTime is String) {
+          bTime = DateTime.tryParse(bTime);
+        }
+
+        // Handle null cases
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+
+        // Sort in descending order (newest first)
+        return bTime.compareTo(aTime);
+      });
+
       setState(() {
         _services = loaded;
         _isLoading = false;

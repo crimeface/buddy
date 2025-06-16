@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:animations/animations.dart';
+import 'authentication_options.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -359,7 +360,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                         child: ElevatedButton(
                           onPressed: () {
                             if (_currentPage == _pages.length - 1) {
-                              widget.onComplete();
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AuthOptionsPage(),
+                                ),
+                              );
                             } else {
                               _nextPage();
                             }
@@ -408,7 +414,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                 ),
                 child: GestureDetector(
                   onTap: () {
-                    widget.onComplete();
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AuthOptionsPage(),
+                      ),
+                    );
                   },
                   child: Text(
                     'Skip',

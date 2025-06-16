@@ -66,18 +66,45 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       _isLoading = true;
     });
     try {
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('roomRequests')
-              .where('visibility', isEqualTo: true)
-              .get();
+      final now = DateTime.now();
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('roomRequests')
+          .where('visibility', isEqualTo: true)
+          .get();
 
       final List<Map<String, dynamic>> loaded = [];
+      final batch = FirebaseFirestore.instance.batch();
+      
       for (var doc in querySnapshot.docs) {
         final flatmate = doc.data();
         flatmate['key'] = doc.id;
+        
+        // Check if the listing is expired
+        if (flatmate['expiryDate'] != null) {
+          DateTime expiryDate;
+          if (flatmate['expiryDate'] is Timestamp) {
+            expiryDate = (flatmate['expiryDate'] as Timestamp).toDate();
+          } else if (flatmate['expiryDate'] is String) {
+            expiryDate = DateTime.parse(flatmate['expiryDate']);
+          } else {
+            continue; // Skip if expiryDate is in invalid format
+          }
+          
+          if (expiryDate.isBefore(now)) {
+            // If expired, update visibility to false
+            batch.update(
+              doc.reference,
+              {'visibility': false}
+            );
+            continue; // Skip adding to loaded list since it's expired
+          }
+        }
+        
         loaded.add(flatmate);
       }
+      
+      // Commit all visibility updates in one batch
+      await batch.commit();
       setState(() {
         _flatmates = loaded;
         _isLoading = false;

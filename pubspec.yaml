@@ -88,3 +88,5 @@ flutter:
     - assets/animations/Flatmate.json
     - assets/animations/Hostel.json
     - assets/animations/Room.json
+    - assets/animations/register.json
+    - assets/animations/login.json

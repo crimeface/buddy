@@ -107,6 +107,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
     });
     try {
       final now = DateTime.now();
+      // Simple query without ordering
       final querySnapshot =
           await FirebaseFirestore.instance
               .collection('room_listings')
@@ -114,17 +115,69 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
               .get();
 
       final List<Map<String, dynamic>> loadedRooms = [];
+      final batch = FirebaseFirestore.instance.batch();
+      
       for (var doc in querySnapshot.docs) {
         final room = doc.data();
-        // Only show if not expired
-        if (room['expiryDate'] != null &&
-            DateTime.tryParse(room['expiryDate']) != null &&
-            DateTime.parse(room['expiryDate']).isAfter(now)) {
+        DateTime? expiryDate;
+        
+        // Handle different expiry date formats
+        if (room['expiryDate'] != null) {
+          if (room['expiryDate'] is Timestamp) {
+            expiryDate = (room['expiryDate'] as Timestamp).toDate();
+          } else if (room['expiryDate'] is String) {
+            expiryDate = DateTime.tryParse(room['expiryDate']);
+          }
+        }
+
+        // Check if listing is expired
+        if (expiryDate != null && expiryDate.isBefore(now)) {
+          // If expired, update visibility to false
+          batch.update(
+            doc.reference,
+            {'visibility': false}
+          );
+          continue; // Skip adding to loaded list since it's expired
+        }
+        
+        // If not expired, add to the list to display
+        if (expiryDate != null && expiryDate.isAfter(now)) {
           room['id'] = doc.id;
           room['key'] = doc.id;
           loadedRooms.add(room);
         }
       }
+
+      // Sort the rooms by createdAt timestamp, newest first
+      loadedRooms.sort((a, b) {
+        var aTime = a['createdAt'];
+        var bTime = b['createdAt'];
+
+        // Convert to DateTime if needed
+        if (aTime is Timestamp) {
+          aTime = aTime.toDate();
+        } else if (aTime is String) {
+          aTime = DateTime.tryParse(aTime);
+        }
+
+        if (bTime is Timestamp) {
+          bTime = bTime.toDate();
+        } else if (bTime is String) {
+          bTime = DateTime.tryParse(bTime);
+        }
+
+        // Handle null cases
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+
+        // Sort in descending order (newest first)
+        return bTime.compareTo(aTime);
+      });
+      
+      // Commit all visibility updates in one batch
+      await batch.commit();
+      
       setState(() {
         _rooms = loadedRooms;
         _isLoading = false;
@@ -257,10 +310,9 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
               return;
             },
             color: BuddyTheme.primaryColor,
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Padding(
                         padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -944,28 +996,27 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color primaryColor =
-        isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
-    final Color accentColor =
-        isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
-    final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
-    final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
-    final Color textSecondary =
-        isDark ? Colors.white70 : const Color(0xFF718096);
-    final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
-    final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final Color primaryColor =
+      isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
+  final Color accentColor =
+      isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
+  final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
+  final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
+  final Color textSecondary =
+      isDark ? Colors.white70 : const Color(0xFF718096);
+  final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+  final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Property Details'),
-        backgroundColor: BuddyTheme.primaryColor,
-      ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _roomDetails != null
-              ? SingleChildScrollView(
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Property Details'),
+      backgroundColor: BuddyTheme.primaryColor,
+    ),
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _roomDetails != null
+            ? SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                   child: Container(
@@ -994,8 +1045,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                                 color: textPrimary,
                               ),
                             ),
-                          if (_roomDetails!['location']?.isNotEmpty ??
-                              false) ...[
+                          if (_roomDetails!['location']?.isNotEmpty ?? false) ...[
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -1016,8 +1066,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                               ],
                             ),
                           ],
-                          if (_roomDetails!['availableFromDate']?.isNotEmpty ??
-                              false) ...[
+                          if (_roomDetails!['availableFromDate']?.isNotEmpty ?? false) ...[
                             const SizedBox(height: 4),
                             Text(
                               'Available from ${_formatDate(_roomDetails!['availableFromDate'].toString())}',
@@ -1040,8 +1089,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                              if (_roomDetails!['roomType']?.isNotEmpty ??
-                                  false) ...[
+                              if (_roomDetails!['roomType']?.isNotEmpty ?? false) ...[
                                 const SizedBox(width: 16),
                                 Text(
                                   _roomDetails!['roomType']!,
@@ -1052,8 +1100,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                                   ),
                                 ),
                               ],
-                              if (_roomDetails!['flatSize']?.isNotEmpty ??
-                                  false) ...[
+                              if (_roomDetails!['flatSize']?.isNotEmpty ?? false) ...[
                                 const SizedBox(width: 16),
                                 Text(
                                   _roomDetails!['flatSize']!,
@@ -1074,40 +1121,36 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
-                              children:
-                                  (_roomDetails!['facilities'] as Map).entries
-                                      .where((e) => e.value == true)
-                                      .map(
-                                        (e) => Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: BuddyTheme.primaryColor
-                                                .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color: borderColor,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            e.key,
-                                            style: TextStyle(
-                                              color: textSecondary,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
+                              children: (_roomDetails!['facilities'] as Map)
+                                  .entries
+                                  .where((e) => e.value == true)
+                                  .map(
+                                    (e) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: BuddyTheme.primaryColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: borderColor,
                                         ),
-                                      )
-                                      .toList(),
+                                      ),
+                                      child: Text(
+                                        e.key,
+                                        style: TextStyle(
+                                          color: textSecondary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ],
-                          if (_roomDetails!['description']?.isNotEmpty ??
-                              false) ...[
+                          if (_roomDetails!['description']?.isNotEmpty ?? false) ...[
                             const SizedBox(height: 20),
                             Text(
                               'Description',
@@ -1163,12 +1206,12 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                   ),
                 ),
               )
-              : Center(
+            : Center(
                 child: Text(
                   'Property not found.',
                   style: TextStyle(fontSize: 18, color: textPrimary),
                 ),
               ),
-    );
-  }
+  );
+}
 }

@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class EditPropertyPage extends StatefulWidget {
   final Map<String, dynamic> propertyData;
   const EditPropertyPage({Key? key, required this.propertyData})
-      : super(key: key);
+    : super(key: key);
 
   @override
   State<EditPropertyPage> createState() => _EditPropertyPageState();
@@ -13,7 +13,7 @@ class EditPropertyPage extends StatefulWidget {
 
 class _EditPropertyPageState extends State<EditPropertyPage> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Payment Plan
   String? selectedPlan;
   Map<String, Map<String, double>> _planPrices = {};
@@ -41,10 +41,10 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
       text: widget.propertyData['location'] ?? '',
     );
     _rentController = TextEditingController(
-      text: widget.propertyData['monthlyRent']?.toString() ?? '',
+      text: widget.propertyData['rent']?.toString() ?? '',
     );
     _securityDepositController = TextEditingController(
-      text: widget.propertyData['securityDeposit']?.toString() ?? '',
+      text: widget.propertyData['deposit']?.toString() ?? '',
     );
     _brokerageController = TextEditingController(
       text: widget.propertyData['brokerage']?.toString() ?? '',
@@ -58,10 +58,11 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     _descriptionController = TextEditingController(
       text: widget.propertyData['description'] ?? '',
     );
-    _availableFrom = widget.propertyData['availableFrom'] != null &&
-            widget.propertyData['availableFrom'].toString().isNotEmpty
-        ? DateTime.tryParse(widget.propertyData['availableFrom'])
-        : null;
+    _availableFrom =
+        widget.propertyData['availableFromDate'] != null &&
+                widget.propertyData['availableFromDate'].toString().isNotEmpty
+            ? DateTime.tryParse(widget.propertyData['availableFromDate'])
+            : null;
 
     _fetchPlanPrices();
   }
@@ -85,20 +86,23 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
       _planPricesError = null;
     });
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('plan_prices')
-          .doc('list_room')
-          .collection('day_wise_prices')
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('plan_prices')
+              .doc('list_room')
+              .collection('day_wise_prices')
+              .get();
       Map<String, Map<String, double>> prices = {};
       for (var d in doc.docs) {
         final data = d.data();
-        double? actual = (data['actual_price'] is int)
-            ? (data['actual_price'] as int).toDouble()
-            : (data['actual_price'] as num?)?.toDouble();
-        double? discounted = (data['discounted_price'] is int)
-            ? (data['discounted_price'] as int).toDouble()
-            : (data['discounted_price'] as num?)?.toDouble();
+        double? actual =
+            (data['actual_price'] is int)
+                ? (data['actual_price'] as int).toDouble()
+                : (data['actual_price'] as num?)?.toDouble();
+        double? discounted =
+            (data['discounted_price'] is int)
+                ? (data['discounted_price'] as int).toDouble()
+                : (data['discounted_price'] as num?)?.toDouble();
         prices[d.id] = {'actual': actual ?? 0, 'discounted': discounted ?? 0};
       }
       // Map Firestore keys to your plan keys
@@ -138,9 +142,9 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: const Color(0xFF4A9EFF),
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: const Color(0xFF4A9EFF)),
           ),
           child: child!,
         );
@@ -153,7 +157,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     }
   }
 
-  void _saveChanges() {
+  void _saveChanges() async {
     if (_formKey.currentState!.validate()) {
       if (selectedPlan == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,37 +165,77 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
             content: const Text('Please select a payment plan'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
         return;
       }
 
-      final selectedPlanData = _planPrices[selectedPlan];
+      // Set createdAt to now
+      final now = DateTime.now();
+      // Calculate expiryDate based on plan
+      int days = 0;
+      switch (selectedPlan) {
+        case '1Day':
+          days = 1;
+          break;
+        case '7Day':
+          days = 7;
+          break;
+        case '15Day':
+          days = 15;
+          break;
+        case '1Month':
+          days = 30;
+          break;
+        default:
+          days = 0;
+      }
+      final expiryDate = now.add(Duration(days: days));
+      final visibility = expiryDate.isAfter(now);
+
+      // Update Firestore document directly
+      final docId =
+          widget.propertyData['key'] ??
+          widget.propertyData['id'] ??
+          widget.propertyData['propertyId'];
+      if (docId != null) {
+        await FirebaseFirestore.instance
+            .collection('room_listings')
+            .doc(docId)
+            .update({
+              'createdAt': now.toIso8601String(),
+              'expiryDate': expiryDate.toIso8601String(),
+              'visibility': visibility,
+              'title': _titleController.text,
+              'location': _locationController.text,
+              'rent': double.tryParse(_rentController.text) ?? 0,
+              'deposit': double.tryParse(_securityDepositController.text) ?? 0,
+              'brokerage': double.tryParse(_brokerageController.text) ?? 0,
+              'currentFlatmates':
+                  int.tryParse(_currentFlatmatesController.text) ?? 0,
+              'maxFlatmates': int.tryParse(_maxFlatmatesController.text) ?? 0,
+              'availableFromDate':
+                  _availableFrom != null
+                      ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
+                      : '',
+              'selectedPlan': selectedPlan,
+            });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Room details updated!'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
-      Navigator.pop(context, {
-        'title': _titleController.text,
-        'monthlyRent': double.tryParse(_rentController.text) ?? 0,
-        'securityDeposit': double.tryParse(_securityDepositController.text) ?? 0,
-        'brokerage': double.tryParse(_brokerageController.text) ?? 0,
-        'currentFlatmates': int.tryParse(_currentFlatmatesController.text) ?? 0,
-        'maxFlatmates': int.tryParse(_maxFlatmatesController.text) ?? 0,
-        'availableFrom': _availableFrom != null
-            ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
-            : '',
-        'selectedPlan': selectedPlan,
-        'planDays': selectedPlanData?['days'],
-        'planPrice': selectedPlanData?['price'],
-        'isVisible': true,
-      });
+      Navigator.pop(context, {'updated': true});
     }
   }
 
@@ -219,11 +263,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                   color: const Color(0xFF4A9EFF).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  icon,
-                  color: const Color(0xFF4A9EFF),
-                  size: 20,
-                ),
+                child: Icon(icon, color: const Color(0xFF4A9EFF), size: 20),
               ),
               const SizedBox(width: 12),
               Column(
@@ -281,11 +321,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
             color: Colors.white.withOpacity(0.7),
             fontSize: 14,
           ),
-          prefixIcon: Icon(
-            icon,
-            color: const Color(0xFF4A9EFF),
-            size: 20,
-          ),
+          prefixIcon: Icon(icon, color: const Color(0xFF4A9EFF), size: 20),
           filled: true,
           fillColor: const Color(0xFF3A3D46),
           border: OutlineInputBorder(
@@ -294,24 +330,15 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFF4A9EFF),
-              width: 2,
-            ),
+            borderSide: const BorderSide(color: Color(0xFF4A9EFF), width: 2),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Colors.red,
-              width: 1,
-            ),
+            borderSide: const BorderSide(color: Colors.red, width: 1),
           ),
           focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Colors.red,
-              width: 2,
-            ),
+            borderSide: const BorderSide(color: Colors.red, width: 2),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -330,125 +357,131 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
       children: [
         _isPlanPricesLoading
             ? Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A9EFF)),
-                ),
-              )
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A9EFF)),
+              ),
+            )
             : _planPricesError != null
-                ? Text(
-                    _planPricesError!,
-                    style: TextStyle(color: Colors.red),
-                  )
-                : _planPrices.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No plans available',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      )
-                    : Column(
-                        children: _planPrices.entries.map((entry) {
-                          String planName = entry.key;
-                          Map<String, double> planData = entry.value;
-                          bool hasDiscount = (planData['discounted'] ?? 0) > 0 && 
-                                          (planData['discounted'] ?? 0) < (planData['actual'] ?? 0);
-                          
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    selectedPlan = planName;
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: selectedPlan == planName
-                                        ? const Color(0xFF4A9EFF).withOpacity(0.1)
-                                        : const Color(0xFF3A3D46),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: selectedPlan == planName
-                                          ? const Color(0xFF4A9EFF)
-                                          : Colors.transparent,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Row(
+            ? Text(_planPricesError!, style: TextStyle(color: Colors.red))
+            : _planPrices.isEmpty
+            ? Center(
+              child: Text(
+                'No plans available',
+                style: TextStyle(color: Colors.red),
+              ),
+            )
+            : Column(
+              children:
+                  _planPrices.entries.map((entry) {
+                    String planName = entry.key;
+                    Map<String, double> planData = entry.value;
+                    bool hasDiscount =
+                        (planData['discounted'] ?? 0) > 0 &&
+                        (planData['discounted'] ?? 0) <
+                            (planData['actual'] ?? 0);
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              selectedPlan = planName;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color:
+                                  selectedPlan == planName
+                                      ? const Color(0xFF4A9EFF).withOpacity(0.1)
+                                      : const Color(0xFF3A3D46),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color:
+                                    selectedPlan == planName
+                                        ? const Color(0xFF4A9EFF)
+                                        : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              planName,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              children: [
-                                                if (hasDiscount) ...[
-                                                  Text(
-                                                    '₹${planData['discounted']?.toStringAsFixed(0) ?? ''}',
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF4A9EFF),
-                                                      fontSize: 18,
-                                                      fontWeight: FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    '₹${planData['actual']?.toStringAsFixed(0) ?? ''}',
-                                                    style: TextStyle(
-                                                      color: Colors.white.withOpacity(0.5),
-                                                      fontSize: 14,
-                                                      decoration: TextDecoration.lineThrough,
-                                                    ),
-                                                  ),
-                                                ] else
-                                                  Text(
-                                                    '₹${planData['actual']?.toStringAsFixed(0) ?? ''}',
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF4A9EFF),
-                                                      fontSize: 18,
-                                                      fontWeight: FontWeight.w700,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
+                                      Text(
+                                        planName,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      if (selectedPlan == planName)
-                                        Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFF4A9EFF),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.check,
-                                            color: Colors.white,
-                                            size: 16,
-                                          ),
-                                        ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          if (hasDiscount) ...[
+                                            Text(
+                                              '₹${planData['discounted']?.toStringAsFixed(0) ?? ''}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF4A9EFF),
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              '₹${planData['actual']?.toStringAsFixed(0) ?? ''}',
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(
+                                                  0.5,
+                                                ),
+                                                fontSize: 14,
+                                                decoration:
+                                                    TextDecoration.lineThrough,
+                                              ),
+                                            ),
+                                          ] else
+                                            Text(
+                                              '₹${planData['actual']?.toStringAsFixed(0) ?? ''}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF4A9EFF),
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 ),
-                              ),
+                                if (selectedPlan == planName)
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF4A9EFF),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                              ],
                             ),
-                          );
-                        }).toList(),
+                          ),
+                        ),
                       ),
+                    );
+                  }).toList(),
+            ),
       ],
     );
   }
@@ -491,23 +524,28 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                     controller: _titleController,
                     label: 'Listing Title',
                     icon: Icons.title_rounded,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter listing title'
-                        : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter listing title'
+                                : null,
                   ),
                   _buildTextField(
                     controller: TextEditingController(
-                      text: _availableFrom != null
-                          ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
-                          : '',
+                      text:
+                          _availableFrom != null
+                              ? DateFormat('yyyy-MM-dd').format(_availableFrom!)
+                              : '',
                     ),
                     label: 'Available From',
                     icon: Icons.date_range_rounded,
                     readOnly: true,
                     onTap: _pickAvailableFrom,
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Select available from date'
-                        : null,
+                    validator:
+                        (value) =>
+                            (value == null || value.isEmpty)
+                                ? 'Select available from date'
+                                : null,
                   ),
                 ],
               ),
@@ -523,18 +561,22 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                     label: 'Monthly Rent (₹ per person)',
                     icon: Icons.currency_rupee_rounded,
                     keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter monthly rent'
-                        : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter monthly rent'
+                                : null,
                   ),
                   _buildTextField(
                     controller: _securityDepositController,
                     label: 'Security Deposit (₹ per person)',
                     icon: Icons.lock_outline_rounded,
                     keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter security deposit'
-                        : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter security deposit'
+                                : null,
                   ),
                   _buildTextField(
                     controller: _brokerageController,
@@ -556,18 +598,22 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                     label: 'Current Flatmates',
                     icon: Icons.people_alt_rounded,
                     keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter current number of flatmates'
-                        : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter current number of flatmates'
+                                : null,
                   ),
                   _buildTextField(
                     controller: _maxFlatmatesController,
                     label: 'Maximum Flatmates',
                     icon: Icons.group_add_rounded,
                     keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter maximum number of flatmates'
-                        : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter maximum number of flatmates'
+                                : null,
                   ),
                 ],
               ),
@@ -602,15 +648,12 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 18,
-                      ),
+                      Icon(Icons.arrow_forward_rounded, size: 18),
                     ],
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
             ],
           ),

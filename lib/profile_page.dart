@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'theme.dart';
 import 'edit_profile.dart';
+import 'wishlist_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -260,10 +261,15 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           // --- End Change Price button ---
           _buildMenuOption(
-            icon: Icons.chat_bubble_outline,
+            icon: Icons.favorite_border,
             iconColor: BuddyTheme.secondaryColor,
-            title: 'Messages',
-            onTap: () {},
+            title: 'Wishlist',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => WishlistPage()),
+              );
+            },
             isDark: isDark,
           ),
           _buildMenuOption(
