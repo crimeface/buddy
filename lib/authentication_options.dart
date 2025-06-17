@@ -15,7 +15,7 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0E27) : const Color(0xFFF8FAFF),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -51,17 +51,11 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark 
-                ? [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)]
-                : [const Color(0xFF1E40AF), const Color(0xFF3B82F6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF)).withOpacity(0.3),
+                color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)).withOpacity(0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -88,7 +82,7 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
           'Choose how you\'d like to sign in',
           style: TextStyle(
             fontSize: 16,
-            color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF64748B),
+            color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -111,17 +105,11 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark 
-            ? [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)]
-            : [const Color(0xFF1E40AF), const Color(0xFF3B82F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF)).withOpacity(0.3),
+            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -170,17 +158,13 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-          width: 1.5,
-        ),
+        color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.black : Colors.grey).withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -189,29 +173,29 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
         child: InkWell(
           onTap: _navigateToPhoneAuth,
           borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
                 Icon(
                   Icons.phone_outlined,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                  color: Colors.white,
                   size: 20,
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     'Continue with Phone',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E3A8A),
+                      color: Colors.white,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  color: Colors.white70,
                   size: 16,
                 ),
               ],
@@ -220,11 +204,13 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
         ),
       ),
     );
-  }  void _navigateToEmailAuth() {
+  }
+
+  void _navigateToEmailAuth() {
     Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _navigateToPhoneAuth() {
-    Navigator.pushNamed(context, '/phone-auth');
+    Navigator.pushNamed(context, '/phone-verification');
   }
 }

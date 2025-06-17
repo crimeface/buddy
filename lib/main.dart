@@ -17,6 +17,7 @@ import 'privacy_page.dart';
 import 'edit_hostelpg.dart';
 import 'onboarding_screen.dart'; // Changed from landing_screen.dart
 import 'authentication_options.dart'; // Importing the new Authentication Options page
+import 'phone_verification.dart'; // Added import for phone verification
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
@@ -45,6 +46,7 @@ class BuddyApp extends StatelessWidget {
         '/auth-options': (context) => const AuthOptionsPage(), // New route for Authentication Options
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
+        '/phone-verification': (context) => PhoneVerificationPage(), // Added route for phone verification
         '/home': (context) => const HomeScreen(),
         '/hostelpg': (context) => const HostelPgPage(),
         '/services': (context) => const ServicesPage(),

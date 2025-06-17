@@ -157,21 +157,6 @@ class _SignUpPageState extends State<SignUpPage>
     }
   }
 
-  Widget _buildFloatingElement(double top, double left, double size, Color color, bool isDark) {
-    return Positioned(
-      top: top,
-      left: left,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color.withOpacity(isDark ? 0.08 : 0.1),
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
-  }
-
   Widget _buildCustomTextField({
     required TextEditingController controller,
     required String hintText,
@@ -187,13 +172,13 @@ class _SignUpPageState extends State<SignUpPage>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF))
-                .withOpacity(0.1),
+            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                .withOpacity(0.3),
             blurRadius: 8,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -202,28 +187,26 @@ class _SignUpPageState extends State<SignUpPage>
         obscureText: obscureText,
         keyboardType: keyboardType,
         style: TextStyle(
-          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E3A8A),
+          color: isDark ? Colors.white : const Color(0xFF1E3A8A),
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: TextStyle(
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
             fontSize: 16,
           ),
           prefixIcon: Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDark 
-                ? const Color(0xFF1E3A8A).withOpacity(0.2)
-                : const Color(0xFF3B82F6).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF),
+              color: Colors.white,
               size: 20,
             ),
           ),
@@ -231,7 +214,7 @@ class _SignUpPageState extends State<SignUpPage>
               ? IconButton(
                   icon: Icon(
                     isVisible! ? Icons.visibility : Icons.visibility_off,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
                   ),
                   onPressed: onVisibilityToggle,
                 )
@@ -239,19 +222,19 @@ class _SignUpPageState extends State<SignUpPage>
           filled: true,
           fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
               color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6),
+              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
               width: 2,
             ),
           ),
@@ -273,267 +256,250 @@ class _SignUpPageState extends State<SignUpPage>
         return false; // Prevent default back navigation
       },
       child: Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark ? [
-              const Color(0xFF0A0E27),
-              const Color(0xFF1E293B),
-              const Color(0xFF0F172A),
-            ] : [
-              const Color(0xFFF8FAFF),
-              Colors.white,
-              const Color(0xFFEBF4FF),
-            ],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Floating background elements
-            _buildFloatingElement(100, 50, 80, 
-              isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF), isDark),
-            _buildFloatingElement(200, 300, 60, 
-              isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6), isDark),
-            _buildFloatingElement(400, 20, 100, 
-              isDark ? const Color(0xFF1D4ED8) : const Color(0xFF60A5FA), isDark),
-            _buildFloatingElement(600, 250, 70, 
-              isDark ? const Color(0xFF2563EB) : const Color(0xFF1D4ED8), isDark),
-            
-            SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: ScaleTransition(
-                        scale: _scaleAnimation,
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            children: [
-                              // Lottie Animation (standalone)
-                              SizedBox(
-                                height: 120,
-                                width: 120,
-                                child: Lottie.asset(
-                                  'assets/animations/register.json',
-                                  fit: BoxFit.contain,
-                                  repeat: true,
-                                  animate: true,
+        backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
+        body: Container(
+          color: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
+          child: Stack(
+            children: [
+              // Clean background without floating elements
+              
+              SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child: ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              children: [
+                                // Lottie Animation (standalone)
+                                SizedBox(
+                                  height: 120,
+                                  width: 120,
+                                  child: Lottie.asset(
+                                    'assets/animations/register.json',
+                                    fit: BoxFit.contain,
+                                    repeat: true,
+                                    animate: true,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 24),
+                                const SizedBox(height: 24),
 
-                              // Form Container
-                              Container(
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: isDark ? Border.all(
-                                    color: const Color(0xFF334155),
-                                    width: 1,
-                                  ) : null,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF))
-                                          .withOpacity(0.1),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  children: [
-                                    // Title
-                                    Text(
-                                      'Create Account',
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                // Form Container
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: isDark ? Border.all(
+                                      color: const Color(0xFF334155),
+                                      width: 1,
+                                    ) : null,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                                            .withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
                                       ),
-                                    ),
-                                    const SizedBox(height: 24),
-                                    
-                                    // Full Name Field
-                                    _buildCustomTextField(
-                                      controller: _fullNameController,
-                                      hintText: 'Full Name',
-                                      icon: Icons.person_outline,
-                                      isDark: isDark,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Please enter your full name';
-                                        }
-                                        return null;
-                                      },
-                                    ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      // Title
+                                      Text(
+                                        'Create Account',
+                                        style: TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Join us to get started',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 32),
+                                      
+                                      // Full Name Field
+                                      _buildCustomTextField(
+                                        controller: _fullNameController,
+                                        hintText: 'Full Name',
+                                        icon: Icons.person_outline,
+                                        isDark: isDark,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter your full name';
+                                          }
+                                          return null;
+                                        },
+                                      ),
 
-                                    // Email Field
-                                    _buildCustomTextField(
-                                      controller: _emailController,
-                                      hintText: 'Email Address',
-                                      icon: Icons.email_outlined,
-                                      keyboardType: TextInputType.emailAddress,
-                                      isDark: isDark,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Please enter your email';
-                                        }
-                                        if (!value.contains('@') || !value.contains('.')) {
-                                          return 'Please enter a valid email';
-                                        }
-                                        return null;
-                                      },
-                                    ),
+                                      // Email Field
+                                      _buildCustomTextField(
+                                        controller: _emailController,
+                                        hintText: 'Email Address',
+                                        icon: Icons.email_outlined,
+                                        keyboardType: TextInputType.emailAddress,
+                                        isDark: isDark,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter your email';
+                                          }
+                                          if (!value.contains('@') || !value.contains('.')) {
+                                            return 'Please enter a valid email';
+                                          }
+                                          return null;
+                                        },
+                                      ),
 
-                                    // Password Field
-                                    _buildCustomTextField(
-                                      controller: _passwordController,
-                                      hintText: 'Password',
-                                      icon: Icons.lock_outline,
-                                      obscureText: !_isPasswordVisible,
-                                      hasVisibilityToggle: true,
-                                      isVisible: _isPasswordVisible,
-                                      isDark: isDark,
-                                      onVisibilityToggle: () {
-                                        setState(() {
-                                          _isPasswordVisible = !_isPasswordVisible;
-                                        });
-                                      },
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Please enter a password';
-                                        }
-                                        if (value.length < 6) {
-                                          return 'Password must be at least 6 characters';
-                                        }
-                                        return null;
-                                      },
-                                    ),
+                                      // Password Field
+                                      _buildCustomTextField(
+                                        controller: _passwordController,
+                                        hintText: 'Password',
+                                        icon: Icons.lock_outline,
+                                        obscureText: !_isPasswordVisible,
+                                        hasVisibilityToggle: true,
+                                        isVisible: _isPasswordVisible,
+                                        isDark: isDark,
+                                        onVisibilityToggle: () {
+                                          setState(() {
+                                            _isPasswordVisible = !_isPasswordVisible;
+                                          });
+                                        },
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter a password';
+                                          }
+                                          if (value.length < 6) {
+                                            return 'Password must be at least 6 characters';
+                                          }
+                                          return null;
+                                        },
+                                      ),
 
-                                    // Confirm Password Field
-                                    _buildCustomTextField(
-                                      controller: _confirmPasswordController,
-                                      hintText: 'Confirm Password',
-                                      icon: Icons.lock_outline,
-                                      obscureText: !_isConfirmPasswordVisible,
-                                      hasVisibilityToggle: true,
-                                      isVisible: _isConfirmPasswordVisible,
-                                      isDark: isDark,
-                                      onVisibilityToggle: () {
-                                        setState(() {
-                                          _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                                        });
-                                      },
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Please confirm your password';
-                                        }
-                                        if (value != _passwordController.text) {
-                                          return 'Passwords do not match';
-                                        }
-                                        return null;
-                                      },
-                                    ),
+                                      // Confirm Password Field
+                                      _buildCustomTextField(
+                                        controller: _confirmPasswordController,
+                                        hintText: 'Confirm Password',
+                                        icon: Icons.lock_outline,
+                                        obscureText: !_isConfirmPasswordVisible,
+                                        hasVisibilityToggle: true,
+                                        isVisible: _isConfirmPasswordVisible,
+                                        isDark: isDark,
+                                        onVisibilityToggle: () {
+                                          setState(() {
+                                            _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                                          });
+                                        },
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please confirm your password';
+                                          }
+                                          if (value != _passwordController.text) {
+                                            return 'Passwords do not match';
+                                          }
+                                          return null;
+                                        },
+                                      ),
 
-                                    const SizedBox(height: 16),
+                                      const SizedBox(height: 16),
 
-                                    // Sign Up Button
-                                    Container(
-                                      width: double.infinity,
-                                      height: 52,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(14),
-                                        gradient: LinearGradient(
-                                          colors: isDark ? [
-                                            const Color(0xFF3B82F6),
-                                            const Color(0xFF1D4ED8),
-                                          ] : [
-                                            const Color(0xFF1E40AF),
-                                            const Color(0xFF3B82F6),
+                                      // Sign Up Button
+                                      Container(
+                                        width: double.infinity,
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                                                  .withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            ),
                                           ],
                                         ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF))
-                                                .withOpacity(0.3),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 5),
+                                        child: ElevatedButton(
+                                          onPressed: _isLoading ? null : _handleSignUp,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent,
+                                            shadowColor: Colors.transparent,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                          child: _isLoading
+                                              ? const SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                                      Colors.white,
+                                                    ),
+                                                  ),
+                                                )
+                                              : const Text(
+                                                  'Create Account',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 24),
+
+                                      // Sign In Option
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Already have an account?',
+                                            style: TextStyle(
+                                              color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pushReplacementNamed(context, '/login');
+                                            },
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: isDark ? const Color(0xFF4A90E2) : const Color(0xFF1E3A8A),
+                                              padding: const EdgeInsets.only(left: 8),
+                                            ),
+                                            child: const Text(
+                                              'Sign In',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 16,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
-                                      child: ElevatedButton(
-                                        onPressed: _isLoading ? null : _handleSignUp,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(14),
-                                          ),
-                                        ),
-                                        child: _isLoading
-                                            ? const SizedBox(
-                                                width: 24,
-                                                height: 24,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2.5,
-                                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                                    Colors.white,
-                                                  ),
-                                                ),
-                                              )
-                                            : const Text(
-                                                'Create Account',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 24),
-
-                                    // Sign In Option
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Already have an account?',
-                                          style: TextStyle(
-                                            color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.pushReplacementNamed(context, '/login');
-                                          },
-                                          style: TextButton.styleFrom(
-                                            foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF),
-                                            padding: const EdgeInsets.only(left: 8),
-                                          ),
-                                          child: const Text(
-                                            'Sign In',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -541,11 +507,10 @@ class _SignUpPageState extends State<SignUpPage>
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }

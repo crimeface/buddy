@@ -170,13 +170,13 @@ class _LoginPageState extends State<LoginPage>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF))
-                .withOpacity(0.1),
+            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                .withOpacity(0.3),
             blurRadius: 8,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -185,28 +185,26 @@ class _LoginPageState extends State<LoginPage>
         obscureText: obscureText,
         keyboardType: keyboardType,
         style: TextStyle(
-          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E3A8A),
+          color: isDark ? Colors.white : const Color(0xFF1E3A8A),
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: TextStyle(
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
             fontSize: 16,
           ),
           prefixIcon: Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDark 
-                ? const Color(0xFF1E3A8A).withOpacity(0.2)
-                : const Color(0xFF3B82F6).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF),
+              color: Colors.white,
               size: 20,
             ),
           ),
@@ -214,7 +212,7 @@ class _LoginPageState extends State<LoginPage>
               ? IconButton(
                   icon: Icon(
                     isVisible! ? Icons.visibility : Icons.visibility_off,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
                   ),
                   onPressed: onVisibilityToggle,
                 )
@@ -222,19 +220,19 @@ class _LoginPageState extends State<LoginPage>
           filled: true,
           fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
               color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6),
+              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
               width: 2,
             ),
           ),
@@ -256,33 +254,12 @@ class _LoginPageState extends State<LoginPage>
         return false; // Prevent default back navigation
       },
       child: Scaffold(
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark ? [
-              const Color(0xFF0A0E27),
-              const Color(0xFF1E293B),
-              const Color(0xFF0F172A),
-            ] : [
-              const Color(0xFFF8FAFF),
-              Colors.white,
-              const Color(0xFFEBF4FF),
-            ],
-          ),
-        ),
+        color: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
         child: Stack(
           children: [
-            // Floating background elements
-            _buildFloatingElement(100, 50, 80, 
-              isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF), isDark),
-            _buildFloatingElement(200, 300, 60, 
-              isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6), isDark),
-            _buildFloatingElement(400, 20, 100, 
-              isDark ? const Color(0xFF1D4ED8) : const Color(0xFF60A5FA), isDark),
-            _buildFloatingElement(600, 250, 70, 
-              isDark ? const Color(0xFF2563EB) : const Color(0xFF1D4ED8), isDark),
+            // Remove floating background elements for cleaner look
             
             SafeArea(
               child: Center(
@@ -323,10 +300,10 @@ class _LoginPageState extends State<LoginPage>
                                   ) : null,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF))
-                                          .withOpacity(0.1),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
+                                      color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                                          .withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
                                     ),
                                   ],
                                 ),
@@ -337,8 +314,9 @@ class _LoginPageState extends State<LoginPage>
                                       'Welcome Back',
                                       style: TextStyle(
                                         fontSize: 28,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w700,
                                         color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                        letterSpacing: -0.5,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
@@ -346,7 +324,8 @@ class _LoginPageState extends State<LoginPage>
                                       'Sign in to continue your journey',
                                       style: TextStyle(
                                         fontSize: 16,
-                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                        color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w400,
                                       ),
                                     ),
                                     const SizedBox(height: 32),
@@ -403,7 +382,7 @@ class _LoginPageState extends State<LoginPage>
                                           );
                                         },
                                         style: TextButton.styleFrom(
-                                          foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF),
+                                          foregroundColor: isDark ? const Color(0xFF4A90E2) : const Color(0xFF1E3A8A),
                                         ),
                                         child: const Text(
                                           'Forgot Password?',
@@ -420,24 +399,16 @@ class _LoginPageState extends State<LoginPage>
                                     // Sign In Button
                                     Container(
                                       width: double.infinity,
-                                      height: 52,
+                                      height: 56,
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(14),
-                                        gradient: LinearGradient(
-                                          colors: isDark ? [
-                                            const Color(0xFF3B82F6),
-                                            const Color(0xFF1D4ED8),
-                                          ] : [
-                                            const Color(0xFF1E40AF),
-                                            const Color(0xFF3B82F6),
-                                          ],
-                                        ),
+                                        color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+                                        borderRadius: BorderRadius.circular(12),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E40AF))
+                                            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
                                                 .withOpacity(0.3),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 5),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
                                           ),
                                         ],
                                       ),
@@ -447,7 +418,7 @@ class _LoginPageState extends State<LoginPage>
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(14),
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
                                         ),
                                         child: _isLoading
@@ -465,7 +436,7 @@ class _LoginPageState extends State<LoginPage>
                                                 'Sign In',
                                                 style: TextStyle(
                                                   fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
+                                                  fontWeight: FontWeight.w600,
                                                   color: Colors.white,
                                                 ),
                                               ),
@@ -481,8 +452,9 @@ class _LoginPageState extends State<LoginPage>
                                         Text(
                                           'Don\'t have an account?',
                                           style: TextStyle(
-                                            color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
+                                            color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
                                             fontSize: 16,
+                                            fontWeight: FontWeight.w400,
                                           ),
                                         ),
                                         TextButton(
@@ -490,13 +462,13 @@ class _LoginPageState extends State<LoginPage>
                                             Navigator.pushReplacementNamed(context, '/signup');
                                           },
                                           style: TextButton.styleFrom(
-                                            foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF),
+                                            foregroundColor: isDark ? const Color(0xFF4A90E2) : const Color(0xFF1E3A8A),
                                             padding: const EdgeInsets.only(left: 8),
                                           ),
                                           child: const Text(
                                             'Sign Up',
                                             style: TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.w600,
                                               fontSize: 16,
                                             ),
                                           ),

@@ -90,3 +90,5 @@ flutter:
     - assets/animations/Room.json
     - assets/animations/register.json
     - assets/animations/login.json
+    - assets/animations/phonenumber.json
+    - assets/animations/otp.json
