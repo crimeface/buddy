@@ -249,7 +249,13 @@ class _LoginPageState extends State<LoginPage>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        // Navigate to authentication options page when back button is pressed
+        Navigator.pushReplacementNamed(context, '/auth-options');
+        return false; // Prevent default back navigation
+      },
+      child: Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -481,7 +487,7 @@ class _LoginPageState extends State<LoginPage>
                                         ),
                                         TextButton(
                                           onPressed: () {
-                                            Navigator.pushNamed(context, '/signup');
+                                            Navigator.pushReplacementNamed(context, '/signup');
                                           },
                                           style: TextButton.styleFrom(
                                             foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF),
@@ -512,6 +518,7 @@ class _LoginPageState extends State<LoginPage>
           ],
         ),
       ),
+    ),
     );
   }
 }

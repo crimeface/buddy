@@ -266,7 +266,13 @@ class _SignUpPageState extends State<SignUpPage>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        // Navigate to login page when back button is pressed
+        Navigator.pushReplacementNamed(context, '/login');
+        return false; // Prevent default back navigation
+      },
+      child: Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -508,7 +514,7 @@ class _SignUpPageState extends State<SignUpPage>
                                         ),
                                         TextButton(
                                           onPressed: () {
-                                            Navigator.pushNamed(context, '/login');
+                                            Navigator.pushReplacementNamed(context, '/login');
                                           },
                                           style: TextButton.styleFrom(
                                             foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF),
@@ -539,6 +545,7 @@ class _SignUpPageState extends State<SignUpPage>
           ],
         ),
       ),
+    ),
     );
   }
 }

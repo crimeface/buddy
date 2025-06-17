@@ -16,6 +16,7 @@ import 'display pages/hostelpg_details.dart';
 import 'privacy_page.dart';
 import 'edit_hostelpg.dart';
 import 'onboarding_screen.dart'; // Changed from landing_screen.dart
+import 'authentication_options.dart'; // Importing the new Authentication Options page
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
@@ -41,6 +42,7 @@ class BuddyApp extends StatelessWidget {
       navigatorObservers: [routeObserver], // Add route observer
       home: AuthStateHandler(),
       routes: {
+        '/auth-options': (context) => const AuthOptionsPage(), // New route for Authentication Options
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const HomeScreen(),

@@ -220,9 +220,8 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
         ),
       ),
     );
-  }
-  void _navigateToEmailAuth() {
-    Navigator.pushNamed(context, '/login');
+  }  void _navigateToEmailAuth() {
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _navigateToPhoneAuth() {
