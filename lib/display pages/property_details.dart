@@ -503,6 +503,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     setState(() {
       isBookmarked = !isBookmarked;
     });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(isBookmarkedNow ? 'Removed from wishlist!' : 'Added to wishlist!'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _checkIfBookmarked() async {

@@ -6,6 +6,7 @@ import 'package:shimmer/shimmer.dart';
 import 'theme.dart';
 import 'edit_profile.dart';
 import 'wishlist_page.dart';
+import 'settings_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -55,52 +56,63 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor:
-          isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
-      body: Stack(
-        children: [
-          CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 320,
-                floating: false,
-                pinned: true,
-                backgroundColor:
-                    isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
-                flexibleSpace: LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    return FlexibleSpaceBar(
-                      collapseMode: CollapseMode.parallax,
-                      background: Container(
-                        color:
-                            isDark
-                                ? Colors.black
-                                : BuddyTheme.backgroundPrimaryColor,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 60),
-                            _buildProfileAvatar(isDark),
-                            const SizedBox(height: 20),
-                            _buildUserNameSection(isDark),
-                          ],
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/home', (route) => false);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor:
+            isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
+        body: Stack(
+          children: [
+            CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 320,
+                  floating: false,
+                  pinned: true,
+                  backgroundColor:
+                      isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
+                  flexibleSpace: LayoutBuilder(
+                    builder: (
+                      BuildContext context,
+                      BoxConstraints constraints,
+                    ) {
+                      return FlexibleSpaceBar(
+                        collapseMode: CollapseMode.parallax,
+                        background: Container(
+                          color:
+                              isDark
+                                  ? Colors.black
+                                  : BuddyTheme.backgroundPrimaryColor,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 60),
+                              _buildProfileAvatar(isDark),
+                              const SizedBox(height: 20),
+                              _buildUserNameSection(isDark),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-              SliverToBoxAdapter(child: _buildAccountSettingsSection(isDark)),
-            ],
-          ),
-          if (_isLoggingOut)
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(child: CircularProgressIndicator()),
+                SliverToBoxAdapter(child: _buildAccountSettingsSection(isDark)),
+              ],
             ),
-        ],
+            if (_isLoggingOut)
+              Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -273,13 +285,6 @@ class _ProfilePageState extends State<ProfilePage> {
             isDark: isDark,
           ),
           _buildMenuOption(
-            icon: Icons.notifications_outlined,
-            iconColor: Colors.orange,
-            title: 'Notifications',
-            onTap: () {},
-            isDark: isDark,
-          ),
-          _buildMenuOption(
             icon: Icons.security_outlined,
             iconColor: BuddyTheme.successColor,
             title: 'Privacy & Security',
@@ -301,7 +306,12 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.settings_outlined,
             iconColor: BuddyTheme.textSecondaryColor,
             title: 'Settings',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsPage()),
+              );
+            },
             isLast: true,
             isDark: isDark,
           ),

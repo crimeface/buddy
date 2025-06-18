@@ -44,13 +44,34 @@ class _ServicesPageState extends State<ServicesPage> {
               .collection('service_listings')
               .where('visibility', isEqualTo: true)
               .get();
+
       final List<Map<String, dynamic>> loaded = [];
+      final batch = FirebaseFirestore.instance.batch();
+      
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
-        // Only show if not expired
-        if (data['expiryDate'] != null &&
-            DateTime.tryParse(data['expiryDate']) != null &&
-            DateTime.parse(data['expiryDate']).isAfter(now)) {
+        DateTime? expiryDate;
+        
+        // Handle different expiry date formats
+        if (data['expiryDate'] != null) {
+          if (data['expiryDate'] is Timestamp) {
+            expiryDate = (data['expiryDate'] as Timestamp).toDate();
+          } else if (data['expiryDate'] is String) {
+            expiryDate = DateTime.tryParse(data['expiryDate']);
+          }
+        }
+
+        // If expired, update visibility to false
+        if (expiryDate != null && expiryDate.isBefore(now)) {
+          batch.update(
+            doc.reference,
+            {'visibility': false}
+          );
+          continue; // Skip adding to loaded list since it's expired
+        }
+
+        // Only add to the list if not expired
+        if (expiryDate != null && expiryDate.isAfter(now)) {
           data['key'] = doc.id;
           // Defensive mapping for images
           data['imageUrl'] =
@@ -59,9 +80,13 @@ class _ServicesPageState extends State<ServicesPage> {
                       (data['additionalPhotos'] as List).isNotEmpty
                   ? data['additionalPhotos'][0]
                   : (data['imageUrl'] ?? ''));
-          loaded.add(data); // <-- FIXED: was _services.add(data)
+          loaded.add(data);
         }
       }
+
+      // Commit all visibility updates
+      await batch.commit();
+      
       // Sort services by createdAt timestamp, newest first
       loaded.sort((a, b) {
         var aTime = a['createdAt'];
@@ -80,12 +105,9 @@ class _ServicesPageState extends State<ServicesPage> {
           bTime = DateTime.tryParse(bTime);
         }
 
-        // Handle null cases
-        if (aTime == null && bTime == null) return 0;
+        // Handle null cases and compare
         if (aTime == null) return 1;
         if (bTime == null) return -1;
-
-        // Sort in descending order (newest first)
         return bTime.compareTo(aTime);
       });
 
@@ -98,9 +120,11 @@ class _ServicesPageState extends State<ServicesPage> {
         _services = [];
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load services: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load services: $e')),
+        );
+      }
     }
   }
 
@@ -505,37 +529,6 @@ class _ServicesPageState extends State<ServicesPage> {
                     ),
                   ),
                 ),
-                // Rating badge (if available)
-                if (service['rating'] != null)
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 12),
-                          const SizedBox(width: 2),
-                          Text(
-                            service['rating'].toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
               ],
             ),
             Padding(
@@ -675,7 +668,7 @@ class _ServicesPageState extends State<ServicesPage> {
             ),
           ],
         ),
-      ),
+        ),
     );
   }
 }

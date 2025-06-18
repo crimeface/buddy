@@ -313,7 +313,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
           isBookmarked = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Removed from bookmarks.')),
+          const SnackBar(content: Text('Removed from wishlist.')),
         );
       } else {
         // Add
@@ -325,7 +325,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
         });
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Added to bookmarks!')));
+        ).showSnackBar(const SnackBar(content: Text('Added to wishlist!')));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

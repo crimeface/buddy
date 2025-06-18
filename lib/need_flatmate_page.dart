@@ -77,34 +77,60 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       
       for (var doc in querySnapshot.docs) {
         final flatmate = doc.data();
-        flatmate['key'] = doc.id;
+        DateTime? expiryDate;
         
-        // Check if the listing is expired
+        // Handle different expiry date formats
         if (flatmate['expiryDate'] != null) {
-          DateTime expiryDate;
           if (flatmate['expiryDate'] is Timestamp) {
             expiryDate = (flatmate['expiryDate'] as Timestamp).toDate();
           } else if (flatmate['expiryDate'] is String) {
-            expiryDate = DateTime.parse(flatmate['expiryDate']);
-          } else {
-            continue; // Skip if expiryDate is in invalid format
-          }
-          
-          if (expiryDate.isBefore(now)) {
-            // If expired, update visibility to false
-            batch.update(
-              doc.reference,
-              {'visibility': false}
-            );
-            continue; // Skip adding to loaded list since it's expired
+            expiryDate = DateTime.tryParse(flatmate['expiryDate']);
           }
         }
+
+        // If expired, update visibility to false
+        if (expiryDate != null && expiryDate.isBefore(now)) {
+          batch.update(
+            doc.reference,
+            {'visibility': false}
+          );
+          continue; // Skip adding to loaded list since it's expired
+        }
         
-        loaded.add(flatmate);
+        // If not expired and visible, add to the list to display
+        if (flatmate['visibility'] == true) {
+          flatmate['key'] = doc.id;
+          loaded.add(flatmate);
+        }
       }
       
       // Commit all visibility updates in one batch
       await batch.commit();
+
+      // Sort flatmates by createdAt timestamp, newest first
+      loaded.sort((a, b) {
+        var aTime = a['createdAt'];
+        var bTime = b['createdAt'];
+
+        // Convert to DateTime if needed
+        if (aTime is Timestamp) {
+          aTime = aTime.toDate();
+        } else if (aTime is String) {
+          aTime = DateTime.tryParse(aTime);
+        }
+
+        if (bTime is Timestamp) {
+          bTime = bTime.toDate();
+        } else if (bTime is String) {
+          bTime = DateTime.tryParse(bTime);
+        }
+
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+
       setState(() {
         _flatmates = loaded;
         _isLoading = false;
