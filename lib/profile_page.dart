@@ -409,7 +409,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 });
                 Navigator.pushNamedAndRemoveUntil(
                   context,
-                  '/login',
+                  '/auth-options',
                   (route) => false,
                 );
               },

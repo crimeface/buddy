@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PhoneVerificationPage extends StatefulWidget {
   const PhoneVerificationPage({Key? key}) : super(key: key);
@@ -126,17 +127,34 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
           smsCode: otp,
         );
 
-        await _auth.signInWithCredential(credential);
+        // Sign in with credential
+        UserCredential userCredential = await _auth.signInWithCredential(credential);
         
+        // Check if user exists in Firestore
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .get();
+
         setState(() {
           _isLoading = false;
-          currentPage = 2;
         });
-        
-        _pageController.nextPage(
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+
+        if (userDoc.exists) {
+          // User already exists, redirect to homepage
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+          }
+        } else {
+          // New user, continue to name input page
+          setState(() {
+            currentPage = 2;
+          });
+          _pageController.nextPage(
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
       } catch (e) {
         setState(() {
           _isLoading = false;
@@ -158,24 +176,59 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
     }
   }
 
-  void _submitFullName() {
+  void _submitFullName() async {
     if (_fullNameController.text.trim().isNotEmpty) {
       setState(() {
         fullName = _fullNameController.text.trim();
+        _isLoading = true;
       });
-      
-      // Handle final submission
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Welcome, $fullName! Registration completed successfully.'),
-          backgroundColor: isDark ? const Color(0xFF28A745) : Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      
-      // You can navigate to the next screen or perform final actions here
-      print('Phone: +91$phoneNumber');
-      print('Full Name: $fullName');
+
+      try {
+        // Get current user
+        final User? user = _auth.currentUser;
+        
+        if (user != null) {
+          // Update display name in Firebase Auth
+          await user.updateDisplayName(fullName);
+
+          // Store user data in Firestore
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'username': fullName,
+            'phone': '+91$phoneNumber',
+            'createdAt': DateTime.now().toIso8601String(),
+          });
+
+          setState(() {
+            _isLoading = false;
+          });
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Welcome, $fullName! Registration completed successfully.'),
+              backgroundColor: isDark ? const Color(0xFF28A745) : Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+
+          // Navigate to homepage and remove all previous routes
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+          }
+        } else {
+          throw Exception('User not found');
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving user data. Please try again.'),
+            backgroundColor: isDark ? const Color(0xFFE74C3C) : Colors.red,
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -233,6 +286,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
         systemOverlayStyle: isDark 
           ? SystemUiOverlayStyle.light 
           : SystemUiOverlayStyle.dark,
@@ -253,7 +307,6 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
             fontWeight: FontWeight.w600,
           ),
         ),
-        centerTitle: true,
       ),
       body: Stack(
         children: [
@@ -525,7 +578,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                     }
                   },
                 ),
-              );
+                );
             }),
           ),
           

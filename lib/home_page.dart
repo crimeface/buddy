@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'theme.dart';
 import 'profile_page.dart';
 import 'need_room_page.dart';
@@ -56,6 +57,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<bool> _onWillPop() async {
+    SystemNavigator.pop();
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -70,12 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final navBarSelectedColor = BuddyTheme.primaryColor;
 
     return WillPopScope(
-      onWillPop: () async {
-        setState(() {
-          _selectedIndex = 0;
-        });
-        return false;
-      },
+      onWillPop: _onWillPop,
       child: Scaffold(
         body: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
