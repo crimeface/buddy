@@ -18,6 +18,8 @@ import 'edit_hostelpg.dart';
 import 'onboarding_screen.dart'; // Changed from landing_screen.dart
 import 'authentication_options.dart'; // Importing the new Authentication Options page
 import 'phone_verification.dart'; // Added import for phone verification
+import 'api/firebase_api.dart'; // Import Firebase API for notifications
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
@@ -26,7 +28,23 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  
+  final firebaseApi = FirebaseApi();
+  await firebaseApi.initNotifications();
+
   runApp(const BuddyApp());
+}
+
+
+Future<void> _setupFirebaseNotifications() async {
+  final firebaseApi = FirebaseApi();
+  await firebaseApi.initNotifications();
+
+  // Handle background/terminated message tapping
+  FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    // You can navigate user based on payload here
+    print('User tapped notification: ${message.data}');
+  });
 }
 
 class BuddyApp extends StatelessWidget {
@@ -43,10 +61,14 @@ class BuddyApp extends StatelessWidget {
       navigatorObservers: [routeObserver], // Add route observer
       home: AuthStateHandler(),
       routes: {
-        '/auth-options': (context) => const AuthOptionsPage(), // New route for Authentication Options
+        '/auth-options':
+            (context) =>
+                const AuthOptionsPage(), // New route for Authentication Options
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
-        '/phone-verification': (context) => PhoneVerificationPage(), // Added route for phone verification
+        '/phone-verification':
+            (context) =>
+                PhoneVerificationPage(), // Added route for phone verification
         '/home': (context) => const HomeScreen(),
         '/hostelpg': (context) => const HostelPgPage(),
         '/services': (context) => const ServicesPage(),
@@ -61,13 +83,17 @@ class BuddyApp extends StatelessWidget {
           );
         },
         '/editHostelPG': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           if (args == null || args['hostelData'] == null) {
             return const Scaffold(
               body: Center(child: Text('Invalid hostel data')),
             );
           }
-          return EditHostelPGPage(hostelData: args['hostelData'] as Map<String, dynamic>);
+          return EditHostelPGPage(
+            hostelData: args['hostelData'] as Map<String, dynamic>,
+          );
         },
         '/hostelpg_details': (context) {
           final args =
@@ -84,7 +110,9 @@ class BuddyApp extends StatelessWidget {
           return PropertyDetailsScreen(propertyId: propertyId);
         },
         '/editService': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           if (args == null) {
             return const Scaffold(
               body: Center(child: Text('Invalid service data')),
@@ -123,15 +151,19 @@ class AuthStateHandler extends StatelessWidget {
   }
 }
 
-class OnboardingScreenWrapper extends StatefulWidget { // Renamed class
+class OnboardingScreenWrapper extends StatefulWidget {
+  // Renamed class
   @override
-  State<OnboardingScreenWrapper> createState() => _OnboardingScreenWrapperState();
+  State<OnboardingScreenWrapper> createState() =>
+      _OnboardingScreenWrapperState();
 }
 
-class _OnboardingScreenWrapperState extends State<OnboardingScreenWrapper> { // Updated class name
+class _OnboardingScreenWrapperState extends State<OnboardingScreenWrapper> {
+  // Updated class name
   bool _showOnboarding = true; // Renamed variable
 
-  void _onOnboardingComplete() { // Renamed method
+  void _onOnboardingComplete() {
+    // Renamed method
     setState(() {
       _showOnboarding = false;
     });
@@ -140,7 +172,9 @@ class _OnboardingScreenWrapperState extends State<OnboardingScreenWrapper> { // 
   @override
   Widget build(BuildContext context) {
     if (_showOnboarding) {
-      return OnboardingScreen(onComplete: _onOnboardingComplete); // Changed to OnboardingScreen
+      return OnboardingScreen(
+        onComplete: _onOnboardingComplete,
+      ); // Changed to OnboardingScreen
     } else {
       return const LoginPage();
     }

@@ -58,7 +58,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    SystemNavigator.pop();
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+      return false; // Prevent app from closing, just go to home
+    }
+    SystemNavigator.pop(); // Only close app if already on home
     return true;
   }
 

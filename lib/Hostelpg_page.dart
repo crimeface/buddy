@@ -27,14 +27,20 @@ class _HostelPgPageState extends State<HostelPgPage> {
 
   final List<String> _priceRanges = [
     'All Prices',
-    '\$0 - \$500',
-    '\$500 - \$1000',
-    '\$1000 - \$1500',
-    '\$1500 - \$2000',
-    '\$2000+',
+    '<\ 6000',
+    '<\ 7500',
+    '<\ 9000',
+    '<\ 11000',
+    '\ 12000+',
   ];
 
-  final List<String> _roomTypes = ['All Types', 'Shared', 'Private'];
+  final List<String> _roomTypes = [
+    'All Types',
+    '1 Bed Room (Private)',
+    '2 Bed Room',
+    '3 Bed Room',
+    '4+ Bed Room',
+  ];
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -52,18 +58,19 @@ class _HostelPgPageState extends State<HostelPgPage> {
     try {
       final now = DateTime.now();
       // Fetch all visible listings
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('hostel_listings')
-          .where('visibility', isEqualTo: true)
-          .get();
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('hostel_listings')
+              .where('visibility', isEqualTo: true)
+              .get();
 
       final List<Map<String, dynamic>> loadedHostels = [];
       final batch = FirebaseFirestore.instance.batch();
-      
+
       for (var doc in querySnapshot.docs) {
         final v = doc.data();
         bool isExpired = false;
-        
+
         // Check if listing is expired
         DateTime? expiryDate;
         if (v['expiryDate'] != null) {
@@ -77,7 +84,8 @@ class _HostelPgPageState extends State<HostelPgPage> {
         // If expired, mark for visibility update
         if (expiryDate != null && expiryDate.isBefore(now)) {
           isExpired = true;
-          if (v['visibility'] == true) {  // Only update if currently visible
+          if (v['visibility'] == true) {
+            // Only update if currently visible
             batch.update(doc.reference, {'visibility': false});
           }
         }
@@ -136,14 +144,14 @@ class _HostelPgPageState extends State<HostelPgPage> {
         // Sort in descending order (newest first)
         return bTime.compareTo(aTime);
       });
-      
+
       // Commit all visibility updates in one batch
       try {
         await batch.commit();
       } catch (e) {
         print('Error updating expired listings: $e');
       }
-      
+
       setState(() {
         _hostels = loadedHostels;
         _isLoading = false;
@@ -162,42 +170,62 @@ class _HostelPgPageState extends State<HostelPgPage> {
     }
   }
 
-  List<Map<String, dynamic>> get _filteredHostels {
-    return _hostels.where((hostel) {
-      final query = _searchQuery.toLowerCase();
-      final matchesSearch =
-          query.isEmpty ||
-          hostel['title'].toString().toLowerCase().contains(query) ||
-          hostel['location'].toString().toLowerCase().contains(query) ||
-          (hostel['amenities'] as List).any(
-            (a) => a.toString().toLowerCase().contains(query),
-          );
-      final matchesLocation =
-          _selectedLocation == 'All Cities' ||
-          hostel['location'].toString().toLowerCase().contains(
-            _selectedLocation.toLowerCase(),
-          );
-      final matchesType =
-          _selectedRoomType == 'All Types' ||
-          hostel['type'].toString().toLowerCase() ==
-              _selectedRoomType.toLowerCase();
-      final matchesPrice =
-          _selectedPriceRange == 'All Prices' ||
-          _priceInRange(hostel['price'], _selectedPriceRange);
-      return matchesSearch && matchesLocation && matchesType && matchesPrice;
-    }).toList();
-  }
-
   bool _priceInRange(String priceStr, String range) {
     try {
-      final price = int.parse(priceStr.replaceAll(RegExp(r'[^\d]'), ''));
-      if (range == '\$0 - \$500') return price <= 500;
-      if (range == '\$500 - \$1000') return price > 500 && price <= 1000;
-      if (range == '\$1000 - \$1500') return price > 1000 && price <= 1500;
-      if (range == '\$1500 - \$2000') return price > 1500 && price <= 2000;
-      if (range == '\$2000+') return price > 2000;
+      final price =
+          int.tryParse(priceStr.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+      if (range == 'All Prices') return true;
+      if (range.contains('+')) {
+        // e.g., '12000+'
+        final min =
+            int.tryParse(RegExp(r'(\d+)').firstMatch(range)?.group(1) ?? '0') ??
+            0;
+        return price > min;
+      } else {
+        // e.g., '< 6000', '< 7500', etc.
+        final max =
+            int.tryParse(RegExp(r'(\d+)').firstMatch(range)?.group(1) ?? '0') ??
+            0;
+        return price <= max;
+      }
     } catch (_) {}
     return true;
+  }
+
+  List<Map<String, dynamic>> get _filteredHostels {
+    return _hostels.where((hostel) {
+      final query = _searchQuery.toLowerCase().trim();
+      final matchesSearch =
+          query.isEmpty ||
+          (hostel['title']?.toString().toLowerCase().contains(query) ??
+              false) ||
+          (hostel['location']?.toString().toLowerCase().contains(query) ??
+              false) ||
+          ((hostel['amenities'] is List)
+              ? (hostel['amenities'] as List).any(
+                (a) => a.toString().toLowerCase().contains(query),
+              )
+              : false);
+      final matchesLocation =
+          _selectedLocation == 'All Cities' ||
+          (hostel['location']?.toString().toLowerCase().trim().contains(
+                _selectedLocation.toLowerCase().trim(),
+              ) ??
+              false);
+      final matchesType =
+          _selectedRoomType == 'All Types' ||
+          ((hostel['roomTypes'] is Map &&
+                  (hostel['roomTypes'] as Map)[_selectedRoomType] == true) ||
+              (hostel['roomTypes'] is List &&
+                  (hostel['roomTypes'] as List).contains(_selectedRoomType)));
+      final matchesPrice =
+          _selectedPriceRange == 'All Prices' ||
+          _priceInRange(
+            hostel['startingAt']?.toString() ?? '',
+            _selectedPriceRange,
+          );
+      return matchesSearch && matchesLocation && matchesType && matchesPrice;
+    }).toList();
   }
 
   @override
@@ -497,8 +525,6 @@ class _HostelPgPageState extends State<HostelPgPage> {
     Color successColor,
     Color warningColor,
   ) {
-
-
     return Container(
       decoration: BoxDecoration(
         color: cardColor,

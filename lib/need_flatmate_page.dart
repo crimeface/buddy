@@ -67,18 +67,19 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     });
     try {
       final now = DateTime.now();
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('roomRequests')
-          .where('visibility', isEqualTo: true)
-          .get();
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('roomRequests')
+              .where('visibility', isEqualTo: true)
+              .get();
 
       final List<Map<String, dynamic>> loaded = [];
       final batch = FirebaseFirestore.instance.batch();
-      
+
       for (var doc in querySnapshot.docs) {
         final flatmate = doc.data();
         DateTime? expiryDate;
-        
+
         // Handle different expiry date formats
         if (flatmate['expiryDate'] != null) {
           if (flatmate['expiryDate'] is Timestamp) {
@@ -90,20 +91,17 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
 
         // If expired, update visibility to false
         if (expiryDate != null && expiryDate.isBefore(now)) {
-          batch.update(
-            doc.reference,
-            {'visibility': false}
-          );
+          batch.update(doc.reference, {'visibility': false});
           continue; // Skip adding to loaded list since it's expired
         }
-        
+
         // If not expired and visible, add to the list to display
         if (flatmate['visibility'] == true) {
           flatmate['key'] = doc.id;
           loaded.add(flatmate);
         }
       }
-      
+
       // Commit all visibility updates in one batch
       await batch.commit();
 
@@ -156,8 +154,22 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
               false);
       final matchesAge =
           _selectedAge == 'All Ages' ||
-          (flatmate['age']?.toString() ==
-              _selectedAge.split('-').first); // Adjust as per your age format
+          (() {
+            final ageStr = flatmate['age']?.toString();
+            if (ageStr == null || ageStr.isEmpty) return false;
+            final age = int.tryParse(ageStr);
+            if (age == null) return false;
+            if (_selectedAge == '40+') return age >= 40;
+            final parts = _selectedAge.split('-');
+            if (parts.length == 2) {
+              final min = int.tryParse(parts[0]);
+              final max = int.tryParse(parts[1]);
+              if (min != null && max != null) {
+                return age >= min && age <= max;
+              }
+            }
+            return false;
+          })();
       final matchesProfession =
           _selectedProfession == 'All Professions' ||
           (flatmate['occupation']?.toString().toLowerCase() ==
@@ -580,9 +592,19 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                         Text(
                           flatmate['moveInDate'] != null
                               ? (flatmate['moveInDate'] is Timestamp
-                                  ? _formatDate((flatmate['moveInDate'] as Timestamp).toDate())
-                                  : (DateTime.tryParse(flatmate['moveInDate'].toString()) != null
-                                      ? _formatDate(DateTime.parse(flatmate['moveInDate'].toString()))
+                                  ? _formatDate(
+                                    (flatmate['moveInDate'] as Timestamp)
+                                        .toDate(),
+                                  )
+                                  : (DateTime.tryParse(
+                                            flatmate['moveInDate'].toString(),
+                                          ) !=
+                                          null
+                                      ? _formatDate(
+                                        DateTime.parse(
+                                          flatmate['moveInDate'].toString(),
+                                        ),
+                                      )
                                       : ''))
                               : '',
                           style: Theme.of(
@@ -730,72 +752,79 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: cardColor,
+      isScrollControlled: true, // <-- Add this line
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(BuddyTheme.borderRadiusMd),
         ),
       ),
       builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return SafeArea(
+          // <-- Wrap in SafeArea
+          child: SingleChildScrollView(
+            // <-- Wrap in SingleChildScrollView
+            child: Container(
+              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Select $title',
-                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: labelColor,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Icon(
-                      Icons.close,
-                      color: labelColor.withOpacity(0.7),
-                      size: BuddyTheme.iconSizeMd,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: BuddyTheme.spacingMd),
-              ...options
-                  .map(
-                    (option) => ListTile(
-                      title: Text(
-                        option,
-                        style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                          color:
-                              option == currentValue
-                                  ? BuddyTheme.primaryColor
-                                  : labelColor,
-                          fontWeight:
-                              option == currentValue
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Select $title',
+                        style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: labelColor,
                         ),
                       ),
-                      trailing:
-                          option == currentValue
-                              ? Icon(
-                                Icons.check,
-                                color: BuddyTheme.primaryColor,
-                                size: BuddyTheme.iconSizeSm,
-                              )
-                              : null,
-                      onTap: () {
-                        onChanged(option);
-                        Navigator.pop(context);
-                      },
-                    ),
-                  )
-                  .toList(),
-              const SizedBox(height: BuddyTheme.spacingMd),
-            ],
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Icon(
+                          Icons.close,
+                          color: labelColor.withOpacity(0.7),
+                          size: BuddyTheme.iconSizeMd,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                  ...options
+                      .map(
+                        (option) => ListTile(
+                          title: Text(
+                            option,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge!.copyWith(
+                              color:
+                                  option == currentValue
+                                      ? BuddyTheme.primaryColor
+                                      : labelColor,
+                              fontWeight:
+                                  option == currentValue
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                            ),
+                          ),
+                          trailing:
+                              option == currentValue
+                                  ? Icon(
+                                    Icons.check,
+                                    color: BuddyTheme.primaryColor,
+                                  )
+                                  : null,
+                          onTap: () {
+                            onChanged(option);
+                            Navigator.pop(context);
+                          },
+                        ),
+                      )
+                      .toList(),
+                ],
+              ),
+            ),
           ),
         );
       },

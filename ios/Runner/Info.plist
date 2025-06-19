@@ -45,5 +45,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires camera access to take photos</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app requires photo library access to select photos</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access for voice messages</string>
 </dict>
 </plist>

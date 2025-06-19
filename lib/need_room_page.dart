@@ -37,10 +37,10 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
   final List<String> _priceRanges = [
     'All Prices',
-    '> \₹3000',
-    '> \₹5000',
-    '> \₹7000',
-    '> \₹9000',
+    '< \₹3000',
+    '< \₹5000',
+    '< \₹7000',
+    '< \₹9000',
     '\₹9000+',
   ];
 
@@ -81,8 +81,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
   @override
   void didPopNext() {
-    // When returning back to this page
-    _initializeFilters();
+    // Do not reset filters here
   }
 
   void _initializeFilters() {
@@ -116,11 +115,11 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
       final List<Map<String, dynamic>> loadedRooms = [];
       final batch = FirebaseFirestore.instance.batch();
-      
+
       for (var doc in querySnapshot.docs) {
         final room = doc.data();
         DateTime? expiryDate;
-        
+
         // Handle different expiry date formats
         if (room['expiryDate'] != null) {
           if (room['expiryDate'] is Timestamp) {
@@ -133,13 +132,10 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
         // Check if listing is expired
         if (expiryDate != null && expiryDate.isBefore(now)) {
           // If expired, update visibility to false
-          batch.update(
-            doc.reference,
-            {'visibility': false}
-          );
+          batch.update(doc.reference, {'visibility': false});
           continue; // Skip adding to loaded list since it's expired
         }
-        
+
         // If not expired, add to the list to display
         if (expiryDate != null && expiryDate.isAfter(now)) {
           room['id'] = doc.id;
@@ -174,10 +170,10 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
         // Sort in descending order (newest first)
         return bTime.compareTo(aTime);
       });
-      
+
       // Commit all visibility updates in one batch
       await batch.commit();
-      
+
       setState(() {
         _rooms = loadedRooms;
         _isLoading = false;
@@ -194,13 +190,8 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   }
 
   List<Map<String, dynamic>> get _filteredRooms {
-    print('Filtering ${_rooms.length} rooms');
     return _rooms.where((room) {
-      final query = _searchQuery.toLowerCase();
-
-      if (query.isNotEmpty) {
-        print('Applying search filter: $query');
-      }
+      final query = _searchQuery.toLowerCase().trim();
 
       final matchesSearch =
           query.isEmpty ||
@@ -215,29 +206,29 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
       final matchesLocation =
           _selectedLocation == 'All Cities' ||
-          (room['location']?.toString().toLowerCase().contains(
-                _selectedLocation.toLowerCase(),
+          (room['location']?.toString().toLowerCase().trim().contains(
+                _selectedLocation.toLowerCase().trim(),
               ) ??
               false);
 
       final matchesType =
           _selectedRoomType == 'All Types' ||
-          (room['roomType']?.toString().toLowerCase() ==
-              _selectedRoomType.toLowerCase());
+          (room['roomType']?.toString().toLowerCase().trim() ==
+              _selectedRoomType.toLowerCase().trim());
 
       final matchesFlatSize =
           _selectedFlatSize == 'All Sizes' ||
-          (room['flatSize']?.toString().toLowerCase() ==
-              _selectedFlatSize.toLowerCase());
+          (room['flatSize']?.toString().toLowerCase().trim() ==
+              _selectedFlatSize.toLowerCase().trim());
 
       final matchesGender =
           _selectedGenderPreference == 'All' ||
-          (room['genderComposition']?.toString().toLowerCase() ==
-              _selectedGenderPreference.toLowerCase());
+          (room['genderComposition']?.toString().toLowerCase().trim() ==
+              _selectedGenderPreference.toLowerCase().trim());
 
       final matchesPrice =
           _selectedPriceRange == 'All Prices' ||
-          _priceInRange(room['rent'] ?? '', _selectedPriceRange);
+          _priceInRange(room['rent']?.toString() ?? '', _selectedPriceRange);
 
       return matchesSearch &&
           matchesLocation &&
@@ -249,15 +240,16 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   }
 
   bool _priceInRange(String priceStr, String range) {
+    double price = 0;
     try {
-      final price =
-          int.tryParse(priceStr.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-      if (range == '> \₹3000') return price <= 3000;
-      if (range == '> \₹5000') return price <= 5000;
-      if (range == '> \₹7000') return price <= 7000;
-      if (range == '> \₹9000') return price <= 9000;
-      if (range == '\₹9000+') return price > 9000;
+      price = double.tryParse(priceStr.toString()) ?? 0;
     } catch (_) {}
+    if (range == 'All Prices') return true;
+    if (range == '< \₹3000') return price < 3000;
+    if (range == '< \₹5000') return price < 5000;
+    if (range == '< \₹7000') return price < 7000;
+    if (range == '< \₹9000') return price < 9000;
+    if (range == '\₹9000+') return price >= 9000;
     return true;
   }
 
@@ -270,8 +262,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
   @override
   void didPushNext() {
-    // When navigating to a new page
-    _initializeFilters();
+    // Do not reset filters here
   }
 
   @override
@@ -298,8 +289,10 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
     return WillPopScope(
       onWillPop: () async {
-        _initializeFilters();
-        return true;
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/home', (route) => false);
+        return false;
       },
       child: Scaffold(
         body: SafeArea(
@@ -310,9 +303,10 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
               return;
             },
             color: BuddyTheme.primaryColor,
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Padding(
                         padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -518,7 +512,13 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
             label,
             options,
             value,
-            onChanged,
+            (selected) {
+              if (selected != value) {
+                onChanged(
+                  selected,
+                ); // Only call onChanged, let parent handle setState
+              }
+            },
             cardColor,
             labelColor,
             borderColor,
@@ -996,27 +996,28 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  final Color primaryColor =
-      isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
-  final Color accentColor =
-      isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
-  final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
-  final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
-  final Color textSecondary =
-      isDark ? Colors.white70 : const Color(0xFF718096);
-  final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
-  final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color primaryColor =
+        isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
+    final Color accentColor =
+        isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
+    final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
+    final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
+    final Color textSecondary =
+        isDark ? Colors.white70 : const Color(0xFF718096);
+    final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+    final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
 
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Property Details'),
-      backgroundColor: BuddyTheme.primaryColor,
-    ),
-    body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : _roomDetails != null
-            ? SingleChildScrollView(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Property Details'),
+        backgroundColor: BuddyTheme.primaryColor,
+      ),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _roomDetails != null
+              ? SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(BuddyTheme.spacingMd),
                   child: Container(
@@ -1045,7 +1046,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                                 color: textPrimary,
                               ),
                             ),
-                          if (_roomDetails!['location']?.isNotEmpty ?? false) ...[
+                          if (_roomDetails!['location']?.isNotEmpty ??
+                              false) ...[
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -1066,7 +1068,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                               ],
                             ),
                           ],
-                          if (_roomDetails!['availableFromDate']?.isNotEmpty ?? false) ...[
+                          if (_roomDetails!['availableFromDate']?.isNotEmpty ??
+                              false) ...[
                             const SizedBox(height: 4),
                             Text(
                               'Available from ${_formatDate(_roomDetails!['availableFromDate'].toString())}',
@@ -1089,7 +1092,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                              if (_roomDetails!['roomType']?.isNotEmpty ?? false) ...[
+                              if (_roomDetails!['roomType']?.isNotEmpty ??
+                                  false) ...[
                                 const SizedBox(width: 16),
                                 Text(
                                   _roomDetails!['roomType']!,
@@ -1100,7 +1104,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                                   ),
                                 ),
                               ],
-                              if (_roomDetails!['flatSize']?.isNotEmpty ?? false) ...[
+                              if (_roomDetails!['flatSize']?.isNotEmpty ??
+                                  false) ...[
                                 const SizedBox(width: 16),
                                 Text(
                                   _roomDetails!['flatSize']!,
@@ -1121,36 +1126,40 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
-                              children: (_roomDetails!['facilities'] as Map)
-                                  .entries
-                                  .where((e) => e.value == true)
-                                  .map(
-                                    (e) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: BuddyTheme.primaryColor.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: borderColor,
+                              children:
+                                  (_roomDetails!['facilities'] as Map).entries
+                                      .where((e) => e.value == true)
+                                      .map(
+                                        (e) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: BuddyTheme.primaryColor
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: borderColor,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            e.key,
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      child: Text(
-                                        e.key,
-                                        style: TextStyle(
-                                          color: textSecondary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
+                                      )
+                                      .toList(),
                             ),
                           ],
-                          if (_roomDetails!['description']?.isNotEmpty ?? false) ...[
+                          if (_roomDetails!['description']?.isNotEmpty ??
+                              false) ...[
                             const SizedBox(height: 20),
                             Text(
                               'Description',
@@ -1206,12 +1215,12 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                   ),
                 ),
               )
-            : Center(
+              : Center(
                 child: Text(
                   'Property not found.',
                   style: TextStyle(fontSize: 18, color: textPrimary),
                 ),
               ),
-  );
-}
+    );
+  }
 }
