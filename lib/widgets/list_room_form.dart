@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show FieldValue;
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/cloudinary_service.dart';
+import '../services/firebase_storage_service.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -274,8 +274,10 @@ class _ListRoomFormState extends State<ListRoomForm>
         (url) => url.isNotEmpty,
         orElse: () => '',
       ),
-      'timestamp': FieldValue.serverTimestamp(), // Use server timestamp for consistent sorting
-      'createdAt': FieldValue.serverTimestamp(), // Use server timestamp instead of client time
+      'timestamp':
+          FieldValue.serverTimestamp(), // Use server timestamp for consistent sorting
+      'createdAt':
+          FieldValue.serverTimestamp(), // Use server timestamp instead of client time
       'selectedPlan': _selectedPlan,
       'expiryDate': expiryDate.toIso8601String(),
       'visibility': true, // Always true on creation,
@@ -341,12 +343,12 @@ class _ListRoomFormState extends State<ListRoomForm>
         ),
       );
 
-      // Upload to Cloudinary
-      String cloudinaryUrl = await CloudinaryService.uploadImage(image.path);
+      // Upload to Firebase Storage
+      String firebaseUrl = await FirebaseStorageService.uploadImage(image.path);
 
       if (!mounted) return;
       setState(() {
-        _uploadedPhotoUrls[photoType] = cloudinaryUrl;
+        _uploadedPhotoUrls[photoType] = firebaseUrl;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(

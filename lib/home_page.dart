@@ -10,6 +10,9 @@ import 'package:shimmer/shimmer.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import '../services/firebase_storage_service.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 export 'profile_page.dart';
 export 'need_room_page.dart';
@@ -224,50 +227,325 @@ class _HomePageState extends State<HomePage>
   String _userName = '';
   String _selectedLocation = 'Select Location';
   String? _profileImageUrl;
+  bool _isAdmin = false;
+  List<Map<String, dynamic>> _banners = [];
+  bool _bannersLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserName();
     _loadProfileImage();
-  }
-
-  Future<void> _loadUserName() async {
-    final user = FirebaseAuth.instance.currentUser;
-    String name = 'User';
-    if (user != null) {
-      if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
-        name = user.displayName!;
-      } else if (user.email != null && user.email!.trim().isNotEmpty) {
-        name = user.email!.split('@')[0];
-      } else if (user.phoneNumber != null &&
-          user.phoneNumber!.trim().isNotEmpty) {
-        name = user.phoneNumber!;
-      }
-    }
-    if (mounted) {
-      setState(() {
-        _userName = name;
-      });
-    }
+    _checkAdmin();
+    _loadBanners();
   }
 
   Future<void> _loadProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    // First try to get from Firestore
-    final doc =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-
-    if (mounted) {
+    if (user != null) {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
       setState(() {
         _profileImageUrl = doc.data()?['profileImageUrl'] ?? user.photoURL;
       });
     }
+  }
+
+  Future<void> _loadUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+      setState(() {
+        _userName = doc.data()?['name'] ?? user.displayName ?? 'User';
+      });
+    }
+  }
+
+  Future<void> _checkAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    // Use email to check admin, as in profile_page.dart
+    const adminEmails = [
+      'campusnest12@gmail.com', // Replace with your actual admin email(s)
+      // Add more admin emails as needed
+    ];
+    setState(() {
+      _isAdmin = user.email != null && adminEmails.contains(user.email);
+    });
+  }
+
+  Future<void> _loadBanners() async {
+    final bannersSnap =
+        await FirebaseFirestore.instance.collection('promo_banners').get();
+    if (bannersSnap.docs.isNotEmpty) {
+      setState(() {
+        _banners = bannersSnap.docs.map((d) => d.data()).toList();
+        _bannersLoaded = true;
+      });
+    } else {
+      // Save current hardcoded banners to Firestore
+      final defaultBanners = [
+        {
+          'title': 'HOSTEL & PGs',
+          'subtitle': 'Find Your Perfect Accommodation',
+          'icon': 'home_work',
+          'image':
+              'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80',
+        },
+        {
+          'title': 'NEEDY SERVICES',
+          'subtitle': 'Get Connected with Local Services',
+          'icon': 'support_agent',
+          'image':
+              'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=400&q=80',
+        },
+        {
+          'title': 'FLATMATES FINDER',
+          'subtitle': 'Connect With Perfect Roommates',
+          'icon': 'people',
+          'image':
+              'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80',
+        },
+        {
+          'title': 'ROOM FINDER',
+          'subtitle': 'Discover Your Ideal Space',
+          'icon': 'bed',
+          'image':
+              'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80',
+        },
+      ];
+      for (final banner in defaultBanners) {
+        await FirebaseFirestore.instance
+            .collection('promo_banners')
+            .add(banner);
+      }
+      setState(() {
+        _banners = defaultBanners;
+        _bannersLoaded = true;
+      });
+    }
+  }
+
+  Future<void> _editBanner(int index) async {
+    final banner = _banners[index];
+    final titleController = TextEditingController(text: banner['title']);
+    final subtitleController = TextEditingController(text: banner['subtitle']);
+    String iconName = banner['icon'] ?? 'home_work';
+    String imageUrl = banner['image'] ?? '';
+    File? newImageFile;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Banner'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Title'),
+                ),
+                TextField(
+                  controller: subtitleController,
+                  decoration: const InputDecoration(labelText: 'Subtitle'),
+                ),
+                DropdownButton<String>(
+                  value: iconName,
+                  items:
+                      [
+                            'home_work',
+                            'support_agent',
+                            'people',
+                            'bed',
+                            'room_service',
+                            'group',
+                            'hotel',
+                          ]
+                          .map(
+                            (icon) => DropdownMenuItem(
+                              value: icon,
+                              child: Text(icon),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => iconName = v);
+                  },
+                ),
+                const SizedBox(height: 8),
+                imageUrl.isNotEmpty
+                    ? Image.network(imageUrl, height: 80)
+                    : const SizedBox.shrink(),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Change Image'),
+                  onPressed: () async {
+                    final picked = await ImagePicker().pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (picked != null) {
+                      newImageFile = File(picked.path);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                String newImageUrl = imageUrl;
+                if (newImageFile != null) {
+                  newImageUrl = await FirebaseStorageService.uploadImage(
+                    newImageFile!.path,
+                  );
+                }
+                // Update Firestore
+                final bannersSnap =
+                    await FirebaseFirestore.instance
+                        .collection('promo_banners')
+                        .get();
+                final docId = bannersSnap.docs[index].id;
+                await FirebaseFirestore.instance
+                    .collection('promo_banners')
+                    .doc(docId)
+                    .update({
+                      'title': titleController.text,
+                      'subtitle': subtitleController.text,
+                      'icon': iconName,
+                      'image': newImageUrl,
+                    });
+                Navigator.pop(context);
+                _loadBanners();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _addNewBanner(BuildContext context) async {
+    final titleController = TextEditingController();
+    final subtitleController = TextEditingController();
+    String iconName = 'home_work';
+    File? newImageFile;
+    String? imageUrl;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add New Banner'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Title'),
+                ),
+                TextField(
+                  controller: subtitleController,
+                  decoration: const InputDecoration(labelText: 'Subtitle'),
+                ),
+                DropdownButton<String>(
+                  value: iconName,
+                  items:
+                      [
+                            'home_work',
+                            'support_agent',
+                            'people',
+                            'bed',
+                            'room_service',
+                            'group',
+                            'hotel',
+                          ]
+                          .map(
+                            (icon) => DropdownMenuItem(
+                              value: icon,
+                              child: Text(icon),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      iconName = v;
+                      (context as Element).markNeedsBuild();
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                imageUrl != null
+                    ? Image.network(imageUrl!, height: 80)
+                    : const SizedBox.shrink(),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Select Image'),
+                  onPressed: () async {
+                    final picked = await ImagePicker().pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (picked != null) {
+                      newImageFile = File(picked.path);
+                      imageUrl = await FirebaseStorageService.uploadImage(
+                        newImageFile!.path,
+                      );
+                      (context as Element).markNeedsBuild();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleController.text.isEmpty ||
+                    subtitleController.text.isEmpty ||
+                    imageUrl == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Please fill all fields and select an image.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                await FirebaseFirestore.instance
+                    .collection('promo_banners')
+                    .add({
+                      'title': titleController.text,
+                      'subtitle': subtitleController.text,
+                      'icon': iconName,
+                      'image': imageUrl,
+                    });
+                Navigator.pop(context);
+                _loadBanners();
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -477,40 +755,72 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildPromoBannerCarousel(BuildContext context) {
     final theme = Theme.of(context);
-
-    // Define your promotional banners
-    final List<Map<String, dynamic>> banners = [
-      {
-        'title': 'HOSTEL & PGs',
-        'subtitle': 'Find Your Perfect Accommodation',
-        'icon': Icons.home_work,
-        'image':
-            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        'title': 'NEEDY SERVICES',
-        'subtitle': 'Get Connected with Local Services',
-        'icon': Icons.support_agent,
-        'image':
-            'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        'title': 'FLATMATES FINDER',
-        'subtitle': 'Connect With Perfect Roommates',
-        'icon': Icons.people,
-        'image':
-            'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        'title': 'ROOM FINDER',
-        'subtitle': 'Discover Your Ideal Space',
-        'icon': Icons.bed,
-        'image':
-            'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80',
-      },
-    ];
-
-    return _BannerCarouselWidget(banners: banners, theme: theme);
+    if (!_bannersLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Stack(
+      children: [
+        _BannerCarouselWidget(banners: _banners, theme: theme),
+        if (_isAdmin)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              icon: const Icon(Icons.edit, color: Colors.orange),
+              tooltip: 'Edit Banners',
+              onPressed: () async {
+                await showDialog(
+                  context: context,
+                  builder: (context) {
+                    return StatefulBuilder(
+                      builder: (context, setState) {
+                        return SimpleDialog(
+                          title: const Text('Edit Promo Banners'),
+                          children: [
+                            ...List.generate(_banners.length, (i) {
+                              final b = _banners[i];
+                              return ListTile(
+                                leading:
+                                    b['image'] != null
+                                        ? Image.network(
+                                          b['image'],
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover,
+                                        )
+                                        : null,
+                                title: Text(b['title'] ?? ''),
+                                subtitle: Text(b['subtitle'] ?? ''),
+                                trailing: const Icon(Icons.edit),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _editBanner(i);
+                                },
+                              );
+                            }),
+                            const Divider(),
+                            ListTile(
+                              leading: const Icon(
+                                Icons.add,
+                                color: Colors.green,
+                              ),
+                              title: const Text('Add New Banner'),
+                              onTap: () async {
+                                Navigator.pop(context);
+                                await _addNewBanner(context);
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+      ],
+    );
   }
 
   void _showLocationSelector(BuildContext context) {
@@ -1135,10 +1445,35 @@ class _BannerCarouselWidgetState extends State<_BannerCarouselWidget> {
                 _currentIndex = index % widget.banners.length;
               });
             },
-            itemCount: null, // Infinite scroll
+            itemCount: null, // Infinite loop
             itemBuilder: (context, index) {
-              final bannerIndex = index % widget.banners.length;
-              final banner = widget.banners[bannerIndex];
+              final banner = widget.banners[index % widget.banners.length];
+              IconData? iconData;
+              switch (banner['icon']) {
+                case 'home_work':
+                  iconData = Icons.home_work;
+                  break;
+                case 'support_agent':
+                  iconData = Icons.support_agent;
+                  break;
+                case 'people':
+                  iconData = Icons.people;
+                  break;
+                case 'bed':
+                  iconData = Icons.bed;
+                  break;
+                case 'room_service':
+                  iconData = Icons.room_service;
+                  break;
+                case 'group':
+                  iconData = Icons.group;
+                  break;
+                case 'hotel':
+                  iconData = Icons.hotel;
+                  break;
+                default:
+                  iconData = Icons.home_work;
+              }
               return Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -1149,32 +1484,51 @@ class _BannerCarouselWidgetState extends State<_BannerCarouselWidget> {
                     // Background image
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: banner['image'] as String,
-                        height: 120,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder:
-                            (context, url) => Shimmer.fromColors(
-                              baseColor:
-                                  widget.theme.colorScheme.surfaceVariant,
-                              highlightColor: widget.theme.colorScheme.surface,
-                              child: Container(
+                      child:
+                          banner['image'] != null
+                              ? CachedNetworkImage(
+                                imageUrl: banner['image'],
                                 height: 120,
-                                color: widget.theme.colorScheme.surfaceVariant,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder:
+                                    (context, url) => Shimmer.fromColors(
+                                      baseColor:
+                                          widget
+                                              .theme
+                                              .colorScheme
+                                              .surfaceVariant,
+                                      highlightColor:
+                                          widget.theme.colorScheme.surface,
+                                      child: Container(
+                                        height: 120,
+                                        color:
+                                            widget
+                                                .theme
+                                                .colorScheme
+                                                .surfaceVariant,
+                                      ),
+                                    ),
+                                errorWidget:
+                                    (context, url, error) => Container(
+                                      height: 120,
+                                      color: widget.theme.colorScheme.surface,
+                                      child: Icon(
+                                        iconData,
+                                        size: 40,
+                                        color: widget.theme.colorScheme.primary,
+                                      ),
+                                    ),
+                              )
+                              : Container(
+                                height: 120,
+                                color: widget.theme.colorScheme.surface,
+                                child: Icon(
+                                  iconData,
+                                  size: 40,
+                                  color: widget.theme.colorScheme.primary,
+                                ),
                               ),
-                            ),
-                        errorWidget:
-                            (context, url, error) => Container(
-                              height: 120,
-                              color: widget.theme.colorScheme.surface,
-                              child: Icon(
-                                banner['icon'] as IconData,
-                                size: 40,
-                                color: widget.theme.colorScheme.primary,
-                              ),
-                            ),
-                      ),
                     ),
                     // Dark overlay for better text readability
                     Container(
@@ -1215,7 +1569,7 @@ class _BannerCarouselWidgetState extends State<_BannerCarouselWidget> {
                             ),
                           ),
                           Icon(
-                            banner['icon'] as IconData,
+                            iconData,
                             color: Colors.white.withOpacity(0.9),
                             size: 32,
                           ),

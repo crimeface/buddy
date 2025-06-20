@@ -95,6 +95,18 @@ class _SignUpPageState extends State<SignUpPage>
               password: _passwordController.text,
             );
 
+        // Send email verification
+        try {
+          await userCredential.user!.sendEmailVerification();
+        } catch (e) {
+          debugPrint('sendEmailVerification error: '
+              + e.toString());
+          if (mounted) {
+            showCustomSnackBar(context, 'Failed to send verification email: '
+                + e.toString(), backgroundColor: Colors.red, icon: Icons.error);
+          }
+        }
+
         // Update the user's display name in Firebase Authentication
         await userCredential.user!.updateDisplayName(
           _fullNameController.text.trim(),
@@ -121,7 +133,8 @@ class _SignUpPageState extends State<SignUpPage>
         });
 
         if (mounted) {
-          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+          showCustomSnackBar(context, 'A verification email has been sent. Please verify your email before logging in.', backgroundColor: Colors.green, icon: Icons.email);
+          Navigator.pushReplacementNamed(context, '/login');
         }
       } on FirebaseAuthException catch (e) {
         setState(() {
@@ -135,24 +148,12 @@ class _SignUpPageState extends State<SignUpPage>
         } else if (e.code == 'weak-password') {
           errorMsg = 'Password is too weak';
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(
-          content: Text(errorMsg),
-          backgroundColor: Colors.red.shade400,
-          behavior: SnackBarBehavior.floating,
-        ));
+        showCustomSnackBar(context, errorMsg, backgroundColor: Colors.red, icon: Icons.error);
       } catch (e) {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('An error occurred. Please try again.'),
-            backgroundColor: Colors.red.shade400,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showCustomSnackBar(context, 'An error occurred. Please try again.', backgroundColor: Colors.red, icon: Icons.error);
       }
     }
   }
@@ -241,6 +242,36 @@ class _SignUpPageState extends State<SignUpPage>
           contentPadding: const EdgeInsets.all(16),
         ),
         validator: validator,
+      ),
+    );
+  }
+
+  void showCustomSnackBar(BuildContext context, String message, {Color? backgroundColor, IconData? icon}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white),
+              SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        elevation: 8,
+        duration: const Duration(seconds: 3),
       ),
     );
   }

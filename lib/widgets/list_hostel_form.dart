@@ -4,7 +4,7 @@ import '../../theme.dart';
 import '../models/room_type.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this import at the top
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/cloudinary_service.dart';
+import '../services/firebase_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ListHostelForm extends StatefulWidget {
@@ -226,8 +226,8 @@ class _ListHostelFormState extends State<ListHostelForm>
       imageQuality: 85,
     );
     if (picked != null) {
-      final url = await CloudinaryService.uploadImage(picked.path);
-      if (url != null) {
+      final url = await FirebaseStorageService.uploadImage(picked.path);
+      if (url.isNotEmpty) {
         setState(() {
           _uploadedPhotos[photoType] = url;
         });
@@ -346,7 +346,7 @@ class _ListHostelFormState extends State<ListHostelForm>
       'availableFromDate': _availableFromDate?.toIso8601String(),
       'minimumStay': _minimumStay,
       'bookingMode': _bookingMode,
-      'uploadedPhotos': _uploadedPhotos, // Now contains Cloudinary URLs
+      'uploadedPhotos': _uploadedPhotos,
       'description': _descriptionController.text,
       'offers': _offersController.text,
       'specialFeatures': _specialFeaturesController.text,
@@ -1749,7 +1749,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                     ),
                   ),
                 );
-              }, // ✅ Removed incorrect semicolon here
+              },
             );
           },
         ),
@@ -1946,16 +1946,7 @@ class _ListHostelFormState extends State<ListHostelForm>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: BuddyTheme.textSecondaryColor,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+          SizedBox(width: 100, child: Text(label)),
           Expanded(
             child: Text(value, style: Theme.of(context).textTheme.bodySmall),
           ),

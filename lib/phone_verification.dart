@@ -266,6 +266,78 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
     );
   }
 
+  void _resendOTP() async {
+    if (_phoneController.text.isNotEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+      try {
+        await _auth.verifyPhoneNumber(
+          phoneNumber: '+91${_phoneController.text}',
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            await _auth.signInWithCredential(credential);
+            _onVerificationComplete();
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            setState(() {
+              _isLoading = false;
+            });
+            showCustomSnackBar(context, e.message ?? 'Verification failed', backgroundColor: isDark ? const Color(0xFFE74C3C) : Colors.red, icon: Icons.error);
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            setState(() {
+              _verificationId = verificationId;
+              _isLoading = false;
+            });
+            showCustomSnackBar(context, 'OTP Resent', backgroundColor: primaryColor, icon: Icons.sms);
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {
+            setState(() {
+              _verificationId = verificationId;
+              _isLoading = false;
+            });
+          },
+        );
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        showCustomSnackBar(context, 'Error: ${e.toString()}', backgroundColor: isDark ? const Color(0xFFE74C3C) : Colors.red, icon: Icons.error);
+      }
+    }
+  }
+
+  // Custom SnackBar for consistent UI
+  void showCustomSnackBar(BuildContext context, String message, {Color? backgroundColor, IconData? icon}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white),
+              SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        elevation: 8,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   // Updated theme-aware colors to match login page
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
   
@@ -585,37 +657,28 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
           SizedBox(height: 30),
           
           // Resend OTP
-          TextButton(
-            onPressed: () {
-              // Handle resend OTP
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('OTP Resent'),
-                  backgroundColor: isDark ? const Color(0xFF2C3E50) : null,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Didn't receive OTP? ",
+                style: TextStyle(
+                  color: subtitleColor,
+                  fontSize: 14,
                 ),
-              );
-            },
-            child: RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'Didn\'t receive OTP? ',
-                    style: TextStyle(
-                      color: subtitleColor,
-                      fontSize: 14,
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'Resend',
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
               ),
-            ),
+              GestureDetector(
+                onTap: _isLoading ? null : _resendOTP,
+                child: Text(
+                  'Resend',
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
           
           SizedBox(height: 20),

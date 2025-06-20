@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/cloudinary_service.dart';
+import '../services/firebase_storage_service.dart';
 
 class RoomRequestForm extends StatefulWidget {
   const RoomRequestForm({Key? key}) : super(key: key);
@@ -224,7 +224,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     if (_profileImage == null) return null;
     setState(() => _isUploading = true);
     try {
-      final url = await CloudinaryService.uploadImage(_profileImage!.path);
+      final url = await FirebaseStorageService.uploadImage(_profileImage!.path);
       return url;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -291,7 +291,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     String? profilePhotoUrl;
     if (_profileImage != null) {
       try {
-        profilePhotoUrl = await CloudinaryService.uploadImage(
+        profilePhotoUrl = await FirebaseStorageService.uploadImage(
           _profileImage!.path,
         );
       } catch (e) {

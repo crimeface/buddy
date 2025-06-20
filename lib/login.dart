@@ -86,16 +86,27 @@ class _LoginPageState extends State<LoginPage>
         String password = _passwordController.text.trim();
 
         // Sign in with Firebase Auth
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: password,
         );
+
+        // Check if email is verified
+        if (!userCredential.user!.emailVerified) {
+          await FirebaseAuth.instance.signOut();
+          if (mounted) {
+            showCustomSnackBar(context, 'Please verify your email before logging in.', backgroundColor: Colors.orange, icon: Icons.info);
+          }
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
 
         // Check for admin email
         bool isAdmin = email.toLowerCase() == 'campusnest12@gmail.com';
 
         if (mounted) {
-          // Pass isAdmin as an argument, or set in your app state/provider
           Navigator.pushReplacementNamed(
             context,
             '/home',
@@ -103,7 +114,7 @@ class _LoginPageState extends State<LoginPage>
           );
         }
       } on FirebaseAuthException catch (e) {
-        String errorMsg = 'Login failed';
+        String errorMsg = 'Invalid credentials';
         if (e.code == 'user-not-found') {
           errorMsg = 'No user found for that email.';
         } else if (e.code == 'wrong-password') {
@@ -112,23 +123,11 @@ class _LoginPageState extends State<LoginPage>
           errorMsg = 'Invalid email address.';
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red.shade400,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          showCustomSnackBar(context, errorMsg, backgroundColor: Colors.red, icon: Icons.error);
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('An error occurred'),
-              backgroundColor: Colors.red.shade400,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          showCustomSnackBar(context, 'An error occurred', backgroundColor: Colors.red, icon: Icons.error);
         }
       } finally {
         if (mounted) {
@@ -239,6 +238,36 @@ class _LoginPageState extends State<LoginPage>
           contentPadding: const EdgeInsets.all(16),
         ),
         validator: validator,
+      ),
+    );
+  }
+
+  void showCustomSnackBar(BuildContext context, String message, {Color? backgroundColor, IconData? icon}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white),
+              SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        elevation: 8,
+        duration: const Duration(seconds: 3),
       ),
     );
   }

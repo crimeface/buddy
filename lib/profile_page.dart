@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +8,7 @@ import 'theme.dart';
 import 'edit_profile.dart';
 import 'wishlist_page.dart';
 import 'settings_page.dart';
+import 'banner_changing.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -19,17 +21,94 @@ class _ProfilePageState extends State<ProfilePage> {
   User? _user;
   bool _isLoggingOut = false;
   String _profileImageUrlFromFirestore = '';
+  String? _firestoreEmail;
+  StreamSubscription<DocumentSnapshot>? _userDocSubscription;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    _listenToUserChanges();
+    _listenToFirestoreUserDoc();
     _loadProfileImageUrl();
+  }
+
+  void _listenToUserChanges() {
+    _authSubscription = FirebaseAuth.instance.userChanges().listen((user) {
+      if (mounted) {
+        setState(() {
+          _user = user;
+        });
+      }
+    });
+  }
+
+  void _listenToFirestoreUserDoc() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    _userDocSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen((doc) async {
+          if (doc.exists) {
+            final data = doc.data();
+            String? firestoreEmail = data?['email'];
+            String? firestoreUsername = data?['username'];
+            setState(() {
+              _profileImageUrlFromFirestore = data?['profileImageUrl'] ?? '';
+              _firestoreEmail = firestoreEmail;
+            });
+            // Update displayName if changed in Firestore
+            if (firestoreUsername != null && firestoreUsername != _user?.displayName) {
+              try {
+                await _user?.updateDisplayName(firestoreUsername);
+                await _user?.reload();
+                setState(() {
+                  _user = FirebaseAuth.instance.currentUser;
+                });
+              } catch (e) {
+                // Handle error if needed
+              }
+            }
+            // Update email if changed in Firestore
+            if (firestoreEmail != null && firestoreEmail != _user?.email) {
+              try {
+                await _user?.updateEmail(firestoreEmail);
+                await _user?.reload();
+                setState(() {
+                  _user = FirebaseAuth.instance.currentUser;
+                });
+              } on FirebaseAuthException catch (e) {
+                if (e.code == 'requires-recent-login') {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please re-authenticate to update your email.'),
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                  }
+                } else {
+                  // Handle other errors if needed
+                }
+              } catch (e) {
+                // Handle other errors if needed
+              }
+            }
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _userDocSubscription?.cancel();
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadProfileImageUrl() async {
     final user = FirebaseAuth.instance.currentUser;
-    final bool isAdmin = user?.email?.toLowerCase() == 'campusnest12@gmail.com';
     if (user == null) return;
     final doc =
         await FirebaseFirestore.instance
@@ -40,15 +119,6 @@ class _ProfilePageState extends State<ProfilePage> {
       final data = doc.data();
       setState(() {
         _profileImageUrlFromFirestore = data?['profileImageUrl'] ?? '';
-      });
-    }
-  }
-
-  Future<void> _loadUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (mounted) {
-      setState(() {
-        _user = user;
       });
     }
   }
@@ -184,14 +254,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildUserNameSection(bool isDark) {
+    final isPhoneUser = _user?.providerData.any((p) => p.providerId == 'phone') == true;
     return Column(
       children: [
         Text(
-          (_user?.displayName != null && _user!.displayName!.trim().isNotEmpty)
+          _user?.displayName?.isNotEmpty == true
               ? _user!.displayName!
-              : (_user?.email != null && _user!.email!.trim().isNotEmpty)
-              ? _user!.email!.split('@')[0].toUpperCase()
-              : (_user?.phoneNumber ?? 'Guest User'),
+              : (_firestoreEmail != null && _firestoreEmail!.trim().isNotEmpty)
+                  ? _firestoreEmail!.split('@')[0].toUpperCase()
+                  : (_user?.phoneNumber ?? 'Guest User'),
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -210,7 +281,9 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           child: Text(
-            _user?.email ?? 'No Email',
+            isPhoneUser
+                ? (_user?.phoneNumber ?? 'No Phone')
+                : (_firestoreEmail ?? _user?.email ?? 'No Email'),
             style: TextStyle(
               fontSize: 14,
               color: isDark ? Colors.white : Colors.black,
@@ -272,6 +345,19 @@ class _ProfilePageState extends State<ProfilePage> {
               isDark: isDark,
             ),
           // --- End Change Price button ---
+          // --- Add Change Banner button here for admin ---
+          if (FirebaseAuth.instance.currentUser?.email?.toLowerCase() ==
+              'campusnest12@gmail.com')
+            _buildMenuOption(
+              icon: Icons.photo_library,
+              iconColor: Colors.deepPurple,
+              title: 'Change Promo Banners',
+              onTap: () {
+                showBannerChangingDialog(context);
+              },
+              isDark: isDark,
+            ),
+          // --- End Change Banner button ---
           _buildMenuOption(
             icon: Icons.favorite_border,
             iconColor: BuddyTheme.secondaryColor,

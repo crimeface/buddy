@@ -4,8 +4,7 @@ import 'dart:io';
 import 'theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import './services/cloudinary_service.dart';
-// Make sure uploadImage is a top-level function in cloudinary_service.dart and is exported.
+import './services/firebase_storage_service.dart'; // <-- Import Firebase Storage service
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -24,11 +23,11 @@ class _EditProfilePageState extends State<EditProfilePage>
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _bioController = TextEditingController();
   File? _profileImage;
   bool _isLoading = false;
 
   String _profileImageUrlFromFirestore = '';
+  bool _phoneVerified = false;
 
   @override
   void initState() {
@@ -57,7 +56,6 @@ class _EditProfilePageState extends State<EditProfilePage>
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _bioController.dispose();
     super.dispose();
   }
 
@@ -75,7 +73,6 @@ class _EditProfilePageState extends State<EditProfilePage>
         _nameController.text = data['username'] ?? '';
         _emailController.text = data['email'] ?? '';
         _phoneController.text = data['phone'] ?? '';
-        _bioController.text = data['bio'] ?? '';
         _profileImageUrlFromFirestore = data['profileImageUrl'] ?? '';
       });
     }
@@ -160,10 +157,15 @@ class _EditProfilePageState extends State<EditProfilePage>
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-
+    final user = FirebaseAuth.instance.currentUser;
+    final isEmailUser = user != null && user.providerData.any((p) => p.providerId == 'password');
+    // Only require phone verification for email users
+    if (isEmailUser && !_phoneVerified) {
+      showCustomSnackBar(context, 'Please verify your phone number before saving.', backgroundColor: Colors.orange, icon: Icons.info);
+      return;
+    }
     setState(() => _isLoading = true);
 
-    final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(
@@ -174,27 +176,17 @@ class _EditProfilePageState extends State<EditProfilePage>
 
     String? profileImageUrl;
     if (_profileImage != null) {
-      profileImageUrl = await CloudinaryService.uploadImage(
+      profileImageUrl = await FirebaseStorageService.uploadImage(
         _profileImage!.path,
       );
-      if (profileImageUrl == null) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload profile image.')),
-        );
-        return;
-      }
     }
 
     final data = {
       'username': _nameController.text,
       'email': _emailController.text,
       'phone': _phoneController.text,
-      'bio': _bioController.text,
       if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
     };
-
-    data.removeWhere((key, value) => value == null);
 
     try {
       await FirebaseFirestore.instance
@@ -247,16 +239,9 @@ class _EditProfilePageState extends State<EditProfilePage>
       return;
     }
 
-    String? profileImageUrl = await CloudinaryService.uploadImage(
+    String profileImageUrl = await FirebaseStorageService.uploadImage(
       _profileImage!.path,
     );
-    if (profileImageUrl == null) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to upload profile image.')),
-      );
-      return;
-    }
 
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'profileImageUrl': profileImageUrl,
@@ -271,10 +256,6 @@ class _EditProfilePageState extends State<EditProfilePage>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (_fadeAnimation == null || _slideAnimation == null) {
-      // Return a placeholder while animations are not ready
-      return const SizedBox.shrink();
-    }
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.grey[50],
@@ -352,70 +333,49 @@ class _EditProfilePageState extends State<EditProfilePage>
     return Center(
       child: Column(
         children: [
-          Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: BuddyTheme.primaryColor.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
-                  backgroundImage:
-                      _profileImage != null
-                          ? FileImage(_profileImage!)
-                          : (_profileImageUrlFromFirestore != null &&
-                                      _profileImageUrlFromFirestore.isNotEmpty
-                                  ? NetworkImage(_profileImageUrlFromFirestore)
-                                  : const NetworkImage(
-                                    'https://randomuser.me/api/portraits/men/32.jpg',
-                                  ))
-                              as ImageProvider,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          BuddyTheme.primaryColor,
+          Hero(
+            tag: 'profile_avatar',
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [
+                          Colors.white.withOpacity(0.3),
+                          Colors.white.withOpacity(0.1),
+                        ]
+                      : [
                           BuddyTheme.primaryColor.withOpacity(0.8),
+                          BuddyTheme.secondaryColor.withOpacity(0.6),
                         ],
-                      ),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark ? Colors.black : Colors.white,
-                        width: 3,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.2)
+                        : BuddyTheme.primaryColor.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
+                ],
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Container(
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+                child: ClipOval(
+                  child: _profileImage != null
+                      ? Image.file(_profileImage!, fit: BoxFit.cover, width: 112, height: 112)
+                      : (_profileImageUrlFromFirestore.isNotEmpty
+                          ? Image.network(_profileImageUrlFromFirestore, fit: BoxFit.cover, width: 112, height: 112)
+                          : Icon(Icons.person, size: 60, color: Colors.grey[400])),
                 ),
               ),
-            ],
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -443,47 +403,104 @@ class _EditProfilePageState extends State<EditProfilePage>
           validator: (val) => val?.isEmpty == true ? 'Name is required' : null,
           isDark: isDark,
         ),
-        const SizedBox(height: 16),
-        _buildModernTextField(
-          controller: _bioController,
-          label: 'Bio',
-          icon: Icons.info_outline,
-          maxLines: 3,
-          isDark: isDark,
-          hintText: 'Tell us about yourself...',
-        ),
       ],
     );
   }
 
   Widget _buildContactInfoSection(bool isDark) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isEmailUser = user != null && user.providerData.any((p) => p.providerId == 'password');
     return _buildSection(
       title: 'Contact Information',
       icon: Icons.contact_mail_outlined,
       isDark: isDark,
       children: [
-        _buildModernTextField(
-          controller: _emailController,
-          label: 'Email',
-          icon: Icons.email_outlined,
-          keyboardType: TextInputType.emailAddress,
-          validator: (val) {
-            if (val?.isEmpty == true) return 'Email is required';
-            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val!)) {
-              return 'Enter a valid email';
-            }
-            return null;
-          },
-          isDark: isDark,
-        ),
-        const SizedBox(height: 16),
-        _buildModernTextField(
-          controller: _phoneController,
-          label: 'Phone Number',
-          icon: Icons.phone_outlined,
-          keyboardType: TextInputType.phone,
-          isDark: isDark,
-        ),
+        if (isEmailUser) ...[
+          Stack(
+            children: [
+              _buildModernTextField(
+                controller: _emailController,
+                label: 'Email',
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                validator: (_) => null,
+                isDark: isDark,
+                readOnly: true,
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.withOpacity(0.25)
+                          : Colors.grey.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 8.0, top: 4.0, bottom: 8.0),
+            child: Text(
+              'Email cannot be changed',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          PhoneNumberWithOtpField(
+            controller: _phoneController,
+            isDark: isDark,
+            onVerified: (verifiedNumber) {
+              setState(() {
+                _phoneController.text = verifiedNumber;
+                _phoneVerified = true;
+              });
+            },
+          ),
+        ] else ...[
+          Stack(
+            children: [
+              _buildModernTextField(
+                controller: _phoneController,
+                label: 'Phone Number',
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+                validator: (_) => null,
+                isDark: isDark,
+                readOnly: true,
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.withOpacity(0.25)
+                          : Colors.grey.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 8.0, top: 4.0, bottom: 8.0),
+            child: Text(
+              'Phone number cannot be changed',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -547,12 +564,14 @@ class _EditProfilePageState extends State<EditProfilePage>
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
+    bool readOnly = false, // Add readOnly parameter
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
       validator: validator,
+      readOnly: readOnly, // Set the readOnly property
       style: TextStyle(
         color: isDark ? Colors.white : Colors.black87,
         fontSize: 16,
@@ -662,6 +681,212 @@ class _EditProfilePageState extends State<EditProfilePage>
           ),
         ),
       ),
+    );
+  }
+}
+
+// Helper for custom snack bar in PhoneNumberWithOtpField
+void showCustomSnackBar(BuildContext context, String message, {Color? backgroundColor, IconData? icon}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: Colors.white),
+            SizedBox(width: 8),
+          ],
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      elevation: 8,
+      duration: const Duration(seconds: 3),
+    ),
+  );
+}
+
+class PhoneNumberWithOtpField extends StatefulWidget {
+  final TextEditingController controller;
+  final bool isDark;
+  final void Function(String) onVerified;
+  const PhoneNumberWithOtpField({
+    required this.controller,
+    required this.isDark,
+    required this.onVerified,
+    super.key,
+  });
+
+  @override
+  State<PhoneNumberWithOtpField> createState() => _PhoneNumberWithOtpFieldState();
+}
+
+class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
+  final _otpController = TextEditingController();
+  String? _verificationId;
+  bool _otpSent = false;
+  bool _isVerifying = false;
+  bool _isVerified = false;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendOtp() async {
+    final phone = widget.controller.text.trim();
+    if (phone.isEmpty || phone.length < 10) {
+      showCustomSnackBar(context, 'Enter a valid phone number', backgroundColor: Colors.red, icon: Icons.error);
+      return;
+    }
+    setState(() { _isVerifying = true; });
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: phone,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        setState(() { _isVerified = true; _isVerifying = false; });
+        widget.onVerified(phone);
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        setState(() { _isVerifying = false; });
+        showCustomSnackBar(context, 'OTP failed: \\n${e.message}', backgroundColor: Colors.red, icon: Icons.error);
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        setState(() { _otpSent = true; _verificationId = verificationId; _isVerifying = false; });
+        showCustomSnackBar(context, 'OTP sent to $phone', backgroundColor: Colors.green, icon: Icons.sms);
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        setState(() { _verificationId = verificationId; });
+      },
+    );
+  }
+
+  Future<void> _verifyOtp() async {
+    if (_verificationId == null || _otpController.text.isEmpty) {
+      showCustomSnackBar(context, 'Enter the OTP', backgroundColor: Colors.red, icon: Icons.error);
+      return;
+    }
+    setState(() { _isVerifying = true; });
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: _otpController.text.trim(),
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      setState(() { _isVerified = true; _isVerifying = false; });
+      widget.onVerified(widget.controller.text.trim());
+      showCustomSnackBar(context, 'Phone number verified!', backgroundColor: Colors.green, icon: Icons.check_circle);
+    } catch (e) {
+      setState(() { _isVerifying = false; });
+      showCustomSnackBar(context, 'Invalid OTP', backgroundColor: Colors.red, icon: Icons.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: widget.controller,
+          keyboardType: TextInputType.phone,
+          enabled: !_isVerified,
+          style: TextStyle(
+            color: widget.isDark ? Colors.white : Colors.black87,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            prefixIcon: Container(
+              margin: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: BuddyTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.phone_outlined, color: BuddyTheme.primaryColor, size: 20),
+            ),
+            labelText: 'Phone Number',
+            labelStyle: TextStyle(
+              color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+            filled: true,
+            fillColor: widget.isDark ? Colors.grey[800] : Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: widget.isDark ? Colors.grey[700]! : Colors.grey[200]!,
+                width: 1.5,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: BuddyTheme.primaryColor, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: 16,
+            ),
+            suffixIcon: _isVerified
+                ? Icon(Icons.verified, color: Colors.green)
+                : (_otpSent
+                    ? IconButton(
+                        icon: _isVerifying
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: BuddyTheme.primaryColor),
+                              )
+                            : Icon(Icons.check, color: BuddyTheme.primaryColor),
+                        onPressed: _isVerifying ? null : _verifyOtp,
+                      )
+                    : IconButton(
+                        icon: _isVerifying
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: BuddyTheme.primaryColor),
+                              )
+                            : Icon(Icons.sms, color: BuddyTheme.primaryColor),
+                        onPressed: _isVerifying ? null : _sendOtp,
+                      )),
+          ),
+        ),
+        if (_otpSent && !_isVerified)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: TextFormField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Enter OTP',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -144,6 +144,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildSettingsSection(bool isDark) {
+    final isEmailUser = _user?.email != null && _user!.email!.isNotEmpty;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingMd),
       decoration: BuddyTheme.cardDecoration.copyWith(
@@ -167,39 +168,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           _buildNotificationSetting(isDark),
-          _buildMenuOption(
-            icon: Icons.email_outlined,
-            iconColor: Colors.blue,
-            title: 'Change Email / Password',
-            onTap: () => _showChangeEmailPasswordDialog(),
-            isDark: isDark,
-          ),
-          _buildMenuOption(
-            icon: Icons.security_outlined,
-            iconColor: BuddyTheme.successColor,
-            title: 'Two-Factor Authentication (2FA)',
-            onTap: () => _showTwoFactorDialog(),
-            isDark: isDark,
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color:
-                    _twoFactorEnabled
-                        ? BuddyTheme.successColor.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _twoFactorEnabled ? 'Enabled' : 'Disabled',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color:
-                      _twoFactorEnabled ? BuddyTheme.successColor : Colors.grey,
-                ),
-              ),
+          if (isEmailUser)
+            _buildMenuOption(
+              icon: Icons.email_outlined,
+              iconColor: Colors.blue,
+              title: 'Change Email / Password',
+              onTap: () => _showChangeEmailPasswordDialog(),
+              isDark: isDark,
             ),
-          ),
           _buildMenuOption(
             icon: Icons.bug_report_outlined,
             iconColor: Colors.orange,

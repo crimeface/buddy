@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/cloudinary_service.dart';
+import '../services/firebase_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ListServiceForm extends StatefulWidget {
@@ -1610,7 +1610,7 @@ class _ListServiceFormState extends State<ListServiceForm>
         ),
       );
       try {
-        String url = await CloudinaryService.uploadImage(image.path);
+        String url = await FirebaseStorageService.uploadImage(image.path);
         setState(() {
           _coverPhotoUrl = url;
         });
@@ -1644,7 +1644,7 @@ class _ListServiceFormState extends State<ListServiceForm>
         ),
       );
       try {
-        String url = await CloudinaryService.uploadImage(image.path);
+        String url = await FirebaseStorageService.uploadImage(image.path);
         setState(() {
           _additionalPhotoUrls.add(url);
         });
