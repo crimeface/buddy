@@ -158,12 +158,7 @@ class _EditProfilePageState extends State<EditProfilePage>
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     final user = FirebaseAuth.instance.currentUser;
-    final isEmailUser = user != null && user.providerData.any((p) => p.providerId == 'password');
-    // Only require phone verification for email users
-    if (isEmailUser && !_phoneVerified) {
-      showCustomSnackBar(context, 'Please verify your phone number before saving.', backgroundColor: Colors.orange, icon: Icons.info);
-      return;
-    }
+    // Remove phone verification requirement for email users
     setState(() => _isLoading = true);
 
     if (user == null) {
@@ -335,44 +330,47 @@ class _EditProfilePageState extends State<EditProfilePage>
         children: [
           Hero(
             tag: 'profile_avatar',
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? [
-                          Colors.white.withOpacity(0.3),
-                          Colors.white.withOpacity(0.1),
-                        ]
-                      : [
-                          BuddyTheme.primaryColor.withOpacity(0.8),
-                          BuddyTheme.secondaryColor.withOpacity(0.6),
-                        ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark
-                        ? Colors.black.withOpacity(0.2)
-                        : BuddyTheme.primaryColor.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(4),
+            child: GestureDetector(
+              onTap: _isLoading ? null : _pickImage,
               child: Container(
-                decoration: const BoxDecoration(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white,
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [
+                            Colors.white.withOpacity(0.3),
+                            Colors.white.withOpacity(0.1),
+                          ]
+                        : [
+                            BuddyTheme.primaryColor.withOpacity(0.8),
+                            BuddyTheme.secondaryColor.withOpacity(0.6),
+                          ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withOpacity(0.2)
+                          : BuddyTheme.primaryColor.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-                child: ClipOval(
-                  child: _profileImage != null
-                      ? Image.file(_profileImage!, fit: BoxFit.cover, width: 112, height: 112)
-                      : (_profileImageUrlFromFirestore.isNotEmpty
-                          ? Image.network(_profileImageUrlFromFirestore, fit: BoxFit.cover, width: 112, height: 112)
-                          : Icon(Icons.person, size: 60, color: Colors.grey[400])),
+                padding: const EdgeInsets.all(4),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: ClipOval(
+                    child: _profileImage != null
+                        ? Image.file(_profileImage!, fit: BoxFit.cover, width: 112, height: 112)
+                        : (_profileImageUrlFromFirestore.isNotEmpty
+                            ? Image.network(_profileImageUrlFromFirestore, fit: BoxFit.cover, width: 112, height: 112)
+                            : Icon(Icons.person, size: 60, color: Colors.grey[400])),
+                  ),
                 ),
               ),
             ),
@@ -410,6 +408,7 @@ class _EditProfilePageState extends State<EditProfilePage>
   Widget _buildContactInfoSection(bool isDark) {
     final user = FirebaseAuth.instance.currentUser;
     final isEmailUser = user != null && user.providerData.any((p) => p.providerId == 'password');
+    final isPhoneUser = user != null && user.providerData.any((p) => p.providerId == 'phone');
     return _buildSection(
       title: 'Contact Information',
       icon: Icons.contact_mail_outlined,
@@ -452,18 +451,8 @@ class _EditProfilePageState extends State<EditProfilePage>
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          PhoneNumberWithOtpField(
-            controller: _phoneController,
-            isDark: isDark,
-            onVerified: (verifiedNumber) {
-              setState(() {
-                _phoneController.text = verifiedNumber;
-                _phoneVerified = true;
-              });
-            },
-          ),
-        ] else ...[
+          // No phone field for email users
+        ] else if (isPhoneUser) ...[
           Stack(
             children: [
               _buildModernTextField(

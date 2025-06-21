@@ -400,14 +400,87 @@ class _LoginPageState extends State<LoginPage>
                                     Align(
                                       alignment: Alignment.centerRight,
                                       child: TextButton(
-                                        onPressed: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Forgot password functionality will be implemented soon',
-                                              ),
-                                              behavior: SnackBarBehavior.floating,
-                                            ),
+                                        onPressed: () async {
+                                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                                          String email = _emailController.text.trim();
+                                          final emailController = TextEditingController(text: email);
+                                          await showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              return AlertDialog(
+                                                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                ),
+                                                title: Text(
+                                                  'Reset Password',
+                                                  style: TextStyle(
+                                                    color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                content: TextField(
+                                                  controller: emailController,
+                                                  keyboardType: TextInputType.emailAddress,
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Enter your email',
+                                                    hintStyle: TextStyle(
+                                                      color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
+                                                    ),
+                                                    prefixIcon: Icon(Icons.email_outlined, color: isDark ? Colors.white : const Color(0xFF1E3A8A)),
+                                                    filled: true,
+                                                    fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFF),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      borderSide: BorderSide.none,
+                                                    ),
+                                                    contentPadding: const EdgeInsets.all(16),
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () => Navigator.of(context).pop(),
+                                                    child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E3A8A))),
+                                                  ),
+                                                  ElevatedButton(
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(12),
+                                                      ),
+                                                    ),
+                                                    onPressed: () async {
+                                                      final enteredEmail = emailController.text.trim();
+                                                      if (enteredEmail.isEmpty) {
+                                                        showCustomSnackBar(context, 'Please enter your email', backgroundColor: Colors.red, icon: Icons.error);
+                                                        return;
+                                                      }
+                                                      try {
+                                                        await FirebaseAuth.instance.sendPasswordResetEmail(email: enteredEmail);
+                                                        if (mounted) {
+                                                          Navigator.of(context).pop();
+                                                          showCustomSnackBar(context, 'Password reset email sent!', backgroundColor: Colors.green, icon: Icons.check_circle);
+                                                        }
+                                                      } on FirebaseAuthException catch (e) {
+                                                        String errorMsg = 'Failed to send reset email';
+                                                        if (e.code == 'user-not-found') {
+                                                          errorMsg = 'No user found for that email.';
+                                                        } else if (e.code == 'invalid-email') {
+                                                          errorMsg = 'Invalid email address.';
+                                                        }
+                                                        showCustomSnackBar(context, errorMsg, backgroundColor: Colors.red, icon: Icons.error);
+                                                      } catch (_) {
+                                                        showCustomSnackBar(context, 'An error occurred', backgroundColor: Colors.red, icon: Icons.error);
+                                                      }
+                                                    },
+                                                    child: const Text('Send Reset Link', style: TextStyle(color: Colors.white)),
+                                                  ),
+                                                ],
+                                              );
+                                            },
                                           );
                                         },
                                         style: TextButton.styleFrom(
