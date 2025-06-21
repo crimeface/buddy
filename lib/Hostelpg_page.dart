@@ -5,7 +5,8 @@ import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HostelPgPage extends StatefulWidget {
-  const HostelPgPage({Key? key}) : super(key: key);
+  final String selectedCity;
+  const HostelPgPage({Key? key, required this.selectedCity}) : super(key: key);
 
   @override
   State<HostelPgPage> createState() => _HostelPgPageState();
@@ -16,14 +17,6 @@ class _HostelPgPageState extends State<HostelPgPage> {
   String _selectedPriceRange = 'All Prices';
   String _selectedRoomType = 'All Types';
   String _searchQuery = '';
-
-  final List<String> _locations = [
-    'All Cities',
-    'Downtown, NY',
-    'Uptown, NY',
-    'Brooklyn, NY',
-    'Queens, NY',
-  ];
 
   final List<String> _priceRanges = [
     'All Prices',
@@ -50,6 +43,7 @@ class _HostelPgPageState extends State<HostelPgPage> {
   @override
   void initState() {
     super.initState();
+    _selectedLocation = (widget.selectedCity.isNotEmpty && widget.selectedCity != 'Select Location') ? widget.selectedCity : 'All Cities';
     _fetchHostels();
   }
 
@@ -57,12 +51,13 @@ class _HostelPgPageState extends State<HostelPgPage> {
     setState(() => _isLoading = true);
     try {
       final now = DateTime.now();
-      // Fetch all visible listings
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('hostel_listings')
-              .where('visibility', isEqualTo: true)
-              .get();
+      var query = FirebaseFirestore.instance
+          .collection('hostel_listings')
+          .where('visibility', isEqualTo: true);
+      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities' && widget.selectedCity != 'Select Location') {
+        query = query.where('city', isEqualTo: widget.selectedCity);
+      }
+      final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loadedHostels = [];
       final batch = FirebaseFirestore.instance.batch();
@@ -290,6 +285,20 @@ class _HostelPgPageState extends State<HostelPgPage> {
                         ),
                       ),
                     )
+                  else if (_filteredHostels.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Text(
+                          'No Hostel/PGs found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: textSecondary,
+                          ),
+                        ),
+                      ),
+                    )
                   else
                     ..._filteredHostels
                         .map(
@@ -395,18 +404,6 @@ class _HostelPgPageState extends State<HostelPgPage> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _buildFilterChip(
-                'Location',
-                _selectedLocation,
-                _locations,
-                (value) {
-                  setState(() => _selectedLocation = value);
-                },
-                cardColor,
-                textPrimary,
-                borderColor,
-              ),
-              const SizedBox(width: BuddyTheme.spacingXs),
               _buildFilterChip(
                 'Budget',
                 _selectedPriceRange,

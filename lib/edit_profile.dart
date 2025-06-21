@@ -330,49 +330,74 @@ class _EditProfilePageState extends State<EditProfilePage>
         children: [
           Hero(
             tag: 'profile_avatar',
-            child: GestureDetector(
-              onTap: _isLoading ? null : _pickImage,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [
-                            Colors.white.withOpacity(0.3),
-                            Colors.white.withOpacity(0.1),
-                          ]
-                        : [
-                            BuddyTheme.primaryColor.withOpacity(0.8),
-                            BuddyTheme.secondaryColor.withOpacity(0.6),
-                          ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark
-                          ? Colors.black.withOpacity(0.2)
-                          : BuddyTheme.primaryColor.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Container(
-                  decoration: const BoxDecoration(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white,
+                    gradient: LinearGradient(
+                      colors: isDark
+                          ? [
+                              Colors.white.withOpacity(0.3),
+                              Colors.white.withOpacity(0.1),
+                            ]
+                          : [
+                              BuddyTheme.primaryColor.withOpacity(0.8),
+                              BuddyTheme.secondaryColor.withOpacity(0.6),
+                            ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark
+                            ? Colors.black.withOpacity(0.2)
+                            : BuddyTheme.primaryColor.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                  child: ClipOval(
-                    child: _profileImage != null
-                        ? Image.file(_profileImage!, fit: BoxFit.cover, width: 112, height: 112)
-                        : (_profileImageUrlFromFirestore.isNotEmpty
-                            ? Image.network(_profileImageUrlFromFirestore, fit: BoxFit.cover, width: 112, height: 112)
-                            : Icon(Icons.person, size: 60, color: Colors.grey[400])),
+                  padding: const EdgeInsets.all(4),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                    child: ClipOval(
+                      child: _profileImage != null
+                          ? Image.file(_profileImage!, fit: BoxFit.cover, width: 112, height: 112)
+                          : (_profileImageUrlFromFirestore.isNotEmpty
+                              ? Image.network(_profileImageUrlFromFirestore, fit: BoxFit.cover, width: 112, height: 112)
+                              : Icon(Icons.person, size: 60, color: Colors.grey[400])),
+                    ),
                   ),
                 ),
-              ),
+                Positioned(
+                  bottom: 10,
+                  right: 10,
+                  child: Material(
+                    color: isDark ? Colors.grey[800] : Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 3,
+                    child: InkWell(
+                      onTap: _isLoading ? null : _pickImage,
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDark ? BuddyTheme.primaryColor : BuddyTheme.primaryColor,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),

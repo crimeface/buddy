@@ -13,6 +13,8 @@ import 'dart:async';
 import '../services/firebase_storage_service.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'Hostelpg_page.dart';
+import 'service_page.dart';
 
 export 'profile_page.dart';
 export 'need_room_page.dart';
@@ -27,6 +29,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  String _selectedCity = 'Select Location'; // Default to 'Select Location'
 
   void _onItemTapped(int index) {
     setState(() {
@@ -34,17 +37,30 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  late final List<Widget> _pages;
+  late List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
     _pages = [
-      HomePage(key: const Key('home'), onTabChange: _onItemTapped),
-      const NeedRoomPage(key: Key('needroom')),
-      const NeedFlatmatePage(key: Key('needflatmate')),
-      const ProfilePage(key: Key('profile')),
+      HomePage(key: const Key('home'), onTabChange: _onItemTapped, selectedCity: _selectedCity, onCityChanged: _onCityChanged),
+      NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
+      NeedFlatmatePage(key: const Key('needflatmate'), selectedCity: _selectedCity),
+      ProfilePage(key: const Key('profile')),
     ];
+  }
+
+  void _onCityChanged(String city) {
+    setState(() {
+      _selectedCity = city;
+      // Rebuild _pages to propagate city change
+      _pages = [
+        HomePage(key: const Key('home'), onTabChange: _onItemTapped, selectedCity: _selectedCity, onCityChanged: _onCityChanged),
+        NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
+        NeedFlatmatePage(key: const Key('needflatmate'), selectedCity: _selectedCity),
+        ProfilePage(key: const Key('profile')),
+      ];
+    });
   }
 
   void _showActionSheet(BuildContext context) async {
@@ -214,8 +230,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class HomePage extends StatefulWidget {
   final void Function(int)? onTabChange;
+  final String selectedCity;
+  final ValueChanged<String> onCityChanged;
 
-  const HomePage({super.key, this.onTabChange});
+  const HomePage({super.key, this.onTabChange, required this.selectedCity, required this.onCityChanged});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -225,7 +243,6 @@ class _HomePageState extends State<HomePage>
     with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   String _userName = '';
-  String _selectedLocation = 'Select Location';
   String? _profileImageUrl;
   bool _isAdmin = false;
   List<Map<String, dynamic>> _banners = [];
@@ -583,26 +600,18 @@ class _HomePageState extends State<HomePage>
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildUpdatedHeader(context),
-
-                  // Section header for Hostels & PGs
                   _buildSectionHeader(context, 'Hostels & PGs'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildHostelsBannerSection(context),
                   const SizedBox(height: BuddyTheme.spacingLg),
-
-                  // Section header for Other Services
                   _buildSectionHeader(context, 'Other Services'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildServicesBannerSection(context),
                   const SizedBox(height: BuddyTheme.spacingXl),
-
-                  // Section header for Rooms
                   _buildSectionHeader(context, 'Rooms'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildRoomsBannerSection(context),
                   const SizedBox(height: BuddyTheme.spacingLg),
-
-                  // Section header for Flatmates
                   _buildSectionHeader(context, 'Flatmates'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildFlatmatesBannerSection(context),
@@ -662,7 +671,7 @@ class _HomePageState extends State<HomePage>
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            _selectedLocation,
+                            widget.selectedCity,
                             style: theme.textTheme.bodyMedium!.copyWith(
                               color:
                                   theme.brightness == Brightness.dark
@@ -828,58 +837,28 @@ class _HomePageState extends State<HomePage>
       context: context,
       builder: (BuildContext context) {
         return Container(
-          height: 300,
+          height: 350,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Select Location',
+                'Select City',
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.my_location),
-                title: const Text('Use current location'),
-                onTap: () {
-                  setState(() {
-                    _selectedLocation = 'Current Location';
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
+              ...['Select Location', 'Pune', 'Mumbai', 'Nanded', 'Latur'].map((city) => ListTile(
                 leading: const Icon(Icons.location_city),
-                title: const Text('Mumbai, Maharashtra'),
+                title: Text(city),
                 onTap: () {
                   setState(() {
-                    _selectedLocation = 'Mumbai, Maharashtra';
+                    widget.onCityChanged(city);
                   });
                   Navigator.pop(context);
                 },
-              ),
-              ListTile(
-                leading: const Icon(Icons.location_city),
-                title: const Text('Pune, Maharashtra'),
-                onTap: () {
-                  setState(() {
-                    _selectedLocation = 'Pune, Maharashtra';
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.location_city),
-                title: const Text('Kolhapur, Maharashtra'),
-                onTap: () {
-                  setState(() {
-                    _selectedLocation = 'Kolhapur, Maharashtra';
-                  });
-                  Navigator.pop(context);
-                },
-              ),
+              )),
             ],
           ),
         );
@@ -887,11 +866,18 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // Example usage in a listing widget (pseudo-code):
+  // if (widget.selectedCity == 'Select Location') {
+  //   // Show all listings from all cities
+  // } else {
+  //   // Filter listings by widget.selectedCity
+  // }
+
   Widget _buildHostelsBannerSection(BuildContext context) {
     final theme = Theme.of(context);
 
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, '/hostelpg'),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HostelPgPage(selectedCity: widget.selectedCity))),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
       child: Container(
         height: 180,
@@ -1212,7 +1198,7 @@ class _HomePageState extends State<HomePage>
     final theme = Theme.of(context);
 
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, '/services'),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ServicesPage(selectedCity: widget.selectedCity))),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
       child: Container(
         height: 220,

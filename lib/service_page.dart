@@ -4,10 +4,10 @@ import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'display pages/service_details.dart';
 import 'theme.dart';
-import 'display pages/service_details.dart';
 
 class ServicesPage extends StatefulWidget {
-  const ServicesPage({Key? key}) : super(key: key);
+  final String selectedCity;
+  const ServicesPage({Key? key, required this.selectedCity}) : super(key: key);
 
   @override
   State<ServicesPage> createState() => _ServicesPageState();
@@ -39,11 +39,13 @@ class _ServicesPageState extends State<ServicesPage> {
     setState(() => _isLoading = true);
     try {
       final now = DateTime.now();
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('service_listings')
-              .where('visibility', isEqualTo: true)
-              .get();
+      var query = FirebaseFirestore.instance
+          .collection('service_listings')
+          .where('visibility', isEqualTo: true);
+      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities' && widget.selectedCity != 'Select Location') {
+        query = query.where('city', isEqualTo: widget.selectedCity);
+      }
+      final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loaded = [];
       final batch = FirebaseFirestore.instance.batch();
@@ -146,63 +148,7 @@ class _ServicesPageState extends State<ServicesPage> {
     }).toList();
   }
 
-  bool _isServiceOpen(Map<String, dynamic> service) {
-    final now = TimeOfDay.now();
-    final openingTime = _parseTimeString(service['openingTime']);
-    final closingTime = _parseTimeString(service['closingTime']);
-    final offDay = service['offDay'];
-
-    // Check if today is off day
-    final today = DateTime.now().weekday;
-    final dayNames = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    if (offDay == dayNames[today - 1]) {
-      return false;
-    }
-
-    if (openingTime != null && closingTime != null) {
-      final nowMinutes = now.hour * 60 + now.minute;
-      final openMinutes = openingTime.hour * 60 + openingTime.minute;
-      final closeMinutes = closingTime.hour * 60 + closingTime.minute;
-
-      return nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
-    }
-
-    return true; // Default to open if times aren't parsed correctly
-  }
-
-  TimeOfDay? _parseTimeString(String? timeString) {
-    if (timeString == null) return null;
-
-    try {
-      final cleanTime = timeString.replaceAll(RegExp(r'[^\d:]'), '');
-      final parts = cleanTime.split(':');
-      if (parts.length >= 2) {
-        int hour = int.parse(parts[0]);
-        final minute = int.parse(parts[1]);
-
-        // Handle AM/PM
-        if (timeString.toUpperCase().contains('PM') && hour != 12) {
-          hour += 12;
-        } else if (timeString.toUpperCase().contains('AM') && hour == 12) {
-          hour = 0;
-        }
-
-        return TimeOfDay(hour: hour, minute: minute);
-      }
-    } catch (e) {
-      print('Error parsing time: $timeString');
-    }
-
-    return null;
-  }
+  String get _effectiveSelectedCity => (widget.selectedCity == 'Select Location') ? 'All Cities' : widget.selectedCity;
 
   @override
   void dispose() {
@@ -252,7 +198,7 @@ class _ServicesPageState extends State<ServicesPage> {
                             borderColor,
                           ),
                           const SizedBox(height: BuddyTheme.spacingMd),
-                          _buildCategoryFilter(
+                          _buildCategoryFilterChip(
                             cardColor,
                             textPrimary,
                             borderColor,
@@ -269,7 +215,11 @@ class _ServicesPageState extends State<ServicesPage> {
                                 padding: const EdgeInsets.all(32.0),
                                 child: Text(
                                   'No services found.',
-                                  style: TextStyle(color: textSecondary),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: textPrimary.withOpacity(0.7),
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             )
@@ -368,63 +318,92 @@ class _ServicesPageState extends State<ServicesPage> {
     );
   }
 
-  Widget _buildCategoryFilter(
+  // Add this method for the filter chip bottom sheet
+  void _showCategoryFilterBottomSheet(
+    BuildContext context,
     Color cardColor,
     Color textPrimary,
     Color borderColor,
   ) {
-    return SizedBox(
-      height: 45,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          final isSelected = _selectedCategory == category;
-          return Padding(
-            padding: EdgeInsets.only(
-              right: index == _categories.length - 1 ? 0 : 12,
-            ),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedCategory = category;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? BuddyTheme.primaryColor : cardColor,
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(
-                    color: isSelected ? BuddyTheme.primaryColor : borderColor,
-                  ),
-                  boxShadow:
-                      isSelected
-                          ? [
-                            BoxShadow(
-                              color: BuddyTheme.primaryColor.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : [],
-                ),
-                child: Text(
-                  category,
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Category',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
                   ),
+                ),
+                const SizedBox(height: 16),
+                ..._categories.map((cat) => ListTile(
+                      title: Text(cat, style: TextStyle(color: textPrimary)),
+                      onTap: () {
+                        setState(() {
+                          _selectedCategory = cat;
+                        });
+                        Navigator.pop(context);
+                      },
+                      selected: _selectedCategory == cat,
+                      selectedTileColor: BuddyTheme.primaryColor.withOpacity(0.1),
+                    )),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryFilterChip(
+    Color cardColor,
+    Color textPrimary,
+    Color borderColor,
+  ) {
+    final isSelected = _selectedCategory != _categories.first;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => _showCategoryFilterBottomSheet(
+              context,
+              cardColor,
+              textPrimary,
+              borderColor,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? BuddyTheme.primaryColor : cardColor,
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: isSelected ? BuddyTheme.primaryColor : borderColor,
+                ),
+              ),
+              child: Text(
+                isSelected ? _selectedCategory : 'Category',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -489,21 +468,19 @@ class _ServicesPageState extends State<ServicesPage> {
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder:
-                        (context, url) => Shimmer.fromColors(
-                          baseColor: borderColor,
-                          highlightColor: cardColor,
-                          child: Container(color: borderColor),
-                        ),
-                    errorWidget:
-                        (context, url, error) => Container(
-                          color: borderColor,
-                          child: Icon(
-                            Icons.image_not_supported_outlined,
-                            color: textLight,
-                            size: 48,
-                          ),
-                        ),
+                    placeholder: (context, url) => Shimmer.fromColors(
+                      baseColor: borderColor,
+                      highlightColor: cardColor,
+                      child: Container(color: borderColor),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: borderColor,
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        color: textLight,
+                        size: 48,
+                      ),
+                    ),
                   ),
                 ),
                 // Service type badge

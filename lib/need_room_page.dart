@@ -6,14 +6,15 @@ import 'main.dart'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NeedRoomPage extends StatefulWidget {
-  const NeedRoomPage({super.key});
+  final String selectedCity;
+  const NeedRoomPage({Key? key, required this.selectedCity}) : super(key: key);
 
   @override
   State<NeedRoomPage> createState() => _NeedRoomPageState();
 }
 
 class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
-  String _selectedLocation = 'All Cities';
+  late String _selectedLocation;
   String _selectedPriceRange = 'All Prices';
   String _selectedRoomType = 'All Types';
   String _selectedFlatSize = 'All Sizes';
@@ -27,13 +28,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
     return '${parts[2]}-${parts[1]}-${parts[0]}'; // DD-MM-YYYY
   }
 
-  final List<String> _locations = [
-    'All Cities',
-    'Manhattan, New York',
-    'Brooklyn Heights, NY',
-    'Long Island City, NY',
-    'Upper East Side, NY',
-  ];
+  List<String> _locations = ['All Cities'];
 
   final List<String> _priceRanges = [
     'All Prices',
@@ -87,7 +82,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   void _initializeFilters() {
     if (mounted) {
       setState(() {
-        _selectedLocation = 'All Cities';
+        _selectedLocation = (widget.selectedCity.isNotEmpty && widget.selectedCity != 'Select Location') ? widget.selectedCity : 'All Cities';
         _selectedPriceRange = 'All Prices';
         _selectedRoomType = 'All Types';
         _selectedFlatSize = 'All Sizes';
@@ -106,15 +101,17 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
     });
     try {
       final now = DateTime.now();
-      // Simple query without ordering
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('room_listings')
-              .where('visibility', isEqualTo: true)
-              .get();
+      var query = FirebaseFirestore.instance
+          .collection('room_listings')
+          .where('visibility', isEqualTo: true);
+      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities' && widget.selectedCity != 'Select Location') {
+        query = query.where('city', isEqualTo: widget.selectedCity);
+      }
+      final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loadedRooms = [];
       final batch = FirebaseFirestore.instance.batch();
+      final Set<String> dynamicLocations = {'All Cities'};
 
       for (var doc in querySnapshot.docs) {
         final room = doc.data();
@@ -141,6 +138,10 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
           room['id'] = doc.id;
           room['key'] = doc.id;
           loadedRooms.add(room);
+          // Collect unique locations dynamically
+          if (room['location'] != null && room['location'].toString().isNotEmpty) {
+            dynamicLocations.add(room['location'].toString());
+          }
         }
       }
 
@@ -176,6 +177,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
       setState(() {
         _rooms = loadedRooms;
+        _locations = dynamicLocations.toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -332,28 +334,44 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                               accentColor,
                             ),
                             const SizedBox(height: BuddyTheme.spacingMd),
-                            ..._filteredRooms
-                                .map(
-                                  (room) => Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: BuddyTheme.spacingMd,
+                            ...(_filteredRooms.isEmpty
+                                ? [
+                                    Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 40),
+                                        child: Text(
+                                          'No rooms found',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: textPrimary.withOpacity(0.7),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                    child: _buildRoomCard(
-                                      room,
-                                      cardColor,
-                                      borderColor,
-                                      textLight,
-                                      textPrimary,
-                                      textSecondary,
-                                      accentColor,
-                                      primaryColor,
-                                      Theme.of(context).scaffoldBackgroundColor,
-                                      successColor,
-                                      warningColor,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                                  ]
+                                : _filteredRooms
+                                    .map(
+                                      (room) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: BuddyTheme.spacingMd,
+                                        ),
+                                        child: _buildRoomCard(
+                                          room,
+                                          cardColor,
+                                          borderColor,
+                                          textLight,
+                                          textPrimary,
+                                          textSecondary,
+                                          accentColor,
+                                          primaryColor,
+                                          Theme.of(context).scaffoldBackgroundColor,
+                                          successColor,
+                                          warningColor,
+                                        ),
+                                      ),
+                                    )
+                                    .toList()),
                             const SizedBox(height: BuddyTheme.spacingMd),
                           ],
                         ),
@@ -427,18 +445,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _buildFilterChip(
-                'Location',
-                _selectedLocation,
-                _locations,
-                (value) {
-                  setState(() => _selectedLocation = value);
-                },
-                cardColor,
-                textPrimary,
-                borderColor,
-              ),
-              const SizedBox(width: BuddyTheme.spacingXs),
+              // Removed Location filter chip from UI
               _buildFilterChip(
                 'Budget',
                 _selectedPriceRange,

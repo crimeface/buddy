@@ -105,6 +105,9 @@ class _ListServiceFormState extends State<ListServiceForm>
   late Color textPrimary;
   late Color textSecondary;
 
+  // New variable for city selection
+  String _selectedCity = 'Pune';
+
   @override
   void initState() {
     super.initState();
@@ -320,6 +323,7 @@ class _ListServiceFormState extends State<ListServiceForm>
       'serviceName': _serviceNameController.text,
       'location': _locationController.text,
       'mapLink': _mapLinkController.text,
+      'city': _selectedCity, // Add city to form data
       'description': _descriptionController.text,
       'contact': _contactController.text,
       'email': _emailController.text,
@@ -585,6 +589,75 @@ class _ListServiceFormState extends State<ListServiceForm>
               label: 'Google Maps Link (Optional)',
               hint: 'Paste Google Maps link for easy navigation',
               icon: Icons.map_outlined,
+            ),
+
+            const SizedBox(height: BuddyTheme.spacingLg),
+
+            // City Dropdown
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 400),
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: 0.8 + (0.2 * value),
+                  child: Opacity(
+                    opacity: value,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusMd,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedCity,
+                        decoration: InputDecoration(
+                          labelText: 'City',
+                          prefixIcon: Icon(
+                            Icons.location_city,
+                            color: BuddyTheme.primaryColor,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              BuddyTheme.borderRadiusMd,
+                            ),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: cardColor,
+                        ),
+                        items:
+                            ['Pune', 'Mumbai', 'Nanded', 'Latur']
+                                .map(
+                                  (city) => DropdownMenuItem(
+                                    value: city,
+                                    child: Text(city),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedCity = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: BuddyTheme.spacingLg),

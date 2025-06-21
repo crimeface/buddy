@@ -7,7 +7,8 @@ import 'display pages/flatmate_details.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NeedFlatmatePage extends StatefulWidget {
-  const NeedFlatmatePage({super.key});
+  final String selectedCity;
+  const NeedFlatmatePage({super.key, required this.selectedCity});
 
   @override
   State<NeedFlatmatePage> createState() => _NeedFlatmatePageState();
@@ -20,15 +21,6 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   String _selectedAge = 'All Ages';
   String _selectedProfession = 'All Professions';
   String _selectedGender = 'All';
-
-  final List<String> _locations = [
-    'All Cities',
-    'New York',
-    'Los Angeles',
-    'Chicago',
-    'Miami',
-    'San Francisco',
-  ];
 
   final List<String> _ages = [
     'All Ages',
@@ -58,6 +50,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   @override
   void initState() {
     super.initState();
+    _selectedLocation = (widget.selectedCity.isNotEmpty && widget.selectedCity != 'Select Location') ? widget.selectedCity : 'All Cities';
     _fetchFlatmates();
   }
 
@@ -67,11 +60,13 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     });
     try {
       final now = DateTime.now();
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('roomRequests')
-              .where('visibility', isEqualTo: true)
-              .get();
+      var query = FirebaseFirestore.instance
+          .collection('roomRequests')
+          .where('visibility', isEqualTo: true);
+      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities' && widget.selectedCity != 'Select Location') {
+        query = query.where('city', isEqualTo: widget.selectedCity);
+      }
+      final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loaded = [];
       final batch = FirebaseFirestore.instance.batch();
@@ -303,18 +298,6 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
           child: Row(
             children: [
               _buildFilterChip(
-                'Location',
-                _selectedLocation,
-                _locations,
-                (value) {
-                  setState(() => _selectedLocation = value);
-                },
-                cardColor,
-                labelColor,
-                borderColor,
-              ),
-              const SizedBox(width: BuddyTheme.spacingXs),
-              _buildFilterChip(
                 'Age',
                 _selectedAge,
                 _ages,
@@ -445,7 +428,11 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
             padding: const EdgeInsets.all(32.0),
             child: Text(
               "No flatmates found.",
-              style: TextStyle(color: labelColor),
+              style: TextStyle(
+                fontSize: 18,
+                color: labelColor.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),

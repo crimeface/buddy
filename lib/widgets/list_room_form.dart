@@ -111,6 +111,9 @@ class _ListRoomFormState extends State<ListRoomForm>
   late Color textPrimary;
   late Color textSecondary;
 
+  // New variable for city selection
+  String _selectedCity = 'Pune'; // Add this for city dropdown
+
   @override
   void initState() {
     super.initState();
@@ -249,6 +252,7 @@ class _ListRoomFormState extends State<ListRoomForm>
       'title': _titleController.text,
       'location': _locationController.text,
       'locationUrl': _locationUrlController.text,
+      'city': _selectedCity, // Add city to form data
       'rent': _rentController.text,
       'deposit': _depositController.text,
       'brokerage': _brokerageController.text,
@@ -623,6 +627,75 @@ class _ListRoomFormState extends State<ListRoomForm>
               icon: Icons.location_on_outlined,
               maxLines: 2,
             ),
+
+            const SizedBox(height: BuddyTheme.spacingLg),
+
+            // City Dropdown
+            TweenAnimationBuilder(
+              duration: const Duration(milliseconds: 500),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder:
+                  (context, value, child) => Transform.scale(
+                    scale: 0.8 + (0.2 * value),
+                    child: Opacity(
+                      opacity: value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusMd,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedCity,
+                          decoration: InputDecoration(
+                            labelText: 'City',
+                            prefixIcon: Icon(
+                              Icons.location_city,
+                              color: BuddyTheme.primaryColor,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                BuddyTheme.borderRadiusMd,
+                              ),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: cardColor,
+                          ),
+                          items:
+                              ['Pune', 'Mumbai', 'Nanded', 'Latur']
+                                  .map(
+                                    (city) => DropdownMenuItem(
+                                      value: city,
+                                      child: Text(city),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedCity = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+            ),
+
             const SizedBox(height: BuddyTheme.spacingLg),
 
             _buildDatePickerCard(),

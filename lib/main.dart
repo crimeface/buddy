@@ -70,8 +70,6 @@ class BuddyApp extends StatelessWidget {
             (context) =>
                 PhoneVerificationPage(), // Added route for phone verification
         '/home': (context) => const HomeScreen(),
-        '/hostelpg': (context) => const HostelPgPage(),
-        '/services': (context) => const ServicesPage(),
         '/editProfile': (context) => const EditProfilePage(),
         '/myListings': (context) => const MyListingsPage(),
         '/editProperty': (context) {
