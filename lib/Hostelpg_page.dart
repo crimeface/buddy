@@ -3,6 +3,7 @@ import 'theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 
 class HostelPgPage extends StatefulWidget {
   final String selectedCity;
@@ -231,58 +232,137 @@ class _HostelPgPageState extends State<HostelPgPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color primaryColor =
-        isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
-    final Color accentColor =
-        isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
-    final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
-    final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
-    final Color textSecondary =
-        isDark ? Colors.white70 : const Color(0xFF718096);
-    final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
-    final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
-    final Color successColor =
-        isDark ? const Color(0xFF81C784) : const Color(0xFF48BB78);
-    final Color warningColor =
-        isDark ? const Color(0xFFFFB74D) : const Color(0xFFED8936);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.black,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+    // Force dark mode UI for all users
+    final Color scaffoldBg = Colors.black;
+    final Color primaryColor = const Color(0xFF4A90E2); // blue accent for highlights
+    final Color accentColor = const Color(0xFF4A90E2);
+    final Color cardColor = const Color(0xFF23262F);
+    final Color textPrimary = Colors.white;
+    final Color textSecondary = Colors.white70;
+    final Color textLight = Colors.white38;
+    final Color borderColor = Colors.white12;
+    final Color successColor = const Color(0xFF81C784);
+    final Color warningColor = const Color(0xFFFFB74D);
 
     return Scaffold(
+      backgroundColor: scaffoldBg,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             await Future.delayed(const Duration(seconds: 2));
           },
-          color: BuddyTheme.primaryColor,
+          color: primaryColor,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(context, textPrimary),
-                  const SizedBox(height: BuddyTheme.spacingLg),
-                  _buildSearchSection(
-                    cardColor,
-                    textLight,
-                    textPrimary,
-                    accentColor,
-                    borderColor,
+                  // Header
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Find Your',
+                        style: Theme.of(context).textTheme.displaySmall!.copyWith(
+                          color: textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Perfect Hostel / PG',
+                        style: Theme.of(context).textTheme.displayMedium!.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: BuddyTheme.primaryColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: BuddyTheme.spacingLg),
-                  _buildSectionHeader(
+                  const SizedBox(height: 24),
+                  // Search bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: cardColor, // Always dark
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: borderColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.10),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      style: const TextStyle(color: Colors.white),
+                      cursorColor: Colors.white70,
+                      decoration: const InputDecoration(
+                        hintText: 'Search hostels, amenities, or locations...',
+                        hintStyle: TextStyle(color: Colors.white),
+                        prefixIcon: Icon(Icons.search, color: Colors.white38),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(BuddyTheme.spacingMd),
+                        filled: false,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Filter chips
+                  Row(
+                    children: [
+                      _buildFilterChip(
+                        'Budget',
+                        _selectedPriceRange,
+                        _priceRanges,
+                        (value) {
+                          setState(() => _selectedPriceRange = value);
+                        },
+                        cardColor,
+                        textPrimary,
+                        borderColor,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildFilterChip(
+                        'Room Type',
+                        _selectedRoomType,
+                        _roomTypes,
+                        (value) {
+                          setState(() => _selectedRoomType = value);
+                        },
+                        cardColor,
+                        textPrimary,
+                        borderColor,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  // Section header
+                  Text(
                     'Available Hostels / PG',
-                    textPrimary,
-                    accentColor,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
                   ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
+                  const SizedBox(height: 16),
                   if (_isLoading)
                     Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          BuddyTheme.primaryColor,
-                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
                       ),
                     )
                   else if (_filteredHostels.isEmpty)
@@ -303,9 +383,7 @@ class _HostelPgPageState extends State<HostelPgPage> {
                     ..._filteredHostels
                         .map(
                           (hostel) => Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: BuddyTheme.spacingMd,
-                            ),
+                            padding: const EdgeInsets.only(bottom: 16),
                             child: _buildHostelCard(
                               hostel,
                               cardColor,
@@ -315,122 +393,20 @@ class _HostelPgPageState extends State<HostelPgPage> {
                               textSecondary,
                               accentColor,
                               primaryColor,
-                              Theme.of(context).scaffoldBackgroundColor,
+                              scaffoldBg,
                               successColor,
                               warningColor,
                             ),
                           ),
                         )
                         .toList(),
-                  const SizedBox(height: BuddyTheme.spacingMd),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, Color labelColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Find Your',
-          style: Theme.of(
-            context,
-          ).textTheme.displaySmall!.copyWith(color: labelColor),
-        ),
-        Text(
-          'Perfect Hostel / PG',
-          style: Theme.of(context).textTheme.displayMedium!.copyWith(
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.primaryColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchSection(
-    Color cardColor,
-    Color textLight,
-    Color textPrimary,
-    Color accentColor,
-    Color borderColor,
-  ) {
-    return Column(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-            decoration: InputDecoration(
-              hintText: 'Search hostels, amenities, or locations...',
-              hintStyle: TextStyle(
-                color: textLight,
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-              ),
-              prefixIcon: Icon(
-                Icons.search_outlined,
-                color: textLight,
-                size: 22,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(18),
-            ),
-            style: TextStyle(color: textPrimary),
-          ),
-        ),
-        const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildFilterChip(
-                'Budget',
-                _selectedPriceRange,
-                _priceRanges,
-                (value) {
-                  setState(() => _selectedPriceRange = value);
-                },
-                cardColor,
-                textPrimary,
-                borderColor,
-              ),
-              const SizedBox(width: BuddyTheme.spacingXs),
-              _buildFilterChip(
-                'Room Type',
-                _selectedRoomType,
-                _roomTypes,
-                (value) {
-                  setState(() => _selectedRoomType = value);
-                },
-                cardColor,
-                textPrimary,
-                borderColor,
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -486,26 +462,6 @@ class _HostelPgPageState extends State<HostelPgPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSectionHeader(
-    String title,
-    Color textPrimary,
-    Color accentColor,
-  ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: textPrimary,
-          ),
-        ),
-      ],
     );
   }
 

@@ -99,12 +99,10 @@ class _EditProfilePageState extends State<EditProfilePage>
   }
 
   Widget _buildImageSourceSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
+        color: Colors.grey[900],
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -250,11 +248,11 @@ class _EditProfilePageState extends State<EditProfilePage>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    // final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Always use dark mode
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.grey[50],
-      appBar: _buildAppBar(context, isDark),
+      backgroundColor: Colors.black,
+      appBar: _buildAppBar(context),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: SlideTransition(
@@ -268,12 +266,17 @@ class _EditProfilePageState extends State<EditProfilePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildProfileHeader(isDark),
+                    _buildProfileHeader(),
                     const SizedBox(height: 32),
-                    _buildPersonalInfoSection(isDark),
+                    _buildPersonalInfoSection(),
                     const SizedBox(height: 24),
-                    _buildContactInfoSection(isDark),
+                    _buildContactInfoSection(),
                     const SizedBox(height: 32),
+                    if (FirebaseAuth.instance.currentUser != null &&
+                        FirebaseAuth.instance.currentUser!.providerData.any((p) => p.providerId == 'password')) ...[
+                      _buildChangePasswordButton(),
+                      const SizedBox(height: 20),
+                    ],
                     _buildSaveButton(),
                     const SizedBox(height: 20),
                   ],
@@ -286,7 +289,7 @@ class _EditProfilePageState extends State<EditProfilePage>
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, bool isDark) {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.transparent,
@@ -294,7 +297,7 @@ class _EditProfilePageState extends State<EditProfilePage>
         icon: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isDark ? Colors.grey[800] : Colors.white,
+            color: Colors.grey[800],
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
@@ -306,16 +309,16 @@ class _EditProfilePageState extends State<EditProfilePage>
           ),
           child: Icon(
             Icons.arrow_back_ios_new,
-            color: isDark ? Colors.white : Colors.black87,
+            color: Colors.white,
             size: 20,
           ),
         ),
         onPressed: () => Navigator.pop(context),
       ),
-      title: Text(
+      title: const Text(
         'Edit Profile',
         style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
+          color: Colors.white,
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
@@ -324,7 +327,7 @@ class _EditProfilePageState extends State<EditProfilePage>
     );
   }
 
-  Widget _buildProfileHeader(bool isDark) {
+  Widget _buildProfileHeader() {
     return Center(
       child: Column(
         children: [
@@ -339,21 +342,14 @@ class _EditProfilePageState extends State<EditProfilePage>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                      colors: isDark
-                          ? [
-                              Colors.white.withOpacity(0.3),
-                              Colors.white.withOpacity(0.1),
-                            ]
-                          : [
-                              BuddyTheme.primaryColor.withOpacity(0.8),
-                              BuddyTheme.secondaryColor.withOpacity(0.6),
-                            ],
+                      colors: [
+                        Colors.white.withOpacity(0.3),
+                        Colors.white.withOpacity(0.1),
+                      ],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: isDark
-                            ? Colors.black.withOpacity(0.2)
-                            : BuddyTheme.primaryColor.withOpacity(0.3),
+                        color: Colors.black.withOpacity(0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -378,7 +374,7 @@ class _EditProfilePageState extends State<EditProfilePage>
                   bottom: 10,
                   right: 10,
                   child: Material(
-                    color: isDark ? Colors.grey[800] : Colors.white,
+                    color: Colors.grey[800],
                     shape: const CircleBorder(),
                     elevation: 3,
                     child: InkWell(
@@ -389,7 +385,7 @@ class _EditProfilePageState extends State<EditProfilePage>
                         height: 36,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isDark ? BuddyTheme.primaryColor : BuddyTheme.primaryColor,
+                          color: BuddyTheme.primaryColor,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
                         child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
@@ -401,10 +397,10 @@ class _EditProfilePageState extends State<EditProfilePage>
             ),
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'Update your profile photo',
             style: TextStyle(
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              color: Colors.grey,
               fontSize: 14,
             ),
           ),
@@ -413,31 +409,28 @@ class _EditProfilePageState extends State<EditProfilePage>
     );
   }
 
-  Widget _buildPersonalInfoSection(bool isDark) {
+  Widget _buildPersonalInfoSection() {
     return _buildSection(
       title: 'Personal Information',
       icon: Icons.person_outline,
-      isDark: isDark,
       children: [
         _buildModernTextField(
           controller: _nameController,
           label: 'Full Name',
           icon: Icons.person,
           validator: (val) => val?.isEmpty == true ? 'Name is required' : null,
-          isDark: isDark,
         ),
       ],
     );
   }
 
-  Widget _buildContactInfoSection(bool isDark) {
+  Widget _buildContactInfoSection() {
     final user = FirebaseAuth.instance.currentUser;
     final isEmailUser = user != null && user.providerData.any((p) => p.providerId == 'password');
     final isPhoneUser = user != null && user.providerData.any((p) => p.providerId == 'phone');
     return _buildSection(
       title: 'Contact Information',
       icon: Icons.contact_mail_outlined,
-      isDark: isDark,
       children: [
         if (isEmailUser) ...[
           Stack(
@@ -448,16 +441,13 @@ class _EditProfilePageState extends State<EditProfilePage>
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 validator: (_) => null,
-                isDark: isDark,
                 readOnly: true,
               ),
               Positioned.fill(
                 child: IgnorePointer(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.grey.withOpacity(0.25)
-                          : Colors.grey.withOpacity(0.18),
+                      color: Colors.grey.withOpacity(0.25),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -465,18 +455,17 @@ class _EditProfilePageState extends State<EditProfilePage>
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0, top: 4.0, bottom: 8.0),
+          const Padding(
+            padding: EdgeInsets.only(left: 8.0, top: 4.0, bottom: 8.0),
             child: Text(
               'Email cannot be changed',
               style: TextStyle(
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                color: Colors.grey,
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
               ),
             ),
           ),
-          // No phone field for email users
         ] else if (isPhoneUser) ...[
           Stack(
             children: [
@@ -486,16 +475,13 @@ class _EditProfilePageState extends State<EditProfilePage>
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 validator: (_) => null,
-                isDark: isDark,
                 readOnly: true,
               ),
               Positioned.fill(
                 child: IgnorePointer(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.grey.withOpacity(0.25)
-                          : Colors.grey.withOpacity(0.18),
+                      color: Colors.grey.withOpacity(0.25),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -503,12 +489,12 @@ class _EditProfilePageState extends State<EditProfilePage>
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0, top: 4.0, bottom: 8.0),
+          const Padding(
+            padding: EdgeInsets.only(left: 8.0, top: 4.0, bottom: 8.0),
             child: Text(
               'Phone number cannot be changed',
               style: TextStyle(
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                color: Colors.grey,
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
               ),
@@ -522,17 +508,16 @@ class _EditProfilePageState extends State<EditProfilePage>
   Widget _buildSection({
     required String title,
     required IconData icon,
-    required bool isDark,
     required List<Widget> children,
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
+        color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -554,10 +539,10 @@ class _EditProfilePageState extends State<EditProfilePage>
               const SizedBox(width: 12),
               Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: Colors.white,
                 ),
               ),
             ],
@@ -573,21 +558,20 @@ class _EditProfilePageState extends State<EditProfilePage>
     required TextEditingController controller,
     required String label,
     required IconData icon,
-    required bool isDark,
     String? hintText,
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
-    bool readOnly = false, // Add readOnly parameter
+    bool readOnly = false,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
       validator: validator,
-      readOnly: readOnly, // Set the readOnly property
-      style: TextStyle(
-        color: isDark ? Colors.white : Colors.black87,
+      readOnly: readOnly,
+      style: const TextStyle(
+        color: Colors.white,
         fontSize: 16,
         fontWeight: FontWeight.w500,
       ),
@@ -603,15 +587,15 @@ class _EditProfilePageState extends State<EditProfilePage>
         ),
         labelText: label,
         hintText: hintText,
-        labelStyle: TextStyle(
-          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        labelStyle: const TextStyle(
+          color: Colors.grey,
           fontWeight: FontWeight.w500,
         ),
-        hintStyle: TextStyle(
-          color: isDark ? Colors.grey[500] : Colors.grey[400],
+        hintStyle: const TextStyle(
+          color: Colors.grey,
         ),
         filled: true,
-        fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+        fillColor: Colors.grey[800],
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -619,7 +603,7 @@ class _EditProfilePageState extends State<EditProfilePage>
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
+            color: Colors.grey,
             width: 1.5,
           ),
         ),
@@ -695,6 +679,146 @@ class _EditProfilePageState extends State<EditProfilePage>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildChangePasswordButton() {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            BuddyTheme.primaryColor,
+            BuddyTheme.primaryColor.withOpacity(0.8),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: BuddyTheme.primaryColor.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isLoading ? null : _showChangePasswordDialog,
+          borderRadius: BorderRadius.circular(16),
+          child: const Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock, color: Colors.white),
+                SizedBox(width: 8),
+                Text(
+                  'Change Password',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final _dialogFormKey = GlobalKey<FormState>();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.grey[900],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Change Password'),
+              content: Form(
+                key: _dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: currentPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(labelText: 'Current Password'),
+                      validator: (val) => val == null || val.isEmpty ? 'Enter current password' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: newPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(labelText: 'New Password'),
+                      validator: (val) {
+                        if (val == null || val.isEmpty) return 'Enter new password';
+                        if (val.length < 6) return 'Password must be at least 6 characters';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: confirmPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(labelText: 'Confirm New Password'),
+                      validator: (val) => val != newPasswordController.text ? 'Passwords do not match' : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (!_dialogFormKey.currentState!.validate()) return;
+                          setState(() => isLoading = true);
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user == null || user.email == null) {
+                            setState(() => isLoading = false);
+                            showCustomSnackBar(context, 'User not logged in', backgroundColor: Colors.red, icon: Icons.error);
+                            return;
+                          }
+                          try {
+                            final cred = EmailAuthProvider.credential(
+                              email: user.email!,
+                              password: currentPasswordController.text.trim(),
+                            );
+                            await user.reauthenticateWithCredential(cred);
+                            await user.updatePassword(newPasswordController.text.trim());
+                            Navigator.pop(context);
+                            showCustomSnackBar(context, 'Password changed successfully!', backgroundColor: Colors.green, icon: Icons.check_circle);
+                          } catch (e) {
+                            setState(() => isLoading = false);
+                            showCustomSnackBar(context, 'Failed: ${e.toString()}', backgroundColor: Colors.red, icon: Icons.error);
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Change'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -815,8 +939,8 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
           controller: widget.controller,
           keyboardType: TextInputType.phone,
           enabled: !_isVerified,
-          style: TextStyle(
-            color: widget.isDark ? Colors.white : Colors.black87,
+          style: const TextStyle(
+            color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
@@ -831,12 +955,12 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
               child: Icon(Icons.phone_outlined, color: BuddyTheme.primaryColor, size: 20),
             ),
             labelText: 'Phone Number',
-            labelStyle: TextStyle(
-              color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+            labelStyle: const TextStyle(
+              color: Colors.grey,
               fontWeight: FontWeight.w500,
             ),
             filled: true,
-            fillColor: widget.isDark ? Colors.grey[800] : Colors.grey[50],
+            fillColor: Colors.grey[800],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -844,7 +968,7 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: widget.isDark ? Colors.grey[700]! : Colors.grey[200]!,
+                color: Colors.grey,
                 width: 1.5,
               ),
             ),

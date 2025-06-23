@@ -89,96 +89,95 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final navBarColor =
-        theme.brightness == Brightness.dark
-            ? const Color(0xFF23262F)
-            : const Color(0xFFF5F6FA);
-    final navBarIconColor =
-        theme.brightness == Brightness.dark
-            ? Colors.white
-            : BuddyTheme.textSecondaryColor;
+    // Force dark theme for this page
+    final darkTheme = ThemeData.dark();
+    final navBarColor = const Color(0xFF23262F);
+    final navBarIconColor = Colors.white;
     final navBarSelectedColor = BuddyTheme.primaryColor;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder:
-              (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-          child: _pages[_selectedIndex],
-        ),
-        floatingActionButton:
-            _selectedIndex == 0
-                ? Container(
-                  decoration: BuddyTheme.fabShadowDecoration,
-                  child: FloatingActionButton(
-                    onPressed: () => _showActionSheet(context),
-                    backgroundColor: BuddyTheme.primaryColor,
-                    shape: const CircleBorder(),
-                    elevation: BuddyTheme.elevationSm,
-                    child: const Icon(
-                      Icons.add,
-                      size: BuddyTheme.iconSizeMd,
-                      color: BuddyTheme.textLightColor,
+    return Theme(
+      data: darkTheme,
+      child: WillPopScope(
+        onWillPop: _onWillPop,
+        child: Scaffold(
+          backgroundColor: Colors.black, // Force black background
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder:
+                (child, animation) =>
+                    FadeTransition(opacity: animation, child: child),
+            child: _pages[_selectedIndex],
+          ),
+          floatingActionButton:
+              _selectedIndex == 0
+                  ? Container(
+                    decoration: BuddyTheme.fabShadowDecoration,
+                    child: FloatingActionButton(
+                      onPressed: () => _showActionSheet(context),
+                      backgroundColor: BuddyTheme.primaryColor,
+                      shape: const CircleBorder(),
+                      elevation: BuddyTheme.elevationSm,
+                      child: const Icon(
+                        Icons.add,
+                        size: BuddyTheme.iconSizeMd,
+                        color: BuddyTheme.textLightColor,
+                      ),
                     ),
+                  )
+                  : null,
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: BottomAppBar(
+            notchMargin: BuddyTheme.spacingSm,
+            elevation: BuddyTheme.elevationMd,
+            padding: EdgeInsets.zero,
+            color: navBarColor,
+            surfaceTintColor: Colors.transparent,
+            shadowColor: Colors.black26,
+            shape: const CircularNotchedRectangle(),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              height: 60,
+              padding: const EdgeInsets.symmetric(
+                horizontal: BuddyTheme.spacingSm,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildNavItem(
+                    0,
+                    Icons.home_outlined,
+                    Icons.home,
+                    'Home',
+                    navBarIconColor,
+                    navBarSelectedColor,
                   ),
-                )
-                : null,
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: BottomAppBar(
-          notchMargin: BuddyTheme.spacingSm,
-          elevation: BuddyTheme.elevationMd,
-          padding: EdgeInsets.zero,
-          color: navBarColor,
-          surfaceTintColor: Colors.transparent,
-          shadowColor: Colors.black26,
-          shape: const CircularNotchedRectangle(),
-          clipBehavior: Clip.antiAlias,
-          child: Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(
-              horizontal: BuddyTheme.spacingSm,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildNavItem(
-                  0,
-                  Icons.home_outlined,
-                  Icons.home,
-                  'Home',
-                  navBarIconColor,
-                  navBarSelectedColor,
-                ),
-                _buildNavItem(
-                  1,
-                  Icons.hotel_outlined,
-                  Icons.hotel,
-                  'Need\nRoom',
-                  navBarIconColor,
-                  navBarSelectedColor,
-                ),
-                if (_selectedIndex == 0) const SizedBox(width: 56),
-                _buildNavItem(
-                  2,
-                  Icons.group_outlined,
-                  Icons.group,
-                  'Need\nFlatmate',
-                  navBarIconColor,
-                  navBarSelectedColor,
-                ),
-                _buildNavItem(
-                  3,
-                  Icons.person_outline,
-                  Icons.person,
-                  'Profile',
-                  navBarIconColor,
-                  navBarSelectedColor,
-                ),
-              ],
+                  _buildNavItem(
+                    1,
+                    Icons.hotel_outlined,
+                    Icons.hotel,
+                    'Need\nRoom',
+                    navBarIconColor,
+                    navBarSelectedColor,
+                  ),
+                  if (_selectedIndex == 0) const SizedBox(width: 56),
+                  _buildNavItem(
+                    2,
+                    Icons.group_outlined,
+                    Icons.group,
+                    'Need\nFlatmate',
+                    navBarIconColor,
+                    navBarSelectedColor,
+                  ),
+                  _buildNavItem(
+                    3,
+                    Icons.person_outline,
+                    Icons.person,
+                    'Profile',
+                    navBarIconColor,
+                    navBarSelectedColor,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -945,10 +944,11 @@ class _HomePageState extends State<HomePage>
                 children: [
                   Text(
                     'Find Your Perfect\nAccommodation',
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
+                      fontSize: 15,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -964,10 +964,10 @@ class _HomePageState extends State<HomePage>
                     ),
                     child: Text(
                       'Explore Now →',
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -1052,10 +1052,11 @@ class _HomePageState extends State<HomePage>
                 children: [
                   Text(
                     'Looking for a\nRoom to Rent?',
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
+                      fontSize: 15,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1071,10 +1072,10 @@ class _HomePageState extends State<HomePage>
                     ),
                     child: Text(
                       'Find Rooms →',
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -1159,10 +1160,11 @@ class _HomePageState extends State<HomePage>
                 children: [
                   Text(
                     'Find Your Perfect\nFlatmate Match',
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
+                      fontSize: 15,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1178,10 +1180,10 @@ class _HomePageState extends State<HomePage>
                     ),
                     child: Text(
                       'Find Flatmates →',
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -1266,10 +1268,11 @@ class _HomePageState extends State<HomePage>
                 children: [
                   Text(
                     'Discover Nearby\nAmenities & More',
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
+                      fontSize: 15,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1297,10 +1300,10 @@ class _HomePageState extends State<HomePage>
                     ),
                     child: Text(
                       'Explore Services →',
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 11,
                       ),
                     ),
                   ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -50,6 +51,11 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.black, // true black
+      statusBarIconBrightness: Brightness.light, // white icons
+      statusBarBrightness: Brightness.dark, // for iOS
+    ));
     _selectedLocation = (widget.selectedCity.isNotEmpty && widget.selectedCity != 'Select Location') ? widget.selectedCity : 'All Cities';
     _fetchFlatmates();
   }
@@ -182,48 +188,51 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
-    final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
-    final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
-    final Color inputFillColor =
-        isDark ? const Color(0xFF23262F) : const Color(0xFFF1F5F9);
-    final Color labelColor = textPrimary;
-    final Color hintColor = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+    // Force dark mode UI for all themes
+    const Color scaffoldBackground = Colors.black; // changed to true black
+    const Color cardColor = Color(0xFF23262F);
+    const Color textPrimary = Colors.white;
+    const Color borderColor = Colors.white12;
+    const Color inputFillColor = Color(0xFF23262F);
+    const Color labelColor = Colors.white;
+    const Color hintColor = Colors.white38;
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        await Future.delayed(const Duration(seconds: 2));
-      },
-      color: BuddyTheme.primaryColor,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, textPrimary),
-                const SizedBox(height: BuddyTheme.spacingLg),
-                _buildSearchSection(
-                  context,
-                  cardColor,
-                  inputFillColor,
-                  labelColor,
-                  hintColor,
-                  borderColor,
-                ),
-                const SizedBox(height: BuddyTheme.spacingMd),
-                _buildSectionHeader(
-                  context,
-                  'All Flatmates',
-                  () {},
-                  labelColor,
-                ),
-                const SizedBox(height: BuddyTheme.spacingSm),
-                ..._buildFlatmateListings(context, cardColor, labelColor),
-              ],
+    return Scaffold(
+      backgroundColor: scaffoldBackground,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.delayed(const Duration(seconds: 2));
+        },
+        color: BuddyTheme.primaryColor,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, textPrimary),
+                  const SizedBox(height: BuddyTheme.spacingLg),
+                  _buildSearchSection(
+                    context,
+                    cardColor,
+                    inputFillColor,
+                    labelColor,
+                    hintColor,
+                    borderColor,
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                  _buildSectionHeader(
+                    context,
+                    'All Flatmates',
+                    () {},
+                    labelColor,
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingSm),
+                  ..._buildFlatmateListings(context, cardColor, labelColor),
+                ],
+              ),
             ),
           ),
         ),
@@ -237,13 +246,11 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       children: [
         Text(
           'Find Your',
-          style: Theme.of(
-            context,
-          ).textTheme.displaySmall!.copyWith(color: labelColor),
+          style: Theme.of(context).textTheme.headlineSmall!.copyWith(color: labelColor),
         ),
         Text(
           'Ideal Flatmate',
-          style: Theme.of(context).textTheme.displayMedium!.copyWith(
+          style: Theme.of(context).textTheme.titleLarge!.copyWith(
             fontWeight: FontWeight.bold,
             color: BuddyTheme.primaryColor,
           ),
@@ -265,9 +272,9 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
         // Search bar
         Container(
           decoration: BoxDecoration(
-            color: inputFillColor,
+            color: const Color(0xFF23262F),
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-            border: Border.all(color: borderColor),
+            border: Border.all(color: Colors.white12),
           ),
           child: TextField(
             controller: _searchController,
@@ -276,18 +283,15 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                 _searchQuery = value;
               });
             },
-            style: TextStyle(color: labelColor),
-            decoration: InputDecoration(
+            style: const TextStyle(color: Colors.white),
+            cursorColor: Colors.white70,
+            decoration: const InputDecoration(
               hintText: 'Search by name, interests, profession...',
-              hintStyle: TextStyle(
-                color: labelColor,
-              ), // Updated to use labelColor instead of hintColor
-              prefixIcon: Icon(
-                Icons.search,
-                color: Colors.grey,
-              ), // Updated to use grey color
+              hintStyle: TextStyle(color: Colors.white),
+              prefixIcon: Icon(Icons.search, color: Colors.white38),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              contentPadding: EdgeInsets.all(BuddyTheme.spacingMd),
+              filled: false,
             ),
           ),
         ),
@@ -305,7 +309,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                   setState(() => _selectedAge = value);
                 },
                 cardColor,
-                labelColor,
+                Colors.white,
                 borderColor,
               ),
               const SizedBox(width: BuddyTheme.spacingXs),
@@ -317,7 +321,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                   setState(() => _selectedProfession = value);
                 },
                 cardColor,
-                labelColor,
+                Colors.white,
                 borderColor,
               ),
               const SizedBox(width: BuddyTheme.spacingXs),
@@ -329,7 +333,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                   setState(() => _selectedGender = value);
                 },
                 cardColor,
-                labelColor,
+                Colors.white,
                 borderColor,
               ),
             ],
@@ -356,7 +360,11 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
             label,
             options,
             value,
-            onChanged,
+            (selected) {
+              if (selected != value) {
+                onChanged(selected);
+              }
+            },
             cardColor,
             labelColor,
           ),
@@ -404,9 +412,10 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.displayMedium!.copyWith(
+          style: TextStyle(
+            fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: labelColor,
+            color: Colors.white,
           ),
         ),
       ],
@@ -419,7 +428,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     Color labelColor,
   ) {
     if (_isLoading) {
-      return [const Center(child: CircularProgressIndicator())];
+      return [const Center(child: CircularProgressIndicator(color: Colors.white))];
     }
     if (_filteredFlatmates.isEmpty) {
       return [
@@ -430,7 +439,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
               "No flatmates found.",
               style: TextStyle(
                 fontSize: 18,
-                color: labelColor.withOpacity(0.7),
+                color: Colors.white.withOpacity(0.7),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -456,9 +465,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     Color cardColor,
     Color labelColor,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color accentColor =
-        isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
+    final Color accentColor = const Color(0xFF64B5F6);
     return Container(
       decoration: BuddyTheme.cardDecoration.copyWith(color: cardColor),
       child: Padding(
@@ -480,7 +487,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                       flatmate['profilePhotoUrl'] == null
                           ? Icon(
                             Icons.person,
-                            color: labelColor,
+                            color: Colors.white,
                             size: BuddyTheme.iconSizeLg,
                           )
                           : null,
@@ -492,15 +499,17 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                     children: [
                       Text(
                         flatmate['name'] ?? 'No Name',
-                        style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                        style: TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: labelColor,
+                          color: Colors.white,
                         ),
                       ),
                       Text(
                         '${flatmate['age'] ?? ''} • ${flatmate['occupation'] ?? ''}',
-                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                          color: labelColor.withOpacity(0.7),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.7),
                         ),
                       ),
                       const SizedBox(height: BuddyTheme.spacingXs),
@@ -508,14 +517,16 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                         children: [
                           Icon(
                             Icons.location_on,
-                            color: labelColor.withOpacity(0.7),
+                            color: Colors.white.withOpacity(0.7),
                             size: BuddyTheme.iconSizeSm,
                           ),
                           const SizedBox(width: BuddyTheme.spacingXxs),
                           Text(
                             flatmate['location'] ?? '',
-                            style: Theme.of(context).textTheme.bodySmall!
-                                .copyWith(color: labelColor.withOpacity(0.7)),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
                           ),
                         ],
                       ),
@@ -542,14 +553,15 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                       children: [
                         Text(
                           'Budget Range',
-                          style: Theme.of(context).textTheme.bodySmall!
-                              .copyWith(color: labelColor.withOpacity(0.7)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.7),
+                          ),
                         ),
                         Text(
                           '₹${flatmate['minBudget'] ?? ''} - ₹${flatmate['maxBudget'] ?? ''}',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleMedium!.copyWith(
+                          style: TextStyle(
+                            fontSize: 16,
                             color: BuddyTheme.primaryColor,
                             fontWeight: FontWeight.bold,
                           ),
@@ -573,8 +585,10 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                       children: [
                         Text(
                           'Move-in Date',
-                          style: Theme.of(context).textTheme.bodySmall!
-                              .copyWith(color: labelColor.withOpacity(0.7)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.7),
+                          ),
                         ),
                         Text(
                           flatmate['moveInDate'] != null
@@ -594,9 +608,8 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                                       )
                                       : ''))
                               : '',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleMedium!.copyWith(
+                          style: TextStyle(
+                            fontSize: 16,
                             color: BuddyTheme.successColor,
                             fontWeight: FontWeight.bold,
                           ),
@@ -612,9 +625,10 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
             if (flatmate['bio']?.isNotEmpty ?? false) ...[
               Text(
                 flatmate['bio']!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium!.copyWith(color: labelColor),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -627,9 +641,10 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                 children: [
                   Text(
                     'Interests',
-                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                    style: TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: labelColor,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: BuddyTheme.spacingXs),
@@ -659,9 +674,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                                 ),
                                 child: Text(
                                   interest,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.bodySmall!.copyWith(
+                                  style: TextStyle(
                                     color: BuddyTheme.accentColor,
                                     fontSize: BuddyTheme.fontSizeXs,
                                   ),
@@ -673,7 +686,6 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                   const SizedBox(height: BuddyTheme.spacingMd),
                 ],
               ),
-            // View Detail Button
             const SizedBox(height: BuddyTheme.spacingSm),
             SizedBox(
               width: double.infinity,
@@ -703,9 +715,10 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                     const SizedBox(width: BuddyTheme.spacingXs),
                     Text(
                       'View Details',
-                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
                   ],
@@ -738,8 +751,8 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: cardColor,
-      isScrollControlled: true, // <-- Add this line
+      backgroundColor: const Color(0xFF23262F),
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(BuddyTheme.borderRadiusMd),
@@ -747,9 +760,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       ),
       builder: (BuildContext context) {
         return SafeArea(
-          // <-- Wrap in SafeArea
           child: SingleChildScrollView(
-            // <-- Wrap in SingleChildScrollView
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               child: Column(
@@ -761,16 +772,17 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                     children: [
                       Text(
                         'Select $title',
-                        style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                        style: TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: labelColor,
+                          color: Colors.white,
                         ),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Icon(
                           Icons.close,
-                          color: labelColor.withOpacity(0.7),
+                          color: Colors.white.withOpacity(0.7),
                           size: BuddyTheme.iconSizeMd,
                         ),
                       ),
@@ -782,26 +794,18 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                         (option) => ListTile(
                           title: Text(
                             option,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodyLarge!.copyWith(
-                              color:
-                                  option == currentValue
-                                      ? BuddyTheme.primaryColor
-                                      : labelColor,
-                              fontWeight:
-                                  option == currentValue
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
+                            style: TextStyle(
+                              color: option == currentValue ? BuddyTheme.primaryColor : Colors.white,
+                              fontWeight: option == currentValue ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 16,
                             ),
                           ),
-                          trailing:
-                              option == currentValue
-                                  ? Icon(
-                                    Icons.check,
-                                    color: BuddyTheme.primaryColor,
-                                  )
-                                  : null,
+                          trailing: option == currentValue
+                              ? Icon(
+                                  Icons.check,
+                                  color: BuddyTheme.primaryColor,
+                                )
+                              : null,
                           onTap: () {
                             onChanged(option);
                             Navigator.pop(context);

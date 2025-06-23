@@ -9,21 +9,18 @@ class AuthOptionsPage extends StatefulWidget {
 }
 
 class _AuthOptionsPageState extends State<AuthOptionsPage> {
-  
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    // Always use dark mode UI
+    const isDark = true;
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        systemOverlayStyle: isDark 
-          ? SystemUiOverlayStyle.light 
-          : SystemUiOverlayStyle.dark,
-        iconTheme: IconThemeData(
-          color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        iconTheme: const IconThemeData(
+          color: Colors.white,
         ),
       ),
       body: SafeArea(
@@ -33,9 +30,9 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              _buildHeader(isDark),
+              _buildHeader(),
               const SizedBox(height: 50),
-              _buildAuthButtons(isDark),
+              _buildAuthButtons(),
             ],
           ),
         ),
@@ -43,7 +40,7 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
     );
   }
 
-  Widget _buildHeader(bool isDark) {
+  Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -51,11 +48,11 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+            color: const Color(0xFF2C3E50),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)).withOpacity(0.3),
+                color: const Color(0xFF2C3E50).withOpacity(0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -68,12 +65,12 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
           ),
         ),
         const SizedBox(height: 32),
-        Text(
+        const Text(
           'Sign in to your account',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+            color: Colors.white,
             letterSpacing: -0.5,
           ),
         ),
@@ -82,7 +79,7 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
           'Choose how you\'d like to sign in',
           style: TextStyle(
             fontSize: 16,
-            color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
+            color: Colors.white70,
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -90,26 +87,26 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
     );
   }
 
-  Widget _buildAuthButtons(bool isDark) {
+  Widget _buildAuthButtons() {
     return Column(
       children: [
-        _buildEmailButton(isDark),
+        _buildEmailButton(),
         const SizedBox(height: 16),
-        _buildPhoneButton(isDark),
+        _buildPhoneButton(),
       ],
     );
   }
 
-  Widget _buildEmailButton(bool isDark) {
+  Widget _buildEmailButton() {
     return Container(
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+        color: const Color(0xFF2C3E50),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)).withOpacity(0.3),
+            color: const Color(0xFF2C3E50).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -153,16 +150,16 @@ class _AuthOptionsPageState extends State<AuthOptionsPage> {
     );
   }
 
-  Widget _buildPhoneButton(bool isDark) {
+  Widget _buildPhoneButton() {
     return Container(
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+        color: const Color(0xFF2C3E50),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)).withOpacity(0.3),
+            color: const Color(0xFF2C3E50).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),

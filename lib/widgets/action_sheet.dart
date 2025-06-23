@@ -45,18 +45,11 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final sheetColor =
-        isDark
-            ? Color.alphaBlend(
-              Colors.white.withOpacity(0.06),
-              theme.colorScheme.surface,
-            )
-            : Color.alphaBlend(
-              Colors.black.withOpacity(0.04),
-              theme.colorScheme.surface,
-            );
+    // Always use dark mode style for the sheet, regardless of app theme
+    const darkSheetColor = Color(0xFF23272F); // Typical dark background
+    const darkDividerColor = Color(0xFF44474F);
+    const darkTextColor = Colors.white;
+    const darkSecondaryTextColor = Color(0xFFB0B3B8);
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -70,7 +63,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingLg),
               decoration: BoxDecoration(
-                color: sheetColor,
+                color: darkSheetColor,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(BuddyTheme.borderRadiusXl),
                   topRight: Radius.circular(BuddyTheme.borderRadiusXl),
@@ -85,7 +78,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: theme.dividerColor,
+                        color: darkDividerColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -94,18 +87,16 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                     // Title
                     Text(
                       'What would you like to do?',
-                      style: theme.textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: theme.textTheme.headlineSmall?.color,
+                        color: darkTextColor,
                       ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
                       'Choose an option to get started',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.textTheme.bodyMedium?.color?.withOpacity(
-                          0.7,
-                        ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: darkSecondaryTextColor,
                       ),
                     ),
                     const SizedBox(height: BuddyTheme.spacingXl),
@@ -141,6 +132,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                       ),
                                     );
                                   },
+                                  forceDark: true,
                                 ),
                               ),
                             ),
@@ -167,11 +159,11 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                       context,
                                       MaterialPageRoute(
                                         builder:
-                                            (context) =>
-                                                const RoomRequestForm(),
+                                            (context) => const RoomRequestForm(),
                                       ),
                                     );
                                   },
+                                  forceDark: true,
                                 ),
                               ),
                             ),
@@ -208,6 +200,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                       ),
                                     );
                                   },
+                                  forceDark: true,
                                 ),
                               ),
                             ),
@@ -237,6 +230,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                                       ),
                                     );
                                   },
+                                  forceDark: true,
                                 ),
                               ),
                             ),
@@ -255,7 +249,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                         child: Text(
                           'Cancel',
                           style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(color: BuddyTheme.textSecondaryColor),
+                              ?.copyWith(color: darkSecondaryTextColor),
                         ),
                       ),
                     ),
@@ -278,8 +272,13 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
     required IconData icon,
     required Gradient gradient,
     required VoidCallback onTap,
+    bool forceDark = false, // new param
   }) {
-    final theme = Theme.of(context);
+    // Always use dark mode for action buttons if forceDark is true
+    final Color iconBg = forceDark ? Colors.white.withOpacity(0.2) : Theme.of(context).cardColor;
+    final Color titleColor = forceDark ? Colors.white : Theme.of(context).textTheme.titleMedium?.color ?? Colors.white;
+    final Color subtitleColor = forceDark ? Colors.white.withOpacity(0.8) : Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8) ?? Colors.white70;
+    final Color arrowColor = forceDark ? Colors.white.withOpacity(0.8) : Theme.of(context).iconTheme.color ?? Colors.white70;
 
     return InkWell(
       onTap: onTap,
@@ -311,7 +310,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                   Container(
                     padding: const EdgeInsets.all(BuddyTheme.spacingSm),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: iconBg,
                       borderRadius: BorderRadius.circular(
                         BuddyTheme.borderRadiusSm,
                       ),
@@ -328,8 +327,8 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                   // Text content
                   Text(
                     title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: titleColor,
                       fontWeight: FontWeight.bold,
                     ),
                     maxLines: 1,
@@ -338,8 +337,8 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                   const SizedBox(height: BuddyTheme.spacingXxs),
                   Text(
                     subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withOpacity(0.8),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: subtitleColor,
                       fontSize: 12, // Slightly reduced font size
                     ),
                     maxLines: 2,
@@ -349,7 +348,7 @@ class _ActionBottomSheetState extends State<ActionBottomSheet>
                   const SizedBox(height: BuddyTheme.spacingXs),
                   Icon(
                     Icons.arrow_forward,
-                    color: Colors.white.withOpacity(0.8),
+                    color: arrowColor,
                     size: 20,
                   ),
                 ],

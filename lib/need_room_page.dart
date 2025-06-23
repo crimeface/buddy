@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'theme.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'main.dart'; // Add this import
@@ -269,25 +270,30 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color primaryColor =
-        isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
-    final Color accentColor =
-        isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
-    final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
-    final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
-    final Color textSecondary =
-        isDark ? Colors.white70 : const Color(0xFF718096);
-    final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
-    final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
-    final Color successColor =
-        isDark ? const Color(0xFF81C784) : const Color(0xFF48BB78);
-    final Color warningColor =
-        isDark ? const Color(0xFFFFB74D) : const Color(0xFFED8936);
-    final Color inputFillColor =
-        isDark ? const Color(0xFF23262F) : const Color(0xFFF1F5F9);
+    // Always use dark mode colors
+    final Color primaryColor = const Color(0xFF90CAF9);
+    final Color accentColor = const Color(0xFF64B5F6);
+    final Color cardColor = const Color(0xFF23262F);
+    final Color textPrimary = Colors.white;
+    final Color textSecondary = Colors.white70;
+    final Color textLight = Colors.white38;
+    final Color borderColor = Colors.white12;
+    final Color successColor = const Color(0xFF81C784);
+    final Color warningColor = const Color(0xFFFFB74D);
+    final Color inputFillColor = const Color(0xFF23262F);
     final Color labelColor = textPrimary;
-    final Color hintColor = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+    final Color hintColor = Colors.white38;
+
+    // Set status bar and navigation bar to pure black
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.black,
+        systemNavigationBarColor: Colors.black,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
 
     return WillPopScope(
       onWillPop: () async {
@@ -297,6 +303,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
         return false;
       },
       child: Scaffold(
+        backgroundColor: Colors.black, // Changed to pure black
         body: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -305,78 +312,77 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
               return;
             },
             color: BuddyTheme.primaryColor,
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Padding(
-                        padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildHeader(context, textPrimary),
-                            const SizedBox(height: BuddyTheme.spacingLg),
-                            _buildSearchSection(
-                              cardColor,
-                              inputFillColor,
-                              labelColor,
-                              hintColor,
-                              textLight,
-                              textPrimary,
-                              accentColor,
-                              borderColor,
-                            ),
-                            const SizedBox(height: BuddyTheme.spacingLg),
-                            _buildSectionHeader(
-                              'Available Properties',
-                              textPrimary,
-                              accentColor,
-                            ),
-                            const SizedBox(height: BuddyTheme.spacingMd),
-                            ...(_filteredRooms.isEmpty
-                                ? [
-                                    Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 40),
-                                        child: Text(
-                                          'No rooms found',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            color: textPrimary.withOpacity(0.7),
-                                            fontWeight: FontWeight.w500,
-                                          ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(context, textPrimary),
+                          const SizedBox(height: BuddyTheme.spacingLg),
+                          _buildSearchSection(
+                            cardColor,
+                            inputFillColor,
+                            labelColor,
+                            hintColor,
+                            textLight,
+                            textPrimary,
+                            accentColor,
+                            borderColor,
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingLg),
+                          _buildSectionHeader(
+                            'Available Properties',
+                            textPrimary,
+                            accentColor,
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingMd),
+                          ...(_filteredRooms.isEmpty
+                              ? [
+                                  Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 40),
+                                      child: Text(
+                                        'No rooms found',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: textPrimary.withOpacity(0.7),
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                     ),
-                                  ]
-                                : _filteredRooms
-                                    .map(
-                                      (room) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: BuddyTheme.spacingMd,
-                                        ),
-                                        child: _buildRoomCard(
-                                          room,
-                                          cardColor,
-                                          borderColor,
-                                          textLight,
-                                          textPrimary,
-                                          textSecondary,
-                                          accentColor,
-                                          primaryColor,
-                                          Theme.of(context).scaffoldBackgroundColor,
-                                          successColor,
-                                          warningColor,
-                                        ),
+                                  ),
+                                ]
+                              : _filteredRooms
+                                  .map(
+                                    (room) => Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: BuddyTheme.spacingMd,
                                       ),
-                                    )
-                                    .toList()),
-                            const SizedBox(height: BuddyTheme.spacingMd),
-                          ],
-                        ),
+                                      child: _buildRoomCard(
+                                        room,
+                                        cardColor,
+                                        borderColor,
+                                        textLight,
+                                        textPrimary,
+                                        textSecondary,
+                                        accentColor,
+                                        primaryColor,
+                                        const Color(0xFF181A20), // Use dark background for cards too
+                                        successColor,
+                                        warningColor,
+                                      ),
+                                    ),
+                                  )
+                                  .toList()),
+                          const SizedBox(height: BuddyTheme.spacingMd),
+                        ],
                       ),
                     ),
+                  ),
           ),
         ),
       ),
@@ -389,13 +395,11 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       children: [
         Text(
           'Find Your',
-          style: Theme.of(
-            context,
-          ).textTheme.displaySmall!.copyWith(color: labelColor),
+          style: Theme.of(context).textTheme.headlineSmall!.copyWith(color: labelColor),
         ),
         Text(
           'Dream Room',
-          style: Theme.of(context).textTheme.displayMedium!.copyWith(
+          style: Theme.of(context).textTheme.titleLarge!.copyWith(
             fontWeight: FontWeight.bold,
             color: BuddyTheme.primaryColor,
           ),
@@ -419,9 +423,9 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
         // Search bar
         Container(
           decoration: BoxDecoration(
-            color: inputFillColor,
+            color: const Color(0xFF23262F), // Modern dark search bar
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-            border: Border.all(color: borderColor),
+            border: Border.all(color: Colors.white12),
           ),
           child: TextField(
             controller: _searchController,
@@ -430,13 +434,15 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                 _searchQuery = value;
               });
             },
-            style: TextStyle(color: labelColor),
-            decoration: InputDecoration(
+            style: const TextStyle(color: Colors.white),
+            cursorColor: Colors.white70,
+            decoration: const InputDecoration(
               hintText: 'Search neighborhoods, amenities, or landmarks...',
-              hintStyle: TextStyle(color: hintColor),
-              prefixIcon: Icon(Icons.search, color: labelColor),
+              hintStyle: TextStyle(color: Colors.white), // Make hint white
+              prefixIcon: Icon(Icons.search, color: Colors.white38),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(BuddyTheme.spacingMd),
+              contentPadding: EdgeInsets.all(BuddyTheme.spacingMd),
+              filled: false,
             ),
           ),
         ),
@@ -1003,19 +1009,26 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color primaryColor =
-        isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
-    final Color accentColor =
-        isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
-    final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
-    final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
-    final Color textSecondary =
-        isDark ? Colors.white70 : const Color(0xFF718096);
-    final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
-    final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+    // Always use dark mode colors
+    final Color primaryColor = const Color(0xFF90CAF9);
+    final Color accentColor = const Color(0xFF64B5F6);
+    final Color cardColor = const Color(0xFF23262F);
+    final Color textPrimary = Colors.white;
+    final Color textSecondary = Colors.white70;
+    final Color textLight = Colors.white38;
+    final Color borderColor = Colors.white12;
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.black, // Set status bar to pure black
+        systemNavigationBarColor: Colors.black, // Also set nav bar to black if needed
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
 
     return Scaffold(
+      backgroundColor: Colors.black, // Make topmost layer black
       appBar: AppBar(
         title: const Text('Property Details'),
         backgroundColor: BuddyTheme.primaryColor,
@@ -1220,7 +1233,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                       ),
                     ),
                   ),
-                ),
+                )
               )
               : Center(
                 child: Text(
@@ -1228,6 +1241,6 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                   style: TextStyle(fontSize: 18, color: textPrimary),
                 ),
               ),
-    );
+    ); // <-- Close Scaffold
   }
 }

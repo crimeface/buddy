@@ -288,6 +288,13 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   bool isLoading = true;
   String? error;
 
+  // Always use dark mode colors
+  final Color _backgroundColor = Colors.black;
+  final Color _cardColor = Color(0xFF1A1A1A);
+  final Color _borderColor = Colors.grey;
+  final Color _textPrimary = Colors.white;
+  final Color _textSecondary = Colors.white70;
+
   @override
   void initState() {
     super.initState();
@@ -425,17 +432,22 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: _backgroundColor,
+        body: const Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
     }
     if (error != null) {
       return Scaffold(
+        backgroundColor: _backgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(error!),
+              Text(error!, style: TextStyle(color: _textPrimary)),
               const SizedBox(height: 16),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: BuddyTheme.primaryColor),
                 onPressed: () {
                   setState(() {
                     isLoading = true;
@@ -443,7 +455,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   });
                   _fetchServiceDetails();
                 },
-                child: const Text('Retry'),
+                child: const Text('Retry', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -451,6 +463,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       );
     }
     return Scaffold(
+      backgroundColor: _backgroundColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
@@ -498,28 +511,21 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor =
-        isDark
-            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
-
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
-      backgroundColor: cardColor,
+      backgroundColor: _cardColor,
       elevation: 0,
       leading: Container(
         margin: const EdgeInsets.all(BuddyTheme.spacingXs),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.grey[900],
           shape: BoxShape.circle,
         ),
         child: IconButton(
           icon: const Icon(
             Icons.arrow_back,
-            color: BuddyTheme.textPrimaryColor,
+            color: Colors.white,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -528,16 +534,13 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         Container(
           margin: const EdgeInsets.all(BuddyTheme.spacingXs),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.grey[900],
             shape: BoxShape.circle,
           ),
           child: IconButton(
             icon: Icon(
               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              color:
-                  isBookmarked
-                      ? BuddyTheme.primaryColor
-                      : BuddyTheme.textPrimaryColor,
+              color: isBookmarked ? BuddyTheme.primaryColor : Colors.white,
             ),
             onPressed: () async {
               await _toggleBookmark();
@@ -548,11 +551,11 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         Container(
           margin: const EdgeInsets.all(BuddyTheme.spacingXs),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.grey[900],
             shape: BoxShape.circle,
           ),
           child: IconButton(
-            icon: const Icon(Icons.share, color: BuddyTheme.textPrimaryColor),
+            icon: const Icon(Icons.share, color: Colors.white),
             onPressed: _shareService,
           ),
         ),
@@ -583,6 +586,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 itemBuilder: (context, index) {
                   return Container(
                     decoration: BoxDecoration(
+                      color: Colors.black,
                       image: DecorationImage(
                         image: NetworkImage(serviceImages[index]),
                         fit: BoxFit.cover,
@@ -622,20 +626,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   }
 
   Widget _buildServiceHeader() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor =
-        isDark
-            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
-    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
     return Container(
       decoration: BoxDecoration(
-        color: cardColor,
+        color: _cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         border: Border.all(
-          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+          color: _borderColor.withOpacity(0.2),
         ),
       ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -647,7 +643,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             style: TextStyle(
               fontSize: BuddyTheme.fontSizeXl,
               fontWeight: FontWeight.bold,
-              color: textPrimary,
+              color: _textPrimary,
             ),
           ),
           const SizedBox(height: BuddyTheme.spacingXs),
@@ -656,14 +652,14 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               Icon(
                 Icons.location_on,
                 size: BuddyTheme.iconSizeSm,
-                color: textSecondary,
+                color: _textSecondary,
               ),
               const SizedBox(width: BuddyTheme.spacingXs),
               Expanded(
                 child: Text(
                   '${serviceData.location}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: textSecondary,
+                  style: TextStyle(
+                    color: _textSecondary,
                     fontSize: BuddyTheme.fontSizeMd,
                   ),
                 ),

@@ -125,7 +125,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return WillPopScope(
       onWillPop: () async {
         Navigator.of(
@@ -134,8 +133,7 @@ class _ProfilePageState extends State<ProfilePage> {
         return false;
       },
       child: Scaffold(
-        backgroundColor:
-            isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
+        backgroundColor: Colors.black, // Always dark
         body: Stack(
           children: [
             CustomScrollView(
@@ -145,8 +143,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   expandedHeight: 320,
                   floating: false,
                   pinned: true,
-                  backgroundColor:
-                      isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
+                  backgroundColor: Colors.black, // Always dark
                   flexibleSpace: LayoutBuilder(
                     builder: (
                       BuildContext context,
@@ -155,17 +152,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       return FlexibleSpaceBar(
                         collapseMode: CollapseMode.parallax,
                         background: Container(
-                          color:
-                              isDark
-                                  ? Colors.black
-                                  : BuddyTheme.backgroundPrimaryColor,
+                          color: Colors.black, // Always dark
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const SizedBox(height: 60),
-                              _buildProfileAvatar(isDark),
+                              _buildProfileAvatar(true),
                               const SizedBox(height: 20),
-                              _buildUserNameSection(isDark),
+                              _buildUserNameSection(true),
                             ],
                           ),
                         ),
@@ -173,7 +167,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     },
                   ),
                 ),
-                SliverToBoxAdapter(child: _buildAccountSettingsSection(isDark)),
+                SliverToBoxAdapter(child: _buildAccountSettingsSection(true)),
               ],
             ),
             if (_isLoggingOut)
@@ -188,6 +182,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileAvatar(bool isDark) {
+    // Always use dark mode colors
     return Hero(
       tag: 'profile_avatar',
       child: Container(
@@ -196,23 +191,14 @@ class _ProfilePageState extends State<ProfilePage> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
-            colors:
-                isDark
-                    ? [
-                      Colors.white.withOpacity(0.3),
-                      Colors.white.withOpacity(0.1),
-                    ]
-                    : [
-                      BuddyTheme.primaryColor.withOpacity(0.8),
-                      BuddyTheme.secondaryColor.withOpacity(0.6),
-                    ],
+            colors: [
+              Colors.white.withOpacity(0.3),
+              Colors.white.withOpacity(0.1),
+            ],
           ),
           boxShadow: [
             BoxShadow(
-              color:
-                  isDark
-                      ? Colors.black.withOpacity(0.2)
-                      : BuddyTheme.primaryColor.withOpacity(0.3),
+              color: Colors.black.withOpacity(0.2),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -254,6 +240,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildUserNameSection(bool isDark) {
+    // Always use dark mode colors
     final isPhoneUser = _user?.providerData.any((p) => p.providerId == 'phone') == true;
     return Column(
       children: [
@@ -263,10 +250,10 @@ class _ProfilePageState extends State<ProfilePage> {
               : (_firestoreEmail != null && _firestoreEmail!.trim().isNotEmpty)
                   ? _firestoreEmail!.split('@')[0].toUpperCase()
                   : (_user?.phoneNumber ?? 'Guest User'),
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black,
+            color: Colors.white,
             letterSpacing: 0.5,
           ),
         ),
@@ -274,19 +261,19 @@ class _ProfilePageState extends State<ProfilePage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
-            color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+            color: Colors.white.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: (isDark ? Colors.white : Colors.black).withOpacity(0.2),
+              color: Colors.white.withOpacity(0.2),
             ),
           ),
           child: Text(
             isPhoneUser
                 ? (_user?.phoneNumber ?? 'No Phone')
                 : (_firestoreEmail ?? _user?.email ?? 'No Email'),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
-              color: isDark ? Colors.white : Colors.black,
+              color: Colors.white,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -296,13 +283,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAccountSettingsSection(bool isDark) {
+    // Always use dark mode colors, but update logout button to match reference
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingMd),
       decoration: BuddyTheme.cardDecoration.copyWith(
-        color:
-            isDark
-                ? Colors.grey[900]
-                : const Color.fromARGB(255, 240, 238, 238),
+        color: isDark ? Colors.grey[900] : const Color.fromARGB(255, 240, 238, 238),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,6 +418,7 @@ class _ProfilePageState extends State<ProfilePage> {
     bool isLast = false,
     required bool isDark,
   }) {
+    // Always use dark mode colors
     return Column(
       children: [
         ListTile(
@@ -446,15 +432,15 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           title: Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: BuddyTheme.fontSizeMd,
               fontWeight: FontWeight.w500,
-              color: isDark ? Colors.white : BuddyTheme.textPrimaryColor,
+              color: Colors.white,
             ),
           ),
-          trailing: Icon(
+          trailing: const Icon(
             Icons.chevron_right,
-            color: isDark ? Colors.white54 : BuddyTheme.textSecondaryColor,
+            color: Colors.white54,
           ),
           onTap: onTap,
           contentPadding: const EdgeInsets.symmetric(
@@ -470,7 +456,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 BuddyTheme.iconSizeMd +
                 BuddyTheme.spacingXs,
             endIndent: BuddyTheme.spacingMd,
-            color: isDark ? Colors.white24 : BuddyTheme.dividerColor,
+            color: Colors.white24,
           ),
       ],
     );

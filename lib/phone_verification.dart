@@ -16,16 +16,17 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
   final PageController _pageController = PageController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
-  final List<TextEditingController> _otpControllers = 
-      List.generate(6, (index) => TextEditingController());
-  
+  final List<TextEditingController> _otpControllers = List.generate(
+    6,
+    (index) => TextEditingController(),
+  );
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String _verificationId = '';
   bool _isLoading = false;
-  
+
   late AnimationController _slideController;
-  late Animation<Offset> _slideAnimation;
-  
+
   int currentPage = 0;
   String phoneNumber = '';
   String fullName = '';
@@ -37,13 +38,6 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       duration: Duration(milliseconds: 300),
       vsync: this,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: Offset(0, 0),
-      end: Offset(-1, 0),
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeInOut,
-    ));
   }
 
   @override
@@ -56,6 +50,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
     }
     super.dispose();
   }
+
   void _navigateToOTP() async {
     if (_phoneController.text.isNotEmpty) {
       setState(() {
@@ -114,6 +109,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       }
     }
   }
+
   void _verifyOTP() async {
     String otp = _otpControllers.map((controller) => controller.text).join();
     if (otp.length == 6) {
@@ -128,13 +124,16 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
         );
 
         // Sign in with credential
-        UserCredential userCredential = await _auth.signInWithCredential(credential);
-        
+        UserCredential userCredential = await _auth.signInWithCredential(
+          credential,
+        );
+
         // Check if user exists in Firestore
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
+        DocumentSnapshot userDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(userCredential.user!.uid)
+                .get();
 
         setState(() {
           _isLoading = false;
@@ -143,7 +142,11 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
         if (userDoc.exists) {
           // User already exists, redirect to homepage
           if (mounted) {
-            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (route) => false,
+            );
           }
         } else {
           // New user, continue to name input page
@@ -186,17 +189,20 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       try {
         // Get current user
         final User? user = _auth.currentUser;
-        
+
         if (user != null) {
           // Update display name in Firebase Auth
           await user.updateDisplayName(fullName);
 
           // Store user data in Firestore
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-            'username': fullName,
-            'phone': '+91$phoneNumber',
-            'createdAt': DateTime.now().toIso8601String(),
-          });
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+                'username': fullName,
+                'phone': '+91$phoneNumber',
+                'createdAt': DateTime.now().toIso8601String(),
+              });
 
           setState(() {
             _isLoading = false;
@@ -205,7 +211,9 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome, $fullName! Registration completed successfully.'),
+              content: Text(
+                'Welcome, $fullName! Registration completed successfully.',
+              ),
               backgroundColor: isDark ? const Color(0xFF28A745) : Colors.green,
               duration: Duration(seconds: 3),
             ),
@@ -213,7 +221,11 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
 
           // Navigate to homepage and remove all previous routes
           if (mounted) {
-            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (route) => false,
+            );
           }
         } else {
           throw Exception('User not found');
@@ -282,14 +294,24 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
             setState(() {
               _isLoading = false;
             });
-            showCustomSnackBar(context, e.message ?? 'Verification failed', backgroundColor: isDark ? const Color(0xFFE74C3C) : Colors.red, icon: Icons.error);
+            showCustomSnackBar(
+              context,
+              e.message ?? 'Verification failed',
+              backgroundColor: isDark ? const Color(0xFFE74C3C) : Colors.red,
+              icon: Icons.error,
+            );
           },
           codeSent: (String verificationId, int? resendToken) {
             setState(() {
               _verificationId = verificationId;
               _isLoading = false;
             });
-            showCustomSnackBar(context, 'OTP Resent', backgroundColor: primaryColor, icon: Icons.sms);
+            showCustomSnackBar(
+              context,
+              'OTP Resent',
+              backgroundColor: primaryColor,
+              icon: Icons.sms,
+            );
           },
           codeAutoRetrievalTimeout: (String verificationId) {
             setState(() {
@@ -302,14 +324,23 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
         setState(() {
           _isLoading = false;
         });
-        showCustomSnackBar(context, 'Error: ${e.toString()}', backgroundColor: isDark ? const Color(0xFFE74C3C) : Colors.red, icon: Icons.error);
+        showCustomSnackBar(
+          context,
+          'Error: ${e.toString()}',
+          backgroundColor: isDark ? const Color(0xFFE74C3C) : Colors.red,
+          icon: Icons.error,
+        );
       }
     }
   }
 
   // Custom SnackBar for consistent UI
-  void showCustomSnackBar(BuildContext context, String message, {Color? backgroundColor, IconData? icon}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  void showCustomSnackBar(
+    BuildContext context,
+    String message, {
+    Color? backgroundColor,
+    IconData? icon,
+  }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -321,16 +352,17 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
         ),
-        backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
+        backgroundColor: backgroundColor ?? (const Color(0xFF2C3E50)),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         elevation: 8,
         duration: const Duration(seconds: 3),
@@ -339,17 +371,17 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
   }
 
   // Updated theme-aware colors to match login page
-  bool get isDark => Theme.of(context).brightness == Brightness.dark;
-  
-  Color get backgroundColor => isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF);
-  Color get cardColor => isDark ? const Color(0xFF1E293B) : Colors.white;
-  Color get textColor => isDark ? Colors.white : const Color(0xFF1E3A8A);
-  Color get subtitleColor => isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B);
-  Color get hintColor => isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B);
-  Color get borderColor => isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-  Color get primaryColor => isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2);
-  Color get primaryGradientEnd => isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2);
-  Color get shadowColor => isDark ? const Color(0xFF2C3E50).withOpacity(0.3) : const Color(0xFF4A90E2).withOpacity(0.3);
+  bool get isDark => true;
+
+  Color get backgroundColor => const Color(0xFF121212);
+  Color get cardColor => const Color.fromARGB(255, 38, 40, 44);
+  Color get textColor => Colors.white;
+  Color get subtitleColor => Colors.white.withOpacity(0.9);
+  Color get hintColor => Colors.white.withOpacity(0.7);
+  Color get borderColor => const Color(0xFF334155);
+  Color get primaryColor => const Color(0xFF2C3E50);
+  Color get primaryGradientEnd => const Color(0xFF2C3E50);
+  Color get shadowColor => const Color(0xFF2C3E50).withOpacity(0.3);
 
   @override
   Widget build(BuildContext context) {
@@ -359,25 +391,24 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        systemOverlayStyle: isDark 
-          ? SystemUiOverlayStyle.light 
-          : SystemUiOverlayStyle.dark,
-        leading: currentPage > 0 
-            ? IconButton(
-                icon: Icon(
-                  Icons.arrow_back, 
-                  color: isDark ? Colors.white : const Color(0xFF1E3A8A),
-                ),
-                onPressed: _goBack,
-              )
-            : null,
+        systemOverlayStyle: SystemUiOverlayStyle.light, // changed from dark to light for visibility
+        leading:
+            currentPage > 0
+                ? IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                  ),
+                  onPressed: _goBack,
+                )
+                : null,
         title: Text(
-          currentPage == 0 ? 'Verification' : 
-          currentPage == 1 ? 'OTP Verification' : 'Complete Profile',
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.w600,
-          ),
+          currentPage == 0
+              ? 'Verification'
+              : currentPage == 1
+              ? 'OTP Verification'
+              : 'Complete Profile',
+          style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
         ),
       ),
       body: Stack(
@@ -395,13 +426,14 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       ),
     );
   }
+
   Widget _buildPhoneInputPage() {
     return SingleChildScrollView(
       padding: EdgeInsets.all(24),
       child: Column(
         children: [
           SizedBox(height: 60),
-          
+
           // Lottie Animation for Phone Input
           Container(
             height: 200,
@@ -412,9 +444,9 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               animate: true,
             ),
           ),
-          
+
           SizedBox(height: 40),
-          
+
           Text(
             'Your Phone !',
             style: TextStyle(
@@ -423,30 +455,23 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               color: textColor,
             ),
           ),
-          
+
           SizedBox(height: 12),
-          
+
           Text(
             'We will send you an one time password\non this mobile number',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: subtitleColor,
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 16, color: subtitleColor, height: 1.5),
           ),
-          
+
           SizedBox(height: 50),
-          
+
           // Phone Number Input
           Container(
             decoration: BoxDecoration(
-              color: cardColor,
+              color: cardColor, // changed from white to cardColor
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: borderColor,
-                width: 1,
-              ),
+              border: Border.all(color: borderColor, width: 1),
               boxShadow: [
                 BoxShadow(
                   color: shadowColor,
@@ -471,28 +496,26 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                       SizedBox(width: 8),
                       Text(
                         '+91',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: textColor,
-                        ),
+                        style: TextStyle(fontSize: 16, color: textColor),
                       ),
                       SizedBox(width: 8),
-                      Container(
-                        height: 20,
-                        width: 1,
-                        color: borderColor,
-                      ),
+                      Container(height: 20, width: 1, color: borderColor),
                     ],
                   ),
                 ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                fillColor: cardColor, // ensure cardColor is used
+                filled: true, // ensure background is filled
               ),
             ),
           ),
-          
+
           SizedBox(height: 40),
-          
+
           // Receive OTP Button
           Container(
             width: double.infinity,
@@ -521,10 +544,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               ),
               child: Text(
                 'Receive OTP',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -539,7 +559,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       child: Column(
         children: [
           SizedBox(height: 60),
-          
+
           // Lottie Animation for OTP
           Container(
             height: 200,
@@ -550,9 +570,9 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               animate: true,
             ),
           ),
-          
+
           SizedBox(height: 40),
-          
+
           Text(
             'OTP verification',
             style: TextStyle(
@@ -561,21 +581,17 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               color: textColor,
             ),
           ),
-          
+
           SizedBox(height: 12),
-          
+
           Text(
             'Enter OTP sent to +91 $phoneNumber',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: subtitleColor,
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 16, color: subtitleColor, height: 1.5),
           ),
-          
+
           SizedBox(height: 50),
-          
+
           // OTP Input Fields
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -584,12 +600,9 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                 width: 45,
                 height: 55,
                 decoration: BoxDecoration(
-                  color: cardColor,
+                  color: cardColor, // changed from white to cardColor
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: borderColor,
-                    width: 1,
-                  ),
+                  border: Border.all(color: borderColor, width: 1),
                   boxShadow: [
                     BoxShadow(
                       color: shadowColor,
@@ -603,9 +616,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
                   maxLength: 1,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -615,15 +626,16 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                     counterText: '',
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
+                    fillColor: cardColor, // ensure cardColor is used
+                    filled: true, // ensure background is filled
                   ),
                   onChanged: (value) {
                     if (value.isNotEmpty) {
                       // Clear any extra characters and keep only the first digit
                       if (value.length > 1) {
                         _otpControllers[index].text = value[0];
-                        _otpControllers[index].selection = TextSelection.fromPosition(
-                          TextPosition(offset: 1),
-                        );
+                        _otpControllers[index].selection =
+                            TextSelection.fromPosition(TextPosition(offset: 1));
                         return;
                       }
                       // Move to next field
@@ -650,22 +662,19 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                     }
                   },
                 ),
-                );
+              );
             }),
           ),
-          
+
           SizedBox(height: 30),
-          
+
           // Resend OTP
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 "Didn't receive OTP? ",
-                style: TextStyle(
-                  color: subtitleColor,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: subtitleColor, fontSize: 14),
               ),
               GestureDetector(
                 onTap: _isLoading ? null : _resendOTP,
@@ -680,9 +689,9 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               ),
             ],
           ),
-          
+
           SizedBox(height: 20),
-          
+
           // Verify & Proceed Button
           Container(
             width: double.infinity,
@@ -711,10 +720,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               ),
               child: Text(
                 'Verify & Proceed',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -729,19 +735,15 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       child: Column(
         children: [
           SizedBox(height: 60),
-          
+
           // User Profile Icon or Animation
           Container(
             height: 200,
-            child: Icon(
-              Icons.person_outline,
-              size: 120,
-              color: primaryColor,
-            ),
+            child: Icon(Icons.person_outline, size: 120, color: primaryColor),
           ),
-          
+
           SizedBox(height: 40),
-          
+
           Text(
             'What\'s your name?',
             style: TextStyle(
@@ -750,30 +752,23 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               color: textColor,
             ),
           ),
-          
+
           SizedBox(height: 12),
-          
+
           Text(
             'Please enter your full name to complete\nyour profile setup',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: subtitleColor,
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 16, color: subtitleColor, height: 1.5),
           ),
-          
+
           SizedBox(height: 50),
-          
+
           // Full Name Input
           Container(
             decoration: BoxDecoration(
               color: cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: borderColor,
-                width: 1,
-              ),
+              border: Border.all(color: borderColor, width: 1),
               boxShadow: [
                 BoxShadow(
                   color: shadowColor,
@@ -792,13 +787,16 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                 hintStyle: TextStyle(color: hintColor),
                 prefixIcon: Icon(Icons.person, color: primaryColor),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
               ),
             ),
           ),
-          
+
           SizedBox(height: 40),
-          
+
           // Continue Button
           Container(
             width: double.infinity,
@@ -827,68 +825,12 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               ),
               child: Text(
                 'Complete Registration',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeader({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: primaryColor,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 24,
-          ),
-        ),
-        const SizedBox(height: 32),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          textAlign: TextAlign.left,
-          style: TextStyle(
-            fontSize: 16,
-            color: subtitleColor,
-            fontWeight: FontWeight.w400,
-            height: 1.5,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -900,14 +842,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _isDarkMode = false;
-
-  void _toggleTheme() {
-    setState(() {
-      _isDarkMode = !_isDarkMode;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -926,7 +860,7 @@ class _MyAppState extends State<MyApp> {
         scaffoldBackgroundColor: const Color(0xFF121212),
         cardColor: const Color(0xFF1E293B),
       ),
-      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      themeMode: ThemeMode.dark,
       home: PhoneVerificationPage(),
       debugShowCheckedModeBanner: false,
     );

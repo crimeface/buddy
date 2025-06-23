@@ -16,38 +16,15 @@ class _WishlistPageState extends State<WishlistPage>
   late Animation<double> _fadeAnimation;
   late AnimationController _heartController;
 
-  // Theme colors
-  Color get primaryBlue => Theme.of(context).brightness == Brightness.light 
-      ? const Color(0xFF2196F3) 
-      : const Color(0xFF42A5F5);
-  
-  Color get secondaryBlue => Theme.of(context).brightness == Brightness.light 
-      ? const Color(0xFF1976D2) 
-      : const Color(0xFF1E88E5);
-  
-  Color get lightBlue => Theme.of(context).brightness == Brightness.light 
-      ? const Color(0xFFE3F2FD) 
-      : const Color(0xFF1A237E).withOpacity(0.3);
-  
-  Color get backgroundColor => Theme.of(context).brightness == Brightness.light 
-      ? const Color(0xFFF8FAFE) 
-      : const Color(0xFF121212);
-  
-  Color get cardColor => Theme.of(context).brightness == Brightness.light 
-      ? Colors.white 
-      : const Color(0xFF1E1E1E);
-  
-  Color get textPrimary => Theme.of(context).brightness == Brightness.light 
-      ? const Color(0xFF1A1A1A) 
-      : Colors.white;
-  
-  Color get textSecondary => Theme.of(context).brightness == Brightness.light 
-      ? const Color(0xFF757575) 
-      : Colors.white70;
-  
-  Color get accentColor => Theme.of(context).brightness == Brightness.light 
-      ? const Color(0xFF1976D2) 
-      : const Color(0xFF42A5F5);
+  // Theme colors (Dark theme only)
+  Color get primaryBlue => const Color(0xFF42A5F5);
+  Color get secondaryBlue => const Color(0xFF1E88E5);
+  Color get lightBlue => const Color(0xFF1A237E).withOpacity(0.3);
+  Color get backgroundColor => const Color(0xFF121212);
+  Color get cardColor => const Color(0xFF1E1E1E);
+  Color get textPrimary => Colors.white;
+  Color get textSecondary => Colors.white70;
+  Color get accentColor => const Color(0xFF42A5F5);
 
   @override
   void initState() {
@@ -240,8 +217,7 @@ class _WishlistPageState extends State<WishlistPage>
   }
 
   Widget _buildSliverAppBar() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    // Always use dark mode style for the title background
     return SliverAppBar(
       expandedHeight: 140,
       floating: false,
@@ -271,15 +247,9 @@ class _WishlistPageState extends State<WishlistPage>
         title: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark ? Colors.black.withOpacity(0.3) : Colors.white.withOpacity(0.9),
+            color: Colors.black.withOpacity(0.3), // Always dark mode style
             borderRadius: BorderRadius.circular(20),
-            boxShadow: isDark ? [] : [
-              BoxShadow(
-                color: primaryBlue.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: [], // No shadow in any mode
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -302,9 +272,7 @@ class _WishlistPageState extends State<WishlistPage>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: isDark 
-                ? [const Color(0xFF1A237E).withOpacity(0.3), backgroundColor]
-                : [lightBlue, backgroundColor],
+              colors: [lightBlue, backgroundColor],
             ),
           ),
           child: Positioned.fill(
