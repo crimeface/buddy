@@ -51,12 +51,18 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.black, // true black
-      statusBarIconBrightness: Brightness.light, // white icons
-      statusBarBrightness: Brightness.dark, // for iOS
-    ));
-    _selectedLocation = (widget.selectedCity.isNotEmpty && widget.selectedCity != 'Select Location') ? widget.selectedCity : 'All Cities';
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.black, // true black
+        statusBarIconBrightness: Brightness.light, // white icons
+        statusBarBrightness: Brightness.dark, // for iOS
+      ),
+    );
+    _selectedLocation =
+        (widget.selectedCity.isNotEmpty &&
+                widget.selectedCity != 'Select Location')
+            ? widget.selectedCity
+            : 'All Cities';
     _fetchFlatmates();
   }
 
@@ -69,7 +75,9 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       var query = FirebaseFirestore.instance
           .collection('roomRequests')
           .where('visibility', isEqualTo: true);
-      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities' && widget.selectedCity != 'Select Location') {
+      if (widget.selectedCity.isNotEmpty &&
+          widget.selectedCity != 'All Cities' &&
+          widget.selectedCity != 'Select Location') {
         query = query.where('city', isEqualTo: widget.selectedCity);
       }
       final querySnapshot = await query.get();
@@ -246,7 +254,9 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       children: [
         Text(
           'Find Your',
-          style: Theme.of(context).textTheme.headlineSmall!.copyWith(color: labelColor),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall!.copyWith(color: labelColor),
         ),
         Text(
           'Ideal Flatmate',
@@ -428,7 +438,9 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     Color labelColor,
   ) {
     if (_isLoading) {
-      return [const Center(child: CircularProgressIndicator(color: Colors.white))];
+      return [
+        const Center(child: CircularProgressIndicator(color: Colors.white)),
+      ];
     }
     if (_filteredFlatmates.isEmpty) {
       return [
@@ -625,10 +637,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
             if (flatmate['bio']?.isNotEmpty ?? false) ...[
               Text(
                 flatmate['bio']!,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -795,17 +804,24 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                           title: Text(
                             option,
                             style: TextStyle(
-                              color: option == currentValue ? BuddyTheme.primaryColor : Colors.white,
-                              fontWeight: option == currentValue ? FontWeight.bold : FontWeight.normal,
+                              color:
+                                  option == currentValue
+                                      ? BuddyTheme.primaryColor
+                                      : Colors.white,
+                              fontWeight:
+                                  option == currentValue
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                               fontSize: 16,
                             ),
                           ),
-                          trailing: option == currentValue
-                              ? Icon(
-                                  Icons.check,
-                                  color: BuddyTheme.primaryColor,
-                                )
-                              : null,
+                          trailing:
+                              option == currentValue
+                                  ? Icon(
+                                    Icons.check,
+                                    color: BuddyTheme.primaryColor,
+                                  )
+                                  : null,
                           onTap: () {
                             onChanged(option);
                             Navigator.pop(context);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'display pages/property_details.dart';
 import 'display pages/hostelpg_details.dart';
 import 'display pages/service_details.dart';
@@ -974,27 +975,54 @@ class _MyListingsPageState extends State<MyListingsPage>
     try {
       final type = listing['listingType'];
       final id = listing['key'];
-      
+      List<String> photoUrls = [];
+
+      // Collect photo URLs/paths based on listing type
       switch (type) {
         case 'Room':
+          if (listing['uploadedPhotos'] is Map) {
+            photoUrls.addAll((listing['uploadedPhotos'] as Map).values
+                .where((v) => v != null && v.toString().isNotEmpty)
+                .map((v) => v.toString()));
+          } else if (listing['imageUrl'] != null && listing['imageUrl'].toString().isNotEmpty) {
+            photoUrls.add(listing['imageUrl']);
+          }
           await FirebaseFirestore.instance
               .collection('room_listings')
               .doc(id)
               .delete();
           break;
         case 'Hostel/PG':
+          if (listing['uploadedPhotos'] is Map) {
+            photoUrls.addAll((listing['uploadedPhotos'] as Map).values
+                .where((v) => v != null && v.toString().isNotEmpty)
+                .map((v) => v.toString()));
+          } else if (listing['imageUrl'] != null && listing['imageUrl'].toString().isNotEmpty) {
+            photoUrls.add(listing['imageUrl']);
+          }
           await FirebaseFirestore.instance
               .collection('hostel_listings')
               .doc(id)
               .delete();
           break;
         case 'Service':
+          if (listing['coverPhoto'] != null && listing['coverPhoto'].toString().isNotEmpty) {
+            photoUrls.add(listing['coverPhoto']);
+          }
+          if (listing['additionalPhotos'] is List) {
+            photoUrls.addAll((listing['additionalPhotos'] as List)
+                .where((v) => v != null && v.toString().isNotEmpty)
+                .map((v) => v.toString()));
+          }
           await FirebaseFirestore.instance
               .collection('service_listings')
               .doc(id)
               .delete();
           break;
         case 'Flatmate':
+          if (listing['profilePhotoUrl'] != null && listing['profilePhotoUrl'].toString().isNotEmpty) {
+            photoUrls.add(listing['profilePhotoUrl']);
+          }
           await FirebaseFirestore.instance
               .collection('roomRequests')
               .doc(id)
@@ -1002,6 +1030,15 @@ class _MyListingsPageState extends State<MyListingsPage>
           break;
         default:
           throw Exception('Unknown listing type: $type');
+      }
+
+      // Delete photos from Firebase Storage using refFromURL
+      for (final url in photoUrls) {
+        try {
+          await FirebaseStorage.instance.refFromURL(url).delete();
+        } catch (e) {
+          debugPrint('Failed to delete photo: $url, error: $e');
+        }
       }
 
       // Remove the listing from local state

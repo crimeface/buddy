@@ -273,7 +273,9 @@ class _EditProfilePageState extends State<EditProfilePage>
                     _buildContactInfoSection(),
                     const SizedBox(height: 32),
                     if (FirebaseAuth.instance.currentUser != null &&
-                        FirebaseAuth.instance.currentUser!.providerData.any((p) => p.providerId == 'password')) ...[
+                        FirebaseAuth.instance.currentUser!.providerData.any(
+                          (p) => p.providerId == 'password',
+                        )) ...[
                       _buildChangePasswordButton(),
                       const SizedBox(height: 20),
                     ],
@@ -307,11 +309,7 @@ class _EditProfilePageState extends State<EditProfilePage>
               ),
             ],
           ),
-          child: Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.white,
-            size: 20,
-          ),
+          child: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
         ),
         onPressed: () => Navigator.pop(context),
       ),
@@ -362,11 +360,26 @@ class _EditProfilePageState extends State<EditProfilePage>
                       color: Colors.white,
                     ),
                     child: ClipOval(
-                      child: _profileImage != null
-                          ? Image.file(_profileImage!, fit: BoxFit.cover, width: 112, height: 112)
-                          : (_profileImageUrlFromFirestore.isNotEmpty
-                              ? Image.network(_profileImageUrlFromFirestore, fit: BoxFit.cover, width: 112, height: 112)
-                              : Icon(Icons.person, size: 60, color: Colors.grey[400])),
+                      child:
+                          _profileImage != null
+                              ? Image.file(
+                                _profileImage!,
+                                fit: BoxFit.cover,
+                                width: 112,
+                                height: 112,
+                              )
+                              : (_profileImageUrlFromFirestore.isNotEmpty
+                                  ? Image.network(
+                                    _profileImageUrlFromFirestore,
+                                    fit: BoxFit.cover,
+                                    width: 112,
+                                    height: 112,
+                                  )
+                                  : Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Colors.grey[400],
+                                  )),
                     ),
                   ),
                 ),
@@ -388,7 +401,11 @@ class _EditProfilePageState extends State<EditProfilePage>
                           color: BuddyTheme.primaryColor,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -399,10 +416,7 @@ class _EditProfilePageState extends State<EditProfilePage>
           const SizedBox(height: 16),
           const Text(
             'Update your profile photo',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey, fontSize: 14),
           ),
         ],
       ),
@@ -426,8 +440,11 @@ class _EditProfilePageState extends State<EditProfilePage>
 
   Widget _buildContactInfoSection() {
     final user = FirebaseAuth.instance.currentUser;
-    final isEmailUser = user != null && user.providerData.any((p) => p.providerId == 'password');
-    final isPhoneUser = user != null && user.providerData.any((p) => p.providerId == 'phone');
+    final isEmailUser =
+        user != null &&
+        user.providerData.any((p) => p.providerId == 'password');
+    final isPhoneUser =
+        user != null && user.providerData.any((p) => p.providerId == 'phone');
     return _buildSection(
       title: 'Contact Information',
       icon: Icons.contact_mail_outlined,
@@ -591,9 +608,7 @@ class _EditProfilePageState extends State<EditProfilePage>
           color: Colors.grey,
           fontWeight: FontWeight.w500,
         ),
-        hintStyle: const TextStyle(
-          color: Colors.grey,
-        ),
+        hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
         fillColor: Colors.grey[800],
         border: OutlineInputBorder(
@@ -602,10 +617,7 @@ class _EditProfilePageState extends State<EditProfilePage>
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.grey,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: Colors.grey, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -745,7 +757,9 @@ class _EditProfilePageState extends State<EditProfilePage>
           builder: (context, setState) {
             return AlertDialog(
               backgroundColor: Colors.grey[900],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: const Text('Change Password'),
               content: Form(
                 key: _dialogFormKey,
@@ -755,17 +769,27 @@ class _EditProfilePageState extends State<EditProfilePage>
                     TextFormField(
                       controller: currentPasswordController,
                       obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Current Password'),
-                      validator: (val) => val == null || val.isEmpty ? 'Enter current password' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Current Password',
+                      ),
+                      validator:
+                          (val) =>
+                              val == null || val.isEmpty
+                                  ? 'Enter current password'
+                                  : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: newPasswordController,
                       obscureText: true,
-                      decoration: const InputDecoration(labelText: 'New Password'),
+                      decoration: const InputDecoration(
+                        labelText: 'New Password',
+                      ),
                       validator: (val) {
-                        if (val == null || val.isEmpty) return 'Enter new password';
-                        if (val.length < 6) return 'Password must be at least 6 characters';
+                        if (val == null || val.isEmpty)
+                          return 'Enter new password';
+                        if (val.length < 6)
+                          return 'Password must be at least 6 characters';
                         return null;
                       },
                     ),
@@ -773,8 +797,14 @@ class _EditProfilePageState extends State<EditProfilePage>
                     TextFormField(
                       controller: confirmPasswordController,
                       obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Confirm New Password'),
-                      validator: (val) => val != newPasswordController.text ? 'Passwords do not match' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm New Password',
+                      ),
+                      validator:
+                          (val) =>
+                              val != newPasswordController.text
+                                  ? 'Passwords do not match'
+                                  : null,
                     ),
                   ],
                 ),
@@ -785,34 +815,61 @@ class _EditProfilePageState extends State<EditProfilePage>
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: isLoading
-                      ? null
-                      : () async {
-                          if (!_dialogFormKey.currentState!.validate()) return;
-                          setState(() => isLoading = true);
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user == null || user.email == null) {
-                            setState(() => isLoading = false);
-                            showCustomSnackBar(context, 'User not logged in', backgroundColor: Colors.red, icon: Icons.error);
-                            return;
-                          }
-                          try {
-                            final cred = EmailAuthProvider.credential(
-                              email: user.email!,
-                              password: currentPasswordController.text.trim(),
-                            );
-                            await user.reauthenticateWithCredential(cred);
-                            await user.updatePassword(newPasswordController.text.trim());
-                            Navigator.pop(context);
-                            showCustomSnackBar(context, 'Password changed successfully!', backgroundColor: Colors.green, icon: Icons.check_circle);
-                          } catch (e) {
-                            setState(() => isLoading = false);
-                            showCustomSnackBar(context, 'Failed: ${e.toString()}', backgroundColor: Colors.red, icon: Icons.error);
-                          }
-                        },
-                  child: isLoading
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Change'),
+                  onPressed:
+                      isLoading
+                          ? null
+                          : () async {
+                            if (!_dialogFormKey.currentState!.validate())
+                              return;
+                            setState(() => isLoading = true);
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null || user.email == null) {
+                              setState(() => isLoading = false);
+                              showCustomSnackBar(
+                                context,
+                                'User not logged in',
+                                backgroundColor: Colors.red,
+                                icon: Icons.error,
+                              );
+                              return;
+                            }
+                            try {
+                              final cred = EmailAuthProvider.credential(
+                                email: user.email!,
+                                password: currentPasswordController.text.trim(),
+                              );
+                              await user.reauthenticateWithCredential(cred);
+                              await user.updatePassword(
+                                newPasswordController.text.trim(),
+                              );
+                              Navigator.pop(context);
+                              showCustomSnackBar(
+                                context,
+                                'Password changed successfully!',
+                                backgroundColor: Colors.green,
+                                icon: Icons.check_circle,
+                              );
+                            } catch (e) {
+                              setState(() => isLoading = false);
+                              showCustomSnackBar(
+                                context,
+                                'Failed: ${e.toString()}',
+                                backgroundColor: Colors.red,
+                                icon: Icons.error,
+                              );
+                            }
+                          },
+                  child:
+                      isLoading
+                          ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text('Change'),
                 ),
               ],
             );
@@ -824,7 +881,12 @@ class _EditProfilePageState extends State<EditProfilePage>
 }
 
 // Helper for custom snack bar in PhoneNumberWithOtpField
-void showCustomSnackBar(BuildContext context, String message, {Color? backgroundColor, IconData? icon}) {
+void showCustomSnackBar(
+  BuildContext context,
+  String message, {
+  Color? backgroundColor,
+  IconData? icon,
+}) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
@@ -837,16 +899,19 @@ void showCustomSnackBar(BuildContext context, String message, {Color? background
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
       ),
-      backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
+      backgroundColor:
+          backgroundColor ??
+          (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       elevation: 8,
       duration: const Duration(seconds: 3),
@@ -866,7 +931,8 @@ class PhoneNumberWithOtpField extends StatefulWidget {
   });
 
   @override
-  State<PhoneNumberWithOtpField> createState() => _PhoneNumberWithOtpFieldState();
+  State<PhoneNumberWithOtpField> createState() =>
+      _PhoneNumberWithOtpFieldState();
 }
 
 class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
@@ -885,48 +951,98 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
   Future<void> _sendOtp() async {
     final phone = widget.controller.text.trim();
     if (phone.isEmpty || phone.length < 10) {
-      showCustomSnackBar(context, 'Enter a valid phone number', backgroundColor: Colors.red, icon: Icons.error);
+      showCustomSnackBar(
+        context,
+        'Enter a valid phone number',
+        backgroundColor: Colors.red,
+        icon: Icons.error,
+      );
       return;
     }
-    setState(() { _isVerifying = true; });
+    setState(() {
+      _isVerifying = true;
+    });
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: phone,
       verificationCompleted: (PhoneAuthCredential credential) async {
-        setState(() { _isVerified = true; _isVerifying = false; });
+        setState(() {
+          _isVerified = true;
+          _isVerifying = false;
+        });
         widget.onVerified(phone);
       },
       verificationFailed: (FirebaseAuthException e) {
-        setState(() { _isVerifying = false; });
-        showCustomSnackBar(context, 'OTP failed: \\n${e.message}', backgroundColor: Colors.red, icon: Icons.error);
+        setState(() {
+          _isVerifying = false;
+        });
+        showCustomSnackBar(
+          context,
+          'OTP failed: \\n${e.message}',
+          backgroundColor: Colors.red,
+          icon: Icons.error,
+        );
       },
       codeSent: (String verificationId, int? resendToken) {
-        setState(() { _otpSent = true; _verificationId = verificationId; _isVerifying = false; });
-        showCustomSnackBar(context, 'OTP sent to $phone', backgroundColor: Colors.green, icon: Icons.sms);
+        setState(() {
+          _otpSent = true;
+          _verificationId = verificationId;
+          _isVerifying = false;
+        });
+        showCustomSnackBar(
+          context,
+          'OTP sent to $phone',
+          backgroundColor: Colors.green,
+          icon: Icons.sms,
+        );
       },
       codeAutoRetrievalTimeout: (String verificationId) {
-        setState(() { _verificationId = verificationId; });
+        setState(() {
+          _verificationId = verificationId;
+        });
       },
     );
   }
 
   Future<void> _verifyOtp() async {
     if (_verificationId == null || _otpController.text.isEmpty) {
-      showCustomSnackBar(context, 'Enter the OTP', backgroundColor: Colors.red, icon: Icons.error);
+      showCustomSnackBar(
+        context,
+        'Enter the OTP',
+        backgroundColor: Colors.red,
+        icon: Icons.error,
+      );
       return;
     }
-    setState(() { _isVerifying = true; });
+    setState(() {
+      _isVerifying = true;
+    });
     try {
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: _otpController.text.trim(),
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
-      setState(() { _isVerified = true; _isVerifying = false; });
+      setState(() {
+        _isVerified = true;
+        _isVerifying = false;
+      });
       widget.onVerified(widget.controller.text.trim());
-      showCustomSnackBar(context, 'Phone number verified!', backgroundColor: Colors.green, icon: Icons.check_circle);
+      showCustomSnackBar(
+        context,
+        'Phone number verified!',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle,
+      );
     } catch (e) {
-      setState(() { _isVerifying = false; });
-      showCustomSnackBar(context, 'Invalid OTP', backgroundColor: Colors.red, icon: Icons.error);
+      setState(() {
+        _isVerifying = false;
+      });
+      showCustomSnackBar(
+        context,
+        'Invalid OTP',
+        backgroundColor: Colors.red,
+        icon: Icons.error,
+      );
     }
   }
 
@@ -952,7 +1068,11 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
                 color: BuddyTheme.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.phone_outlined, color: BuddyTheme.primaryColor, size: 20),
+              child: Icon(
+                Icons.phone_outlined,
+                color: BuddyTheme.primaryColor,
+                size: 20,
+              ),
             ),
             labelText: 'Phone Number',
             labelStyle: const TextStyle(
@@ -967,10 +1087,7 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey,
-                width: 1.5,
-              ),
+              borderSide: BorderSide(color: Colors.grey, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -984,29 +1101,44 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
               vertical: 16,
               horizontal: 16,
             ),
-            suffixIcon: _isVerified
-                ? Icon(Icons.verified, color: Colors.green)
-                : (_otpSent
-                    ? IconButton(
-                        icon: _isVerifying
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: BuddyTheme.primaryColor),
-                              )
-                            : Icon(Icons.check, color: BuddyTheme.primaryColor),
-                        onPressed: _isVerifying ? null : _verifyOtp,
-                      )
-                    : IconButton(
-                        icon: _isVerifying
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: BuddyTheme.primaryColor),
-                              )
-                            : Icon(Icons.sms, color: BuddyTheme.primaryColor),
-                        onPressed: _isVerifying ? null : _sendOtp,
-                      )),
+            suffixIcon:
+                _isVerified
+                    ? Icon(Icons.verified, color: Colors.green)
+                    : (_otpSent
+                        ? IconButton(
+                          icon:
+                              _isVerifying
+                                  ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: BuddyTheme.primaryColor,
+                                    ),
+                                  )
+                                  : Icon(
+                                    Icons.check,
+                                    color: BuddyTheme.primaryColor,
+                                  ),
+                          onPressed: _isVerifying ? null : _verifyOtp,
+                        )
+                        : IconButton(
+                          icon:
+                              _isVerifying
+                                  ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: BuddyTheme.primaryColor,
+                                    ),
+                                  )
+                                  : Icon(
+                                    Icons.sms,
+                                    color: BuddyTheme.primaryColor,
+                                  ),
+                          onPressed: _isVerifying ? null : _sendOtp,
+                        )),
           ),
         ),
         if (_otpSent && !_isVerified)
@@ -1020,7 +1152,10 @@ class _PhoneNumberWithOtpFieldState extends State<PhoneNumberWithOtpField> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
               ),
             ),
           ),

@@ -28,13 +28,12 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  
+
   final firebaseApi = FirebaseApi();
   await firebaseApi.initNotifications();
 
   runApp(const BuddyApp());
 }
-
 
 Future<void> _setupFirebaseNotifications() async {
   final firebaseApi = FirebaseApi();
@@ -56,7 +55,7 @@ class BuddyApp extends StatelessWidget {
       title: 'Buddy',
       theme: BuddyTheme.lightTheme,
       darkTheme: BuddyTheme.darkTheme,
-      themeMode: ThemeMode.system, // Use system theme by default
+      themeMode: ThemeMode.dark, // Use system theme by default
       debugShowCheckedModeBanner: false,
       navigatorObservers: [routeObserver], // Add route observer
       home: AuthStateHandler(),

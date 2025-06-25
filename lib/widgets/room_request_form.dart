@@ -330,7 +330,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       'bio': _bioController.text,
       'selectedPlan': _selectedPlan,
       'createdAt': FieldValue.serverTimestamp(),
-      'expiryDate': Timestamp.fromDate(expiryDate),
+      'expiryDate': expiryDate.toIso8601String(),
       'visibility': true,
     };
 

@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 import '../models/hostel_data.dart';
+import '../chat_screen.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -137,6 +138,7 @@ class HostelData {
   final double startingAt;
   final Map<String, String> uploadedPhotos;
   final bool visibility;
+  final String uid;
 
   HostelData({
     required this.title,
@@ -163,6 +165,7 @@ class HostelData {
     required this.preferences,
     required this.uploadedPhotos,
     required this.visibility,
+    required this.uid,
   });
 
   factory HostelData.fromFirestore(Map<String, dynamic> data) {
@@ -214,6 +217,7 @@ class HostelData {
           ) ??
           {},
       visibility: data['visibility'] ?? false,
+      uid: data['uid'] ?? '',
     );
   }
 }
@@ -1284,15 +1288,33 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  final Uri emailUri = Uri(
-                    scheme: 'mailto',
-                    path: hostelData.email,
-                    query: 'subject=Enquiry about ${hostelData.title}',
+                  final otherUserId = hostelData.uid;
+                  final otherUserName = hostelData.contactPerson ?? 'User';
+                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                  if (otherUserId == null || otherUserId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No user ID found for this user.')),
+                    );
+                    return;
+                  }
+                  if (currentUserId == otherUserId) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('You cannot chat with yourself.')),
+                    );
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        otherUserId: otherUserId,
+                        otherUserName: otherUserName,
+                      ),
+                    ),
                   );
-                  await launchUrl(emailUri);
                 },
-                icon: const Icon(Icons.email),
-                label: const Text('Email'),
+                icon: const Icon(Icons.chat),
+                label: const Text('Message'),
               ),
             ),
           ],

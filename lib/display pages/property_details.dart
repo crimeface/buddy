@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
+import '../chat_screen.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -135,6 +136,7 @@ class PropertyData {
   final String phone;
   final String email;
   final String? googleMapsLink;
+  final String? uid;
 
   PropertyData({
     required this.title,
@@ -160,6 +162,7 @@ class PropertyData {
     required this.phone,
     required this.email,
     this.googleMapsLink,
+    this.uid,
   });
 
   factory PropertyData.fromJson(Map<String, dynamic> json) {
@@ -211,6 +214,7 @@ class PropertyData {
       phone: json['phone'] ?? '',
       email: json['email'] ?? '',
       googleMapsLink: json['googleMapsLink'] as String?,
+      uid: json['uid'] as String?,
     );
   }
 }
@@ -315,6 +319,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             'drinkingPolicy': data['drinkingPolicy']?.toString() ?? '',
             'guestPolicy': data['guestsPolicy']?.toString() ?? '',
           },
+          'uid': data['userId']?.toString(),
         };
 
         setState(() {
@@ -531,26 +536,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Always use dark mode colors
-    const darkBackground = Color(0xFF1A1A1A);
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
-    const textSecondary = Colors.white70;
+    final theme = Theme.of(context);
     if (isLoading) {
-      return const Scaffold(
-        backgroundColor: darkBackground,
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
     if (error != null) {
-      return Scaffold(
-        backgroundColor: darkBackground,
-        body: Center(child: Text(error!, style: TextStyle(color: textPrimary))),
-      );
+      return Scaffold(body: Center(child: Text(error!)));
     }
+
     return Scaffold(
-      backgroundColor: darkBackground,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
@@ -602,26 +598,28 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    // Always use dark mode colors
-    const darkBackground = Color(0xFF1A1A1A);
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
-      backgroundColor: darkCard,
+      backgroundColor: cardColor,
       elevation: 0,
       leading: Container(
         margin: const EdgeInsets.all(BuddyTheme.spacingXs),
-        decoration: const BoxDecoration(
-          color: Color(0xFF232323),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
           shape: BoxShape.circle,
         ),
         child: IconButton(
           icon: const Icon(
             Icons.arrow_back,
-            color: Colors.white,
+            color: BuddyTheme.textPrimaryColor,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -629,14 +627,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       actions: [
         Container(
           margin: const EdgeInsets.all(BuddyTheme.spacingXs),
-          decoration: const BoxDecoration(
-            color: Color(0xFF232323),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
             shape: BoxShape.circle,
           ),
           child: IconButton(
             icon: Icon(
               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              color: isBookmarked ? BuddyTheme.primaryColor : Colors.white,
+              color:
+                  isBookmarked
+                      ? BuddyTheme.primaryColor
+                      : BuddyTheme.textPrimaryColor,
             ),
             onPressed: () async {
               await _toggleBookmark();
@@ -646,12 +647,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         ),
         Container(
           margin: const EdgeInsets.all(BuddyTheme.spacingXs),
-          decoration: const BoxDecoration(
-            color: Color(0xFF232323),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
             shape: BoxShape.circle,
           ),
           child: IconButton(
-            icon: const Icon(Icons.share, color: Colors.white),
+            icon: const Icon(Icons.share, color: BuddyTheme.textPrimaryColor),
             onPressed: () async {
               final String propertyId = widget.propertyId;
               final String appLink =
@@ -730,17 +731,20 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildPropertyHeader() {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
-    const textSecondary = Colors.white70;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
     return Container(
       decoration: BoxDecoration(
-        color: darkCard,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         border: Border.all(
-          color: borderColor,
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
         ),
       ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -749,7 +753,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         children: [
           Text(
             propertyData.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: BuddyTheme.fontSizeXl,
               fontWeight: FontWeight.bold,
               color: textPrimary,
@@ -758,7 +762,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           const SizedBox(height: BuddyTheme.spacingXs),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.location_on,
                 size: BuddyTheme.iconSizeSm,
                 color: textSecondary,
@@ -767,7 +771,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               Expanded(
                 child: Text(
                   propertyData.location,
-                  style: const TextStyle(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: textSecondary,
                     fontSize: BuddyTheme.fontSizeMd,
                   ),
@@ -805,7 +809,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     propertyData.availableFrom.isEmpty
                         ? 'Available Now'
                         : 'Available from ${propertyData.availableFrom}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: BuddyTheme.fontSizeSm,
                       color: BuddyTheme.successColor,
                       fontWeight: FontWeight.w600,
@@ -859,13 +863,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildPricingInfo() {
-    // Always use dark mode colors
-    const textColor = Colors.white;
-    const subTextColor = Colors.white70;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : BuddyTheme.textPrimaryColor;
+    final subTextColor =
+        isDark ? Colors.white70 : BuddyTheme.textSecondaryColor;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Pricing Details',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
@@ -888,14 +895,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Monthly Rent',
                       style: TextStyle(
                         fontSize: BuddyTheme.fontSizeSm,
                         color: subTextColor,
                       ),
                     ),
-                    SizedBox(height: BuddyTheme.spacingXs),
+                    const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
                       '₹${propertyData.monthlyRent.toStringAsFixed(0)}',
                       style: const TextStyle(
@@ -921,14 +928,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Security Deposit',
                       style: TextStyle(
                         fontSize: BuddyTheme.fontSizeSm,
                         color: subTextColor,
                       ),
                     ),
-                    SizedBox(height: BuddyTheme.spacingXs),
+                    const SizedBox(height: BuddyTheme.spacingXs),
                     Text(
                       '₹${propertyData.securityDeposit.toStringAsFixed(0)}',
                       style: const TextStyle(
@@ -956,14 +963,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Brokerage',
                     style: TextStyle(
                       fontSize: BuddyTheme.fontSizeSm,
                       color: subTextColor,
                     ),
                   ),
-                  SizedBox(height: BuddyTheme.spacingXs),
+                  const SizedBox(height: BuddyTheme.spacingXs),
                   Text(
                     '₹${propertyData.brokerage.toStringAsFixed(0)}',
                     style: const TextStyle(
@@ -982,15 +989,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildPropertyDetails() {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
-    const textSecondary = Colors.white70;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1A1A1A) : theme.cardColor;
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Property Details',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
@@ -1055,15 +1064,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildFlatmateInfo() {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
-    const textSecondary = Colors.white70;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1A1A1A) : theme.cardColor;
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Flatmate Information',
           style: TextStyle(
             fontSize: BuddyTheme.fontSizeLg,
@@ -1124,28 +1134,31 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildLifestylePreferences() {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Lifestyle Preferences',
-          style: TextStyle(
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
-            fontSize: BuddyTheme.fontSizeLg,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Container(
           decoration: BoxDecoration(
-            color: darkCard,
+            color: cardColor,
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
             border: Border.all(
-              color: borderColor,
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
             ),
           ),
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -1200,29 +1213,32 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildAmenities() {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Facilities & Amenities',
-          style: TextStyle(
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
-            fontSize: BuddyTheme.fontSizeLg,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: darkCard,
+            color: cardColor,
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
             border: Border.all(
-              color: borderColor,
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
             ),
           ),
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -1247,7 +1263,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     ),
                     child: Text(
                       amenity,
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontSize: BuddyTheme.fontSizeSm,
                         color: BuddyTheme.primaryColor,
                         fontWeight: FontWeight.w500,
@@ -1262,35 +1278,38 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildDescription() {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Description',
-          style: TextStyle(
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
-            fontSize: BuddyTheme.fontSizeLg,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Container(
           decoration: BoxDecoration(
-            color: darkCard,
+            color: cardColor,
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
             border: Border.all(
-              color: borderColor,
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
             ),
           ),
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
           width: double.infinity,
           child: Text(
             propertyData.description,
-            style: const TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: BuddyTheme.fontSizeMd,
               color: textPrimary,
               height: 1.5,
@@ -1302,11 +1321,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildOwnerInfo() {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
-    const textSecondary = Colors.white70;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     // Always use the ownerName from the database (propertyData.ownerName)
     final String ownerName =
@@ -1315,12 +1338,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Listed By',
-          style: TextStyle(
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
-            fontSize: BuddyTheme.fontSizeLg,
           ),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
@@ -1328,14 +1350,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(BuddyTheme.spacingMd),
           decoration: BoxDecoration(
-            color: darkCard,
+            color: cardColor,
             borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
             border: Border.all(
-              color: borderColor,
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.18),
+                color: Colors.black.withOpacity(isDark ? 0.18 : 0.06),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -1348,10 +1370,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 backgroundColor: BuddyTheme.primaryColor,
                 child: Text(
                   _getInitials(ownerName),
-                  style: const TextStyle(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: BuddyTheme.fontSizeLg,
                   ),
                 ),
               ),
@@ -1362,10 +1383,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   children: [
                     Text(
                       ownerName,
-                      style: const TextStyle(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: textPrimary,
-                        fontSize: BuddyTheme.fontSizeMd,
                       ),
                     ),
                     if (propertyData.ownerRating > 0) ...[
@@ -1380,10 +1400,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           const SizedBox(width: BuddyTheme.spacingXs),
                           Text(
                             propertyData.ownerRating.toString(),
-                            style: const TextStyle(
+                            style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: textSecondary,
-                              fontSize: BuddyTheme.fontSizeSm,
                             ),
                           ),
                         ],
@@ -1400,9 +1419,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildBottomActions() {
-    // Always use dark mode colors
     return Container(
-      color: const Color(0xFF232323),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: SafeArea(
         child: Row(
@@ -1416,11 +1433,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   );
                   await launchUrl(phoneUri);
                 },
-                icon: const Icon(Icons.phone, color: Colors.white),
-                label: const Text('Call', style: TextStyle(color: Colors.white)),
+                icon: const Icon(Icons.phone),
+                label: const Text('Call'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white70),
+                  foregroundColor: BuddyTheme.primaryColor,
                 ),
               ),
             ),
@@ -1428,19 +1444,33 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  final Uri emailUri = Uri(
-                    scheme: 'mailto',
-                    path: propertyData.email,
-                    query: 'subject=Enquiry about ${propertyData.email}',
+                  final otherUserId = propertyData.uid;
+                  final otherUserName = propertyData.ownerName ?? 'User';
+                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                  if (otherUserId == null || otherUserId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No user ID found for this user.')),
+                    );
+                    return;
+                  }
+                  if (currentUserId == otherUserId) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('You cannot chat with yourself.')),
+                    );
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        otherUserId: otherUserId,
+                        otherUserName: otherUserName,
+                      ),
+                    ),
                   );
-                  await launchUrl(emailUri);
                 },
-                icon: const Icon(Icons.email, color: Colors.white),
-                label: const Text('Email', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BuddyTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
+                icon: const Icon(Icons.chat),
+                label: const Text('Message'),
               ),
             ),
           ],
@@ -1455,17 +1485,21 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     required String value,
     required Color iconColor,
   }) {
-    // Always use dark mode colors
-    const darkCard = Color(0xFF232323);
-    const borderColor = Color(0xFF333333);
-    const textPrimary = Colors.white;
-    const textSecondary = Colors.white70;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
     return Container(
       decoration: BoxDecoration(
-        color: darkCard,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         border: Border.all(
-          color: borderColor,
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
         ),
       ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -1483,7 +1517,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           const SizedBox(height: BuddyTheme.spacingXs),
           Text(
             title,
-            style: const TextStyle(
+            style: theme.textTheme.bodySmall?.copyWith(
               fontSize: BuddyTheme.fontSizeXs,
               color: textSecondary,
             ),
@@ -1491,10 +1525,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           const SizedBox(height: BuddyTheme.spacingXxs),
           Text(
             value,
-            style: const TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: textPrimary,
-              fontSize: BuddyTheme.fontSizeMd,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -1505,9 +1538,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildPreferenceRow(IconData icon, String title, String value) {
-    // Always use dark mode colors
-    const textPrimary = Colors.white;
-    const textSecondary = Colors.white70;
+    final theme = Theme.of(context);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
       child: Row(
@@ -1521,17 +1555,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: textPrimary,
-                fontSize: BuddyTheme.fontSizeMd,
               ),
             ),
           ),
           Flexible(
             child: Text(
               value,
-              style: const TextStyle(color: textSecondary, fontSize: BuddyTheme.fontSizeMd),
+              style: theme.textTheme.bodyMedium?.copyWith(color: textSecondary),
               textAlign: TextAlign.right,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -1540,5 +1573,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 }

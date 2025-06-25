@@ -83,7 +83,11 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   void _initializeFilters() {
     if (mounted) {
       setState(() {
-        _selectedLocation = (widget.selectedCity.isNotEmpty && widget.selectedCity != 'Select Location') ? widget.selectedCity : 'All Cities';
+        _selectedLocation =
+            (widget.selectedCity.isNotEmpty &&
+                    widget.selectedCity != 'Select Location')
+                ? widget.selectedCity
+                : 'All Cities';
         _selectedPriceRange = 'All Prices';
         _selectedRoomType = 'All Types';
         _selectedFlatSize = 'All Sizes';
@@ -105,7 +109,9 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       var query = FirebaseFirestore.instance
           .collection('room_listings')
           .where('visibility', isEqualTo: true);
-      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities' && widget.selectedCity != 'Select Location') {
+      if (widget.selectedCity.isNotEmpty &&
+          widget.selectedCity != 'All Cities' &&
+          widget.selectedCity != 'Select Location') {
         query = query.where('city', isEqualTo: widget.selectedCity);
       }
       final querySnapshot = await query.get();
@@ -140,7 +146,8 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
           room['key'] = doc.id;
           loadedRooms.add(room);
           // Collect unique locations dynamically
-          if (room['location'] != null && room['location'].toString().isNotEmpty) {
+          if (room['location'] != null &&
+              room['location'].toString().isNotEmpty) {
             dynamicLocations.add(room['location'].toString());
           }
         }
@@ -312,39 +319,42 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
               return;
             },
             color: BuddyTheme.primaryColor,
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeader(context, textPrimary),
-                          const SizedBox(height: BuddyTheme.spacingLg),
-                          _buildSearchSection(
-                            cardColor,
-                            inputFillColor,
-                            labelColor,
-                            hintColor,
-                            textLight,
-                            textPrimary,
-                            accentColor,
-                            borderColor,
-                          ),
-                          const SizedBox(height: BuddyTheme.spacingLg),
-                          _buildSectionHeader(
-                            'Available Properties',
-                            textPrimary,
-                            accentColor,
-                          ),
-                          const SizedBox(height: BuddyTheme.spacingMd),
-                          ...(_filteredRooms.isEmpty
-                              ? [
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildHeader(context, textPrimary),
+                            const SizedBox(height: BuddyTheme.spacingLg),
+                            _buildSearchSection(
+                              cardColor,
+                              inputFillColor,
+                              labelColor,
+                              hintColor,
+                              textLight,
+                              textPrimary,
+                              accentColor,
+                              borderColor,
+                            ),
+                            const SizedBox(height: BuddyTheme.spacingLg),
+                            _buildSectionHeader(
+                              'Available Properties',
+                              textPrimary,
+                              accentColor,
+                            ),
+                            const SizedBox(height: BuddyTheme.spacingMd),
+                            ...(_filteredRooms.isEmpty
+                                ? [
                                   Center(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 40),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 40,
+                                      ),
                                       child: Text(
                                         'No rooms found',
                                         style: TextStyle(
@@ -356,33 +366,35 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                                     ),
                                   ),
                                 ]
-                              : _filteredRooms
-                                  .map(
-                                    (room) => Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: BuddyTheme.spacingMd,
+                                : _filteredRooms
+                                    .map(
+                                      (room) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: BuddyTheme.spacingMd,
+                                        ),
+                                        child: _buildRoomCard(
+                                          room,
+                                          cardColor,
+                                          borderColor,
+                                          textLight,
+                                          textPrimary,
+                                          textSecondary,
+                                          accentColor,
+                                          primaryColor,
+                                          const Color(
+                                            0xFF181A20,
+                                          ), // Use dark background for cards too
+                                          successColor,
+                                          warningColor,
+                                        ),
                                       ),
-                                      child: _buildRoomCard(
-                                        room,
-                                        cardColor,
-                                        borderColor,
-                                        textLight,
-                                        textPrimary,
-                                        textSecondary,
-                                        accentColor,
-                                        primaryColor,
-                                        const Color(0xFF181A20), // Use dark background for cards too
-                                        successColor,
-                                        warningColor,
-                                      ),
-                                    ),
-                                  )
-                                  .toList()),
-                          const SizedBox(height: BuddyTheme.spacingMd),
-                        ],
+                                    )
+                                    .toList()),
+                            const SizedBox(height: BuddyTheme.spacingMd),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
           ),
         ),
       ),
@@ -395,7 +407,9 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       children: [
         Text(
           'Find Your',
-          style: Theme.of(context).textTheme.headlineSmall!.copyWith(color: labelColor),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall!.copyWith(color: labelColor),
         ),
         Text(
           'Dream Room',
@@ -1021,7 +1035,8 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.black, // Set status bar to pure black
-        systemNavigationBarColor: Colors.black, // Also set nav bar to black if needed
+        systemNavigationBarColor:
+            Colors.black, // Also set nav bar to black if needed
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
       ),
@@ -1233,7 +1248,7 @@ class _PropertyDetailsPageState extends State<PropertyDetailsPage> {
                       ),
                     ),
                   ),
-                )
+                ),
               )
               : Center(
                 child: Text(

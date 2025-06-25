@@ -274,308 +274,313 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    // Force dark mode UI for all users
-    final isDark = true;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return WillPopScope(
       onWillPop: () async {
+        // Navigate to authentication options page when back button is pressed
         Navigator.pushReplacementNamed(context, '/auth-options');
-        return false;
+        return false; // Prevent default back navigation
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF121212),
-        body: Container(
-          color: const Color(0xFF121212),
-          child: Stack(
-            children: [
-              SafeArea(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: SlideTransition(
-                        position: _slideAnimation,
-                        child: ScaleTransition(
-                          scale: _scaleAnimation,
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              children: [
-                                // Lottie Animation (standalone)
-                                SizedBox(
-                                  height: 120,
-                                  width: 120,
-                                  child: Lottie.asset(
-                                    'assets/animations/login.json',
-                                    fit: BoxFit.contain,
-                                    repeat: true,
-                                    animate: true,
-                                  ),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
+      body: Container(
+        color: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
+        child: Stack(
+          children: [
+            // Remove floating background elements for cleaner look
+            
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              // Lottie Animation (standalone)
+                              SizedBox(
+                                height: 120,
+                                width: 120,
+                                child: Lottie.asset(
+                                  'assets/animations/login.json',
+                                  fit: BoxFit.contain,
+                                  repeat: true,
+                                  animate: true,
                                 ),
-                                const SizedBox(height: 24),
+                              ),
+                              const SizedBox(height: 24),
 
-                                // Form Container
-                                Container(
-                                  padding: const EdgeInsets.all(24),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: const Color(0xFF334155),
-                                      width: 1,
+                              // Form Container
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: isDark ? Border.all(
+                                    color: const Color(0xFF334155),
+                                    width: 1,
+                                  ) : null,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                                          .withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF2C3E50).withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    // Welcome Title
+                                    Text(
+                                      'Welcome Back',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                        letterSpacing: -0.5,
                                       ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      // Welcome Title
-                                      Text(
-                                        'Welcome Back',
-                                        style: TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                          letterSpacing: -0.5,
-                                        ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Sign in to continue your journey',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w400,
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Sign in to continue your journey',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.white.withOpacity(0.9),
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 32),
-                                      
-                                      // Email Field
-                                      _buildCustomTextField(
-                                        controller: _emailController,
-                                        hintText: 'Email Address',
-                                        icon: Icons.email_outlined,
-                                        keyboardType: TextInputType.emailAddress,
-                                        isDark: true,
-                                        validator: (value) {
-                                          if (value == null || value.isEmpty) {
-                                            return 'Please enter your email';
-                                          }
-                                          return null;
-                                        },
-                                      ),
+                                    ),
+                                    const SizedBox(height: 32),
+                                    
+                                    // Email Field
+                                    _buildCustomTextField(
+                                      controller: _emailController,
+                                      hintText: 'Email Address',
+                                      icon: Icons.email_outlined,
+                                      keyboardType: TextInputType.emailAddress,
+                                      isDark: isDark,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter your email';
+                                        }
+                                        return null;
+                                      },
+                                    ),
 
-                                      // Password Field
-                                      _buildCustomTextField(
-                                        controller: _passwordController,
-                                        hintText: 'Password',
-                                        icon: Icons.lock_outline,
-                                        obscureText: !_isPasswordVisible,
-                                        hasVisibilityToggle: true,
-                                        isVisible: _isPasswordVisible,
-                                        isDark: true,
-                                        onVisibilityToggle: () {
-                                          setState(() {
-                                            _isPasswordVisible = !_isPasswordVisible;
-                                          });
-                                        },
-                                        validator: (value) {
-                                          if (value == null || value.isEmpty) {
-                                            return 'Please enter your password';
-                                          }
-                                          return null;
-                                        },
-                                      ),
+                                    // Password Field
+                                    _buildCustomTextField(
+                                      controller: _passwordController,
+                                      hintText: 'Password',
+                                      icon: Icons.lock_outline,
+                                      obscureText: !_isPasswordVisible,
+                                      hasVisibilityToggle: true,
+                                      isVisible: _isPasswordVisible,
+                                      isDark: isDark,
+                                      onVisibilityToggle: () {
+                                        setState(() {
+                                          _isPasswordVisible = !_isPasswordVisible;
+                                        });
+                                      },
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter your password';
+                                        }
+                                        return null;
+                                      },
+                                    ),
 
-                                      // Forgot Password Link
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: () async {
-                                            String email = _emailController.text.trim();
-                                            final emailController = TextEditingController(text: email);
-                                            await showDialog(
-                                              context: context,
-                                              builder: (context) {
-                                                return AlertDialog(
-                                                  backgroundColor: const Color(0xFF1E293B),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(16),
-                                                  ),
-                                                  title: const Text(
-                                                    'Reset Password',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  content: TextField(
-                                                    controller: emailController,
-                                                    keyboardType: TextInputType.emailAddress,
-                                                    decoration: InputDecoration(
-                                                      hintText: 'Enter your email',
-                                                      hintStyle: TextStyle(
-                                                        color: Colors.white.withOpacity(0.7),
-                                                      ),
-                                                      prefixIcon: const Icon(Icons.email_outlined, color: Colors.white),
-                                                      filled: true,
-                                                      fillColor: const Color(0xFF1E293B),
-                                                      border: OutlineInputBorder(
-                                                        borderRadius: BorderRadius.circular(12),
-                                                        borderSide: BorderSide.none,
-                                                      ),
-                                                      contentPadding: const EdgeInsets.all(16),
-                                                    ),
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () => Navigator.of(context).pop(),
-                                                      child: const Text('Cancel', style: TextStyle(color: Colors.white)),
-                                                    ),
-                                                    ElevatedButton(
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: const Color(0xFF2C3E50),
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(12),
-                                                        ),
-                                                      ),
-                                                      onPressed: () async {
-                                                        final enteredEmail = emailController.text.trim();
-                                                        if (enteredEmail.isEmpty) {
-                                                          showCustomSnackBar(context, 'Please enter your email', backgroundColor: Colors.red, icon: Icons.error);
-                                                          return;
-                                                        }
-                                                        try {
-                                                          await FirebaseAuth.instance.sendPasswordResetEmail(email: enteredEmail);
-                                                          if (mounted) {
-                                                            Navigator.of(context).pop();
-                                                            showCustomSnackBar(context, 'Password reset email sent!', backgroundColor: Colors.green, icon: Icons.check_circle);
-                                                          }
-                                                        } on FirebaseAuthException catch (e) {
-                                                          String errorMsg = 'Failed to send reset email';
-                                                          if (e.code == 'user-not-found') {
-                                                            errorMsg = 'No user found for that email.';
-                                                          } else if (e.code == 'invalid-email') {
-                                                            errorMsg = 'Invalid email address.';
-                                                          }
-                                                          showCustomSnackBar(context, errorMsg, backgroundColor: Colors.red, icon: Icons.error);
-                                                        } catch (_) {
-                                                          showCustomSnackBar(context, 'An error occurred', backgroundColor: Colors.red, icon: Icons.error);
-                                                        }
-                                                      },
-                                                      child: const Text('Send Reset Link', style: TextStyle(color: Colors.white)),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            );
-                                          },
-                                          style: TextButton.styleFrom(
-                                            foregroundColor: const Color(0xFF4A90E2),
-                                          ),
-                                          child: const Text(
-                                            'Forgot Password?',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 16),
-
-                                      // Sign In Button
-                                      Container(
-                                        width: double.infinity,
-                                        height: 56,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF2C3E50),
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(0xFF2C3E50).withOpacity(0.3),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ElevatedButton(
-                                          onPressed: _isLoading ? null : _handleSignIn,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.transparent,
-                                            shadowColor: Colors.transparent,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          child: _isLoading
-                                              ? const SizedBox(
-                                                  width: 24,
-                                                  height: 24,
-                                                  child: CircularProgressIndicator(
-                                                    strokeWidth: 2.5,
-                                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                                      Colors.white,
-                                                    ),
-                                                  ),
-                                                )
-                                              : const Text(
-                                                  'Sign In',
+                                    // Forgot Password Link
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton(
+                                        onPressed: () async {
+                                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                                          String email = _emailController.text.trim();
+                                          final emailController = TextEditingController(text: email);
+                                          await showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              return AlertDialog(
+                                                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                ),
+                                                title: Text(
+                                                  'Reset Password',
                                                   style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Colors.white,
+                                                    color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                                    fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
+                                                content: TextField(
+                                                  controller: emailController,
+                                                  keyboardType: TextInputType.emailAddress,
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Enter your email',
+                                                    hintStyle: TextStyle(
+                                                      color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
+                                                    ),
+                                                    prefixIcon: Icon(Icons.email_outlined, color: isDark ? Colors.white : const Color(0xFF1E3A8A)),
+                                                    filled: true,
+                                                    fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFF),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      borderSide: BorderSide.none,
+                                                    ),
+                                                    contentPadding: const EdgeInsets.all(16),
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () => Navigator.of(context).pop(),
+                                                    child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E3A8A))),
+                                                  ),
+                                                  ElevatedButton(
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(12),
+                                                      ),
+                                                    ),
+                                                    onPressed: () async {
+                                                      final enteredEmail = emailController.text.trim();
+                                                      if (enteredEmail.isEmpty) {
+                                                        showCustomSnackBar(context, 'Please enter your email', backgroundColor: Colors.red, icon: Icons.error);
+                                                        return;
+                                                      }
+                                                      try {
+                                                        await FirebaseAuth.instance.sendPasswordResetEmail(email: enteredEmail);
+                                                        if (mounted) {
+                                                          Navigator.of(context).pop();
+                                                          showCustomSnackBar(context, 'Password reset email sent!', backgroundColor: Colors.green, icon: Icons.check_circle);
+                                                        }
+                                                      } on FirebaseAuthException catch (e) {
+                                                        String errorMsg = 'Failed to send reset email';
+                                                        if (e.code == 'user-not-found') {
+                                                          errorMsg = 'No user found for that email.';
+                                                        } else if (e.code == 'invalid-email') {
+                                                          errorMsg = 'Invalid email address.';
+                                                        }
+                                                        showCustomSnackBar(context, errorMsg, backgroundColor: Colors.red, icon: Icons.error);
+                                                      } catch (_) {
+                                                        showCustomSnackBar(context, 'An error occurred', backgroundColor: Colors.red, icon: Icons.error);
+                                                      }
+                                                    },
+                                                    child: const Text('Send Reset Link', style: TextStyle(color: Colors.white)),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        },
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: isDark ? const Color(0xFF4A90E2) : const Color(0xFF1E3A8A),
+                                        ),
+                                        child: const Text(
+                                          'Forgot Password?',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ),
+                                    ),
 
-                                      const SizedBox(height: 24),
+                                    const SizedBox(height: 16),
 
-                                      // Sign Up Option
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            'Don\'t have an account?',
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(0.9),
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w400,
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.pushReplacementNamed(context, '/signup');
-                                            },
-                                            style: TextButton.styleFrom(
-                                              foregroundColor: const Color(0xFF4A90E2),
-                                              padding: const EdgeInsets.only(left: 8),
-                                            ),
-                                            child: const Text(
-                                              'Sign Up',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                              ),
-                                            ),
+                                    // Sign In Button
+                                    Container(
+                                      width: double.infinity,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                                                .withOpacity(0.3),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
+                                      child: ElevatedButton(
+                                        onPressed: _isLoading ? null : _handleSignIn,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.transparent,
+                                          shadowColor: Colors.transparent,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: _isLoading
+                                            ? const SizedBox(
+                                                width: 24,
+                                                height: 24,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2.5,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                                ),
+                                              )
+                                            : const Text(
+                                                'Sign In',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 24),
+
+                                    // Sign Up Option
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Don\'t have an account?',
+                                          style: TextStyle(
+                                            color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.pushReplacementNamed(context, '/signup');
+                                          },
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: isDark ? const Color(0xFF4A90E2) : const Color(0xFF1E3A8A),
+                                            padding: const EdgeInsets.only(left: 8),
+                                          ),
+                                          child: const Text(
+                                            'Sign Up',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -583,10 +588,11 @@ class _LoginPageState extends State<LoginPage>
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    ),
     );
   }
 }

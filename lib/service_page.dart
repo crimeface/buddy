@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Add this import
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'display pages/service_details.dart';
 import 'theme.dart';
+import 'display pages/service_details.dart';
 
 class ServicesPage extends StatefulWidget {
   final String selectedCity;
@@ -34,27 +34,6 @@ class _ServicesPageState extends State<ServicesPage> {
   void initState() {
     super.initState();
     _fetchServices();
-    // Set status bar style to light content
-    _setStatusBarStyle();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  // Add this method to set status bar style
-  void _setStatusBarStyle() {
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent, // Make status bar transparent
-        statusBarBrightness: Brightness.dark, // For iOS
-        statusBarIconBrightness: Brightness.light, // For Android
-        systemNavigationBarColor: Colors.black, // Navigation bar color
-        systemNavigationBarIconBrightness: Brightness.light, // Navigation bar icons
-      ),
-    );
   }
 
   Future<void> _fetchServices() async {
@@ -64,7 +43,7 @@ class _ServicesPageState extends State<ServicesPage> {
       var query = FirebaseFirestore.instance
           .collection('service_listings')
           .where('visibility', isEqualTo: true);
-      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities' && widget.selectedCity != 'Select Location') {
+      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities') {
         query = query.where('city', isEqualTo: widget.selectedCity);
       }
       final querySnapshot = await query.get();
@@ -170,108 +149,161 @@ class _ServicesPageState extends State<ServicesPage> {
     }).toList();
   }
 
-  String get _effectiveSelectedCity => (widget.selectedCity == 'Select Location') ? 'All Cities' : widget.selectedCity;
+  bool _isServiceOpen(Map<String, dynamic> service) {
+    final now = TimeOfDay.now();
+    final openingTime = _parseTimeString(service['openingTime']);
+    final closingTime = _parseTimeString(service['closingTime']);
+    final offDay = service['offDay'];
+
+    // Check if today is off day
+    final today = DateTime.now().weekday;
+    final dayNames = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    if (offDay == dayNames[today - 1]) {
+      return false;
+    }
+
+    if (openingTime != null && closingTime != null) {
+      final nowMinutes = now.hour * 60 + now.minute;
+      final openMinutes = openingTime.hour * 60 + openingTime.minute;
+      final closeMinutes = closingTime.hour * 60 + closingTime.minute;
+
+      return nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
+    }
+
+    return true; // Default to open if times aren't parsed correctly
+  }
+
+  TimeOfDay? _parseTimeString(String? timeString) {
+    if (timeString == null) return null;
+
+    try {
+      final cleanTime = timeString.replaceAll(RegExp(r'[^\d:]'), '');
+      final parts = cleanTime.split(':');
+      if (parts.length >= 2) {
+        int hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+
+        // Handle AM/PM
+        if (timeString.toUpperCase().contains('PM') && hour != 12) {
+          hour += 12;
+        } else if (timeString.toUpperCase().contains('AM') && hour == 12) {
+          hour = 0;
+        }
+
+        return TimeOfDay(hour: hour, minute: minute);
+      }
+    } catch (e) {
+      print('Error parsing time: $timeString');
+    }
+
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Fixed dark theme colors - no conditional logic
-    final Color primaryColor = const Color(0xFF90CAF9);
-    final Color accentColor = const Color(0xFF64B5F6);
-    final Color cardColor = const Color(0xFF1A1A1A);
-    final Color textPrimary = Colors.white;
-    final Color textSecondary = Colors.white70;
-    final Color textLight = Colors.white38;
-    final Color borderColor = Colors.white12;
-    final Color successColor = const Color(0xFF81C784);
-    final Color warningColor = const Color(0xFFFFB74D);
-    final Color backgroundColor = Colors.black; // Pure black background to match the image
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color primaryColor =
+        isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
+    final Color accentColor =
+        isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
+    final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
+    final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
+    final Color textSecondary =
+        isDark ? Colors.white70 : const Color(0xFF718096);
+    final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+    final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+    final Color successColor =
+        isDark ? const Color(0xFF81C784) : const Color(0xFF48BB78);
+    final Color warningColor =
+        isDark ? const Color(0xFFFFB74D) : const Color(0xFFED8936);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      // Wrap the body with AnnotatedRegion to ensure status bar style
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarBrightness: Brightness.dark, // For iOS
-          statusBarIconBrightness: Brightness.light, // For Android
-        ),
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: _fetchServices,
-            color: BuddyTheme.primaryColor,
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Padding(
-                        padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildHeader(context, textPrimary),
-                            const SizedBox(height: BuddyTheme.spacingLg),
-                            _buildSearchSection(
-                              cardColor,
-                              textLight,
-                              textPrimary,
-                              borderColor,
-                            ),
-                            const SizedBox(height: BuddyTheme.spacingMd),
-                            _buildCategoryFilterChip(
-                              cardColor,
-                              textPrimary,
-                              borderColor,
-                            ),
-                            const SizedBox(height: BuddyTheme.spacingLg),
-                            _buildSectionHeader(
-                              'Available Services',
-                              textPrimary,
-                            ),
-                            const SizedBox(height: BuddyTheme.spacingMd),
-                            if (_filteredServices.isEmpty)
-                              Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(32.0),
-                                  child: Text(
-                                    'No services found.',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: textPrimary.withOpacity(0.7),
-                                      fontWeight: FontWeight.w500,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _fetchServices,
+          color: BuddyTheme.primaryColor,
+          child:
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(context, textPrimary),
+                          const SizedBox(height: BuddyTheme.spacingLg),
+                          _buildSearchSection(
+                            cardColor,
+                            textLight,
+                            textPrimary,
+                            borderColor,
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingMd),
+                          _buildCategoryFilter(
+                            cardColor,
+                            textPrimary,
+                            borderColor,
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingLg),
+                          _buildSectionHeader(
+                            'Available Services',
+                            textPrimary,
+                          ),
+                          const SizedBox(height: BuddyTheme.spacingMd),
+                          if (_filteredServices.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32.0),
+                                child: Text(
+                                  'No services found.',
+                                  style: TextStyle(color: textSecondary),
+                                ),
+                              ),
+                            )
+                          else
+                            ..._filteredServices
+                                .map(
+                                  (service) => Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: BuddyTheme.spacingMd,
+                                    ),
+                                    child: _buildServiceCard(
+                                      service,
+                                      cardColor,
+                                      borderColor,
+                                      textLight,
+                                      textPrimary,
+                                      textSecondary,
+                                      accentColor,
+                                      primaryColor,
+                                      successColor,
+                                      warningColor,
+                                      Theme.of(context).scaffoldBackgroundColor,
                                     ),
                                   ),
-                                ),
-                              )
-                            else
-                              ..._filteredServices
-                                  .map(
-                                    (service) => Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: BuddyTheme.spacingMd,
-                                      ),
-                                      child: _buildServiceCard(
-                                        service,
-                                        cardColor,
-                                        borderColor,
-                                        textLight,
-                                        textPrimary,
-                                        textSecondary,
-                                        accentColor,
-                                        primaryColor,
-                                        successColor,
-                                        warningColor,
-                                        Theme.of(context).scaffoldBackgroundColor,
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            const SizedBox(height: BuddyTheme.spacingMd),
-                          ],
-                        ),
+                                )
+                                .toList(),
+                          const SizedBox(height: BuddyTheme.spacingMd),
+                        ],
                       ),
                     ),
-          ),
+                  ),
         ),
       ),
     );
@@ -323,106 +355,79 @@ class _ServicesPageState extends State<ServicesPage> {
             _searchQuery = value;
           });
         },
-        style: const TextStyle(color: Colors.white),
-        cursorColor: Colors.white70,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: 'Search libraries, cafes, mess, services...',
-          hintStyle: TextStyle(color: Colors.white),
-          prefixIcon: Icon(Icons.search, color: Colors.white38),
+          hintStyle: TextStyle(
+            color: textLight,
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+          ),
+          prefixIcon: Icon(Icons.search_outlined, color: textLight, size: 22),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.all(BuddyTheme.spacingMd),
-          filled: false,
+          contentPadding: const EdgeInsets.all(18),
         ),
+        style: TextStyle(color: textPrimary),
       ),
     );
   }
 
-  // Add this method for the filter chip bottom sheet
-  void _showCategoryFilterBottomSheet(
-    BuildContext context,
+  Widget _buildCategoryFilter(
     Color cardColor,
     Color textPrimary,
     Color borderColor,
   ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Select Category',
+    return SizedBox(
+      height: 45,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = _selectedCategory == category;
+          return Padding(
+            padding: EdgeInsets.only(
+              right: index == _categories.length - 1 ? 0 : 12,
+            ),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = category;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? BuddyTheme.primaryColor : cardColor,
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(
+                    color: isSelected ? BuddyTheme.primaryColor : borderColor,
+                  ),
+                  boxShadow:
+                      isSelected
+                          ? [
+                            BoxShadow(
+                              color: BuddyTheme.primaryColor.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                          : [],
+                ),
+                child: Text(
+                  category,
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
+                    color: isSelected ? Colors.white : textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 16),
-                ..._categories.map((cat) => ListTile(
-                      title: Text(cat, style: TextStyle(color: textPrimary)),
-                      onTap: () {
-                        setState(() {
-                          _selectedCategory = cat;
-                        });
-                        Navigator.pop(context);
-                      },
-                      selected: _selectedCategory == cat,
-                      selectedTileColor: BuddyTheme.primaryColor.withOpacity(0.1),
-                    )),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCategoryFilterChip(
-    Color cardColor,
-    Color textPrimary,
-    Color borderColor,
-  ) {
-    final isSelected = _selectedCategory != _categories.first;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => _showCategoryFilterBottomSheet(
-              context,
-              cardColor,
-              textPrimary,
-              borderColor,
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: isSelected ? BuddyTheme.primaryColor : cardColor,
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(
-                  color: isSelected ? BuddyTheme.primaryColor : borderColor,
-                ),
-              ),
-              child: Text(
-                isSelected ? _selectedCategory : 'Category',
-                style: TextStyle(
-                  color: isSelected ? Colors.white : textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
               ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -487,19 +492,21 @@ class _ServicesPageState extends State<ServicesPage> {
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Shimmer.fromColors(
-                      baseColor: borderColor,
-                      highlightColor: cardColor,
-                      child: Container(color: borderColor),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: borderColor,
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: textLight,
-                        size: 48,
-                      ),
-                    ),
+                    placeholder:
+                        (context, url) => Shimmer.fromColors(
+                          baseColor: borderColor,
+                          highlightColor: cardColor,
+                          child: Container(color: borderColor),
+                        ),
+                    errorWidget:
+                        (context, url, error) => Container(
+                          color: borderColor,
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: textLight,
+                            size: 48,
+                          ),
+                        ),
                   ),
                 ),
                 // Service type badge

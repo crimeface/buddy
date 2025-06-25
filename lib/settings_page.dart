@@ -102,25 +102,22 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Always use dark theme colors
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor:
+          isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
       appBar: AppBar(
         title: const Text(
           'Settings',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white, // Always white
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.black,
+        backgroundColor:
+            isDark ? Colors.black : BuddyTheme.backgroundPrimaryColor,
         elevation: 0,
-        foregroundColor: Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.white, // Always white
-          ),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -131,7 +128,7 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               children: [
                 const SizedBox(height: BuddyTheme.spacingMd),
-                _buildSettingsSection(),
+                _buildSettingsSection(isDark),
                 const SizedBox(height: BuddyTheme.spacingMd),
               ],
             ),
@@ -146,60 +143,60 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSettingsSection() {
+  Widget _buildSettingsSection(bool isDark) {
     final isEmailUser = _user?.email != null && _user!.email!.isNotEmpty;
-    return DefaultTextStyle(
-      style: const TextStyle(color: Colors.white),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingMd),
-        decoration: BuddyTheme.cardDecoration.copyWith(
-          color: Colors.grey[900],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              child: Text(
-                'App Settings',
-                style: TextStyle(
-                  fontSize: BuddyTheme.fontSizeLg,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white, // Always white
-                ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingMd),
+      decoration: BuddyTheme.cardDecoration.copyWith(
+        color:
+            isDark
+                ? Colors.grey[900]
+                : const Color.fromARGB(255, 240, 238, 238),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+            child: Text(
+              'App Settings',
+              style: TextStyle(
+                fontSize: BuddyTheme.fontSizeLg,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
               ),
             ),
-            _buildNotificationSetting(),
-            if (isEmailUser)
-              _buildMenuOption(
-                icon: Icons.email_outlined,
-                iconColor: Colors.blue,
-                title: 'Change Email / Password',
-                onTap: () => _showChangeEmailPasswordDialog(),
-                isDark: true,
-              ),
+          ),
+          _buildNotificationSetting(isDark),
+          if (isEmailUser)
             _buildMenuOption(
-              icon: Icons.bug_report_outlined,
-              iconColor: Colors.orange,
-              title: 'Feedback / Report a Bug',
-              onTap: () => _showFeedbackDialog(),
-              isDark: true,
+              icon: Icons.email_outlined,
+              iconColor: Colors.blue,
+              title: 'Change Email / Password',
+              onTap: () => _showChangeEmailPasswordDialog(),
+              isDark: isDark,
             ),
-            _buildMenuOption(
-              icon: Icons.delete_outline,
-              iconColor: BuddyTheme.errorColor,
-              title: 'Delete My Account',
-              onTap: () => _showDeleteAccountDialog(),
-              isLast: true,
-              isDark: true,
-            ),
-          ],
-        ),
+          _buildMenuOption(
+            icon: Icons.bug_report_outlined,
+            iconColor: Colors.orange,
+            title: 'Feedback / Report a Bug',
+            onTap: () => _showFeedbackDialog(),
+            isDark: isDark,
+          ),
+          _buildMenuOption(
+            icon: Icons.delete_outline,
+            iconColor: BuddyTheme.errorColor,
+            title: 'Delete My Account',
+            onTap: () => _showDeleteAccountDialog(),
+            isLast: true,
+            isDark: isDark,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildNotificationSetting() {
+  Widget _buildNotificationSetting(bool isDark) {
     return Column(
       children: [
         ListTile(
@@ -220,7 +217,7 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(
               fontSize: BuddyTheme.fontSizeMd,
               fontWeight: FontWeight.w500,
-              color: Colors.white, // Always white
+              color: isDark ? Colors.white : BuddyTheme.textPrimaryColor,
             ),
           ),
           trailing: Switch(
@@ -240,7 +237,7 @@ class _SettingsPageState extends State<SettingsPage> {
               BuddyTheme.iconSizeMd +
               BuddyTheme.spacingXs,
           endIndent: BuddyTheme.spacingMd,
-          color: Colors.white24,
+          color: isDark ? Colors.white24 : BuddyTheme.dividerColor,
         ),
       ],
     );
@@ -271,14 +268,14 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(
               fontSize: BuddyTheme.fontSizeMd,
               fontWeight: FontWeight.w500,
-              color: Colors.white, // Always white
+              color: isDark ? Colors.white : BuddyTheme.textPrimaryColor,
             ),
           ),
           trailing:
               trailing ??
               Icon(
                 Icons.chevron_right,
-                color: Colors.white54,
+                color: isDark ? Colors.white54 : BuddyTheme.textSecondaryColor,
               ),
           onTap: onTap,
           contentPadding: const EdgeInsets.symmetric(
@@ -294,7 +291,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 BuddyTheme.iconSizeMd +
                 BuddyTheme.spacingXs,
             endIndent: BuddyTheme.spacingMd,
-            color: Colors.white24,
+            color: isDark ? Colors.white24 : BuddyTheme.dividerColor,
           ),
       ],
     );
@@ -572,7 +569,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       ? 'Two-Factor Authentication is currently enabled for your account.'
                       : 'Enable Two-Factor Authentication to add an extra layer of security to your account.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white),
                 ),
               ],
             ),
@@ -765,7 +761,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Text(
                   'This action cannot be undone. All your data will be permanently deleted.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+                  style: TextStyle(fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 16),
                 TextField(

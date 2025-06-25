@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
+import '../chat_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class FlatmateDetailsPage extends StatelessWidget {
+class FlatmateDetailsPage extends StatefulWidget {
   final Map<String, dynamic> flatmateData;
 
   const FlatmateDetailsPage({Key? key, required this.flatmateData})
     : super(key: key);
 
+  @override
+  State<FlatmateDetailsPage> createState() => _FlatmateDetailsPageState();
+}
+
+class _FlatmateDetailsPageState extends State<FlatmateDetailsPage> {
   String _formatDate(dynamic dateValue) {
     if (dateValue == null) return 'Flexible';
     try {
@@ -72,7 +79,7 @@ class FlatmateDetailsPage extends StatelessWidget {
             _buildSectionHeader(theme, 'Lifestyle Preferences'),
             _buildLifestylePreferences(theme),
             const SizedBox(height: BuddyTheme.spacingLg),
-            if (flatmateData['bio']?.isNotEmpty ?? false) ...[
+            if (widget.flatmateData['bio']?.isNotEmpty ?? false) ...[
               _buildSectionHeader(theme, 'About'),
               _buildAboutSection(theme),
               const SizedBox(height: BuddyTheme.spacingXl),
@@ -126,13 +133,13 @@ class FlatmateDetailsPage extends StatelessWidget {
             radius: 40,
             backgroundColor: BuddyTheme.secondaryColor,
             backgroundImage:
-                flatmateData['profilePhotoUrl'] != null
-                    ? NetworkImage(flatmateData['profilePhotoUrl'])
+                widget.flatmateData['profilePhotoUrl'] != null
+                    ? NetworkImage(widget.flatmateData['profilePhotoUrl'])
                     : null,
             child:
-                flatmateData['profilePhotoUrl'] == null
+                widget.flatmateData['profilePhotoUrl'] == null
                     ? Text(
-                      flatmateData['name']?.substring(0, 1).toUpperCase() ??
+                      widget.flatmateData['name']?.substring(0, 1).toUpperCase() ??
                           'U',
                       style: TextStyle(
                         fontSize: BuddyTheme.fontSizeXl,
@@ -148,7 +155,7 @@ class FlatmateDetailsPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  flatmateData['name'] ?? 'Unknown',
+                  widget.flatmateData['name'] ?? 'Unknown',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: textPrimary,
@@ -156,7 +163,7 @@ class FlatmateDetailsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: BuddyTheme.spacingXxs),
                 Text(
-                  '${flatmateData['age'] ?? 'N/A'} • ${flatmateData['occupation'] ?? 'N/A'}',
+                  '${widget.flatmateData['age'] ?? 'N/A'} • ${widget.flatmateData['occupation'] ?? 'N/A'}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: textSecondary,
                   ),
@@ -172,7 +179,7 @@ class FlatmateDetailsPage extends StatelessWidget {
                     const SizedBox(width: BuddyTheme.spacingXxs),
                     Expanded(
                       child: Text(
-                        flatmateData['location'] ?? 'Location not specified',
+                        widget.flatmateData['location'] ?? 'Location not specified',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: textSecondary,
                         ),
@@ -197,7 +204,7 @@ class FlatmateDetailsPage extends StatelessWidget {
             theme: theme,
             icon: Icons.person,
             title: 'Gender',
-            value: flatmateData['gender'] ?? 'Not specified',
+            value: widget.flatmateData['gender'] ?? 'Not specified',
             iconColor: BuddyTheme.primaryColor,
           ),
         ),
@@ -207,7 +214,7 @@ class FlatmateDetailsPage extends StatelessWidget {
             theme: theme,
             icon: Icons.work,
             title: 'Occupation',
-            value: flatmateData['occupation'] ?? 'Not specified',
+            value: widget.flatmateData['occupation'] ?? 'Not specified',
             iconColor: BuddyTheme.accentColor,
           ),
         ),
@@ -238,7 +245,7 @@ class FlatmateDetailsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: BuddyTheme.spacingXs),
                 Text(
-                  '₹${flatmateData['minBudget'] ?? '0'} - ₹${flatmateData['maxBudget'] ?? '0'}',
+                  '₹${widget.flatmateData['minBudget'] ?? '0'} - ₹${widget.flatmateData['maxBudget'] ?? '0'}',
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: BuddyTheme.primaryColor,
                     fontWeight: FontWeight.bold,
@@ -267,7 +274,7 @@ class FlatmateDetailsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: BuddyTheme.spacingXs),
                 Text(
-                  _formatDate(flatmateData['moveInDate']),
+                  _formatDate(widget.flatmateData['moveInDate']),
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: BuddyTheme.successColor,
                     fontWeight: FontWeight.bold,
@@ -289,7 +296,7 @@ class FlatmateDetailsPage extends StatelessWidget {
             theme: theme,
             icon: Icons.bed,
             title: 'Room Type',
-            value: flatmateData['preferredRoomType'] ?? 'Any',
+            value: widget.flatmateData['preferredRoomType'] ?? 'Any',
             iconColor: BuddyTheme.primaryColor,
           ),
         ),
@@ -299,7 +306,7 @@ class FlatmateDetailsPage extends StatelessWidget {
             theme: theme,
             icon: Icons.chair,
             title: 'Furnishing',
-            value: flatmateData['furnishingPreference'] ?? 'Any',
+            value: widget.flatmateData['furnishingPreference'] ?? 'Any',
             iconColor: BuddyTheme.accentColor,
           ),
         ),
@@ -315,7 +322,7 @@ class FlatmateDetailsPage extends StatelessWidget {
             theme: theme,
             icon: Icons.group,
             title: 'Number of Flatmates',
-            value: flatmateData['preferredFlatmates']?.toString() ?? 'Any',
+            value: widget.flatmateData['preferredFlatmates']?.toString() ?? 'Any',
             iconColor: BuddyTheme.primaryColor,
           ),
         ),
@@ -325,7 +332,7 @@ class FlatmateDetailsPage extends StatelessWidget {
             theme: theme,
             icon: Icons.people,
             title: 'Flatmate Gender',
-            value: flatmateData['preferredFlatmateGender'] ?? 'Any',
+            value: widget.flatmateData['preferredFlatmateGender'] ?? 'Any',
             iconColor: BuddyTheme.secondaryColor,
           ),
         ),
@@ -359,28 +366,28 @@ class FlatmateDetailsPage extends StatelessWidget {
             theme,
             Icons.restaurant,
             'Food Preference',
-            flatmateData['foodPreference'] ?? 'No preference',
+            widget.flatmateData['foodPreference'] ?? 'No preference',
           ),
           Divider(height: BuddyTheme.spacingLg),
           _buildPreferenceRow(
             theme,
             Icons.smoking_rooms,
             'Smoking',
-            flatmateData['smokingPreference'] ?? 'No preference',
+            widget.flatmateData['smokingPreference'] ?? 'No preference',
           ),
           Divider(height: BuddyTheme.spacingLg),
           _buildPreferenceRow(
             theme,
             Icons.local_bar,
             'Drinking',
-            flatmateData['drinkingPreference'] ?? 'No preference',
+            widget.flatmateData['drinkingPreference'] ?? 'No preference',
           ),
           Divider(height: BuddyTheme.spacingLg),
           _buildPreferenceRow(
             theme,
             Icons.bedroom_parent,
             'Flat Size Preference',
-            flatmateData['preferredRoomSize'] ?? 'No preference',
+            widget.flatmateData['preferredRoomSize'] ?? 'No preference',
           ),
         ],
       ),
@@ -400,7 +407,7 @@ class FlatmateDetailsPage extends StatelessWidget {
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       width: double.infinity,
       child: Text(
-        flatmateData['bio']!,
+        widget.flatmateData['bio']!,
         style: theme.textTheme.bodyMedium?.copyWith(
           color: textPrimary,
           height: 1.5,
@@ -511,27 +518,50 @@ class FlatmateDetailsPage extends StatelessWidget {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final Uri phoneUri = Uri(scheme: 'tel', path: flatmateData['phone'] ?? '');
+                  final Uri phoneUri = Uri(
+                    scheme: 'tel',
+                    path: widget.flatmateData['phone'] ?? '',
+                  );
                   await launchUrl(phoneUri);
                 },
                 icon: const Icon(Icons.phone),
                 label: const Text('Call'),
-                style: OutlinedButton.styleFrom(foregroundColor: BuddyTheme.primaryColor),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BuddyTheme.primaryColor,
+                ),
               ),
             ),
             const SizedBox(width: BuddyTheme.spacingMd),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  final Uri emailUri = Uri(
-                    scheme: 'mailto',
-                    path: flatmateData['email'],
-                    query: 'subject=Enquiry about ${flatmateData['email']}',
+                  final otherUserId = widget.flatmateData['userId'];
+                  final otherUserName = widget.flatmateData['name'] ?? 'User';
+                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                  if (otherUserId == null || otherUserId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No user ID found for this user.')),
+                    );
+                    return;
+                  }
+                  if (currentUserId == otherUserId) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('You cannot chat with yourself.')),
+                    );
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        otherUserId: otherUserId,
+                        otherUserName: otherUserName,
+                      ),
+                    ),
                   );
-                  await launchUrl(emailUri);
                 },
-                icon: const Icon(Icons.email),
-                label: const Text('Email'),
+                icon: const Icon(Icons.chat),
+                label: const Text('Message'),
               ),
             ),
           ],

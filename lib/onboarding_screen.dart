@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:animations/animations.dart';
-import 'package:flutter/services.dart';
 import 'authentication_options.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -209,230 +208,231 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Always use dark mode colors
-    final backgroundColor = const Color(0xFF121212);
-    final cardColor = const Color(0xFF2C3E50);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDarkMode ? const Color(0xFF121212) : const Color.fromRGBO(255, 255, 255, 1);
+    final cardColor = isDarkMode ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2);
     final textColor = Colors.white;
-    final buttonBackgroundColor = Colors.white.withOpacity(0.1);
-    final buttonTextColor = Colors.white;
-    final indicatorActiveColor = const Color(0xFF4A90E2);
-    final indicatorInactiveColor = const Color(0xFF4A90E2).withOpacity(0.4);
-    final skipButtonBackgroundColor = Colors.grey[800]!.withOpacity(0.9);
-    final skipButtonTextColor = Colors.white70;
+    final buttonBackgroundColor = isDarkMode ? Colors.white.withOpacity(0.1) : Colors.white;
+    final buttonTextColor = isDarkMode ? Colors.white : const Color(0xFF4A90E2);
+    final indicatorActiveColor = isDarkMode ? const Color(0xFF4A90E2) : Colors.white;
+    final indicatorInactiveColor = isDarkMode
+        ? const Color(0xFF4A90E2).withOpacity(0.4)
+        : Colors.white.withOpacity(0.4);
+    final skipButtonBackgroundColor = isDarkMode
+        ? Colors.grey[800]!.withOpacity(0.9)
+        : Colors.white.withOpacity(0.9);
+    final skipButtonTextColor = isDarkMode ? Colors.white70 : Colors.grey[700];
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light, // Light icons for dark background
-      child: Scaffold(
-        backgroundColor: backgroundColor,
-        body: SafeArea(
-          child: Stack(
-            children: [
-              // Full screen swipe detector
-              Positioned.fill(
-                child: GestureDetector(
-                  onHorizontalDragUpdate: _handleHorizontalDragUpdate,
-                  onHorizontalDragEnd: _handleHorizontalDragEnd,
-                  behavior: HitTestBehavior.translucent,
-                  child: Container(
-                    color: Colors.transparent,
-                    child: Column(
-                      children: [
-                        // Animation area
-                        Expanded(
-                          flex: 7,
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: Stack(
-                              children: [
-                                // Current page animation
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Full screen swipe detector
+            Positioned.fill(
+              child: GestureDetector(
+                onHorizontalDragUpdate: _handleHorizontalDragUpdate,
+                onHorizontalDragEnd: _handleHorizontalDragEnd,
+                behavior: HitTestBehavior.translucent,
+                child: Container(
+                  color: Colors.transparent,
+                  child: Column(
+                    children: [
+                      // Animation area
+                      Expanded(
+                        flex: 7,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: Stack(
+                            children: [
+                              // Current page animation
+                              Positioned.fill(
+                                child: _buildLottieAnimation(
+                                  _currentPage,
+                                  opacity: (1 - _dragPercentage.abs()).clamp(0.0, 1.0),
+                                  offset: Offset(_dragOffset, 0),
+                                ),
+                              ),
+                              // Next page animation (swipe left to go forward)
+                              if (_currentPage < _pages.length - 1 && _dragOffset < 0)
                                 Positioned.fill(
                                   child: _buildLottieAnimation(
-                                    _currentPage,
-                                    opacity: (1 - _dragPercentage.abs()).clamp(0.0, 1.0),
-                                    offset: Offset(_dragOffset, 0),
+                                    _currentPage + 1,
+                                    opacity: (_dragPercentage.abs()).clamp(0.0, 1.0),
+                                    offset: Offset(screenWidth + _dragOffset, 0),
                                   ),
                                 ),
-                                // Next page animation (swipe left to go forward)
-                                if (_currentPage < _pages.length - 1 && _dragOffset < 0)
-                                  Positioned.fill(
-                                    child: _buildLottieAnimation(
-                                      _currentPage + 1,
-                                      opacity: (_dragPercentage.abs()).clamp(0.0, 1.0),
-                                      offset: Offset(screenWidth + _dragOffset, 0),
-                                    ),
-                                  ),
-                                // Previous page animation (swipe right to go back)
-                                if (_currentPage > 0 && _dragOffset > 0)
-                                  Positioned.fill(
-                                    child: _buildLottieAnimation(
-                                      _currentPage - 1,
-                                      opacity: (_dragPercentage.abs()).clamp(0.0, 1.0),
-                                      offset: Offset(-screenWidth + _dragOffset, 0),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Empty space for the card
-                        const Expanded(
-                          flex: 5,
-                          child: SizedBox(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // Information card positioned absolutely on top
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  height: MediaQuery.of(context).size.height * 0.42, // Approximately 5/12 of screen height
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            _pages.length,
-                            (index) => Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: _currentPage == index ? 32 : 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: _currentPage == index
-                                    ? indicatorActiveColor
-                                    : indicatorInactiveColor,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Expanded(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: Column(
-                              key: ValueKey<int>(_currentPage),
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _pages[_currentPage].title,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor,
-                                    height: 1.2,
+                              // Previous page animation (swipe right to go back)
+                              if (_currentPage > 0 && _dragOffset > 0)
+                                Positioned.fill(
+                                  child: _buildLottieAnimation(
+                                    _currentPage - 1,
+                                    opacity: (_dragPercentage.abs()).clamp(0.0, 1.0),
+                                    offset: Offset(-screenWidth + _dragOffset, 0),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _pages[_currentPage].description,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: textColor.withOpacity(0.9),
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            ],
                           ),
                         ),
-                        Container(
-                          width: double.infinity,
-                          height: 50,
-                          margin: const EdgeInsets.only(top: 16),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (_currentPage == _pages.length - 1) {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AuthOptionsPage(),
-                                  ),
-                                );
-                              } else {
-                                _nextPage();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: buttonBackgroundColor,
-                              foregroundColor: buttonTextColor,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                            ),
-                            child: Text(
-                              _currentPage == _pages.length - 1
-                                  ? 'Get Started'
-                                  : 'Next',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: buttonTextColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // Skip button (positioned absolutely, not affected by swipe)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: skipButtonBackgroundColor,
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
+                      ),
+                      // Empty space for the card
+                      const Expanded(
+                        flex: 5,
+                        child: SizedBox(),
                       ),
                     ],
                   ),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AuthOptionsPage(),
+                ),
+              ),
+            ),
+            // Information card positioned absolutely on top
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.42, // Approximately 5/12 of screen height
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          _pages.length,
+                          (index) => Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: _currentPage == index ? 32 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: _currentPage == index
+                                  ? indicatorActiveColor
+                                  : indicatorInactiveColor,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
                         ),
-                      );
-                    },
-                    child: Text(
-                      'Skip',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: skipButtonTextColor,
-                        fontWeight: FontWeight.w500,
                       ),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: Column(
+                            key: ValueKey<int>(_currentPage),
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Text(
+                                _pages[_currentPage].title,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _pages[_currentPage].description,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: textColor.withOpacity(0.9),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: double.infinity,
+                        height: 50,
+                        margin: const EdgeInsets.only(top: 16),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_currentPage == _pages.length - 1) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AuthOptionsPage(),
+                                ),
+                              );
+                            } else {
+                              _nextPage();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: buttonBackgroundColor,
+                            foregroundColor: buttonTextColor,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: Text(
+                            _currentPage == _pages.length - 1
+                                ? 'Get Started'
+                                : 'Next',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: buttonTextColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Skip button (positioned absolutely, not affected by swipe)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: skipButtonBackgroundColor,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AuthOptionsPage(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Skip',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: skipButtonTextColor,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

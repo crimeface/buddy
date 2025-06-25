@@ -103,7 +103,7 @@ class _SignUpPageState extends State<SignUpPage>
               + e.toString());
           if (mounted) {
             showCustomSnackBar(context, 'Failed to send verification email: '
-                + e.toString(), backgroundColor: const Color(0xFFB00020), icon: Icons.error);
+                + e.toString(), backgroundColor: Colors.red, icon: Icons.error);
           }
         }
 
@@ -133,7 +133,7 @@ class _SignUpPageState extends State<SignUpPage>
         });
 
         if (mounted) {
-          showCustomSnackBar(context, 'A verification email has been sent. Please verify your email before logging in.', backgroundColor: const Color(0xFF388E3C), icon: Icons.email);
+          showCustomSnackBar(context, 'A verification email has been sent. Please verify your email before logging in.', backgroundColor: Colors.green, icon: Icons.email);
           Navigator.pushReplacementNamed(context, '/login');
         }
       } on FirebaseAuthException catch (e) {
@@ -148,12 +148,12 @@ class _SignUpPageState extends State<SignUpPage>
         } else if (e.code == 'weak-password') {
           errorMsg = 'Password is too weak';
         }
-        showCustomSnackBar(context, errorMsg, backgroundColor: const Color(0xFFB00020), icon: Icons.error);
+        showCustomSnackBar(context, errorMsg, backgroundColor: Colors.red, icon: Icons.error);
       } catch (e) {
         setState(() {
           _isLoading = false;
         });
-        showCustomSnackBar(context, 'An error occurred. Please try again.', backgroundColor: const Color(0xFFB00020), icon: Icons.error);
+        showCustomSnackBar(context, 'An error occurred. Please try again.', backgroundColor: Colors.red, icon: Icons.error);
       }
     }
   }
@@ -163,6 +163,7 @@ class _SignUpPageState extends State<SignUpPage>
     required String hintText,
     required IconData icon,
     required String? Function(String?) validator,
+    required bool isDark,
     bool obscureText = false,
     bool hasVisibilityToggle = false,
     bool? isVisible,
@@ -175,7 +176,8 @@ class _SignUpPageState extends State<SignUpPage>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2C3E50).withOpacity(0.3),
+            color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                .withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -185,26 +187,26 @@ class _SignUpPageState extends State<SignUpPage>
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: isDark ? Colors.white : const Color(0xFF1E3A8A),
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
             fontSize: 16,
           ),
           prefixIcon: Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF2C3E50),
+              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.person_outline,
+            child: Icon(
+              icon,
               color: Colors.white,
               size: 20,
             ),
@@ -213,27 +215,27 @@ class _SignUpPageState extends State<SignUpPage>
               ? IconButton(
                   icon: Icon(
                     isVisible! ? Icons.visibility : Icons.visibility_off,
-                    color: Colors.white.withOpacity(0.7),
+                    color: isDark ? Colors.white.withOpacity(0.7) : const Color(0xFF64748B),
                   ),
                   onPressed: onVisibilityToggle,
                 )
               : null,
           filled: true,
-          fillColor: const Color(0xFF1E293B),
+          fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFF334155),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFF2C3E50),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
               width: 2,
             ),
           ),
@@ -245,13 +247,14 @@ class _SignUpPageState extends State<SignUpPage>
   }
 
   void showCustomSnackBar(BuildContext context, String message, {Color? backgroundColor, IconData? icon}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             if (icon != null) ...[
               Icon(icon, color: Colors.white),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
             ],
             Expanded(
               child: Text(
@@ -261,7 +264,7 @@ class _SignUpPageState extends State<SignUpPage>
             ),
           ],
         ),
-        backgroundColor: backgroundColor ?? const Color(0xFF2C3E50),
+        backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2)),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -275,7 +278,8 @@ class _SignUpPageState extends State<SignUpPage>
 
   @override
   Widget build(BuildContext context) {
-    // Always use dark theme colors
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return WillPopScope(
       onWillPop: () async {
         // Navigate to login page when back button is pressed
@@ -283,9 +287,9 @@ class _SignUpPageState extends State<SignUpPage>
         return false; // Prevent default back navigation
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
         body: Container(
-          color: const Color(0xFF121212),
+          color: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFF),
           child: Stack(
             children: [
               // Clean background without floating elements
@@ -321,15 +325,16 @@ class _SignUpPageState extends State<SignUpPage>
                                 Container(
                                   padding: const EdgeInsets.all(24),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
+                                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
+                                    border: isDark ? Border.all(
                                       color: const Color(0xFF334155),
                                       width: 1,
-                                    ),
+                                    ) : null,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFF2C3E50).withOpacity(0.3),
+                                        color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                                            .withOpacity(0.3),
                                         blurRadius: 8,
                                         offset: const Offset(0, 4),
                                       ),
@@ -338,12 +343,12 @@ class _SignUpPageState extends State<SignUpPage>
                                   child: Column(
                                     children: [
                                       // Title
-                                      const Text(
+                                      Text(
                                         'Create Account',
                                         style: TextStyle(
                                           fontSize: 28,
                                           fontWeight: FontWeight.w700,
-                                          color: Colors.white,
+                                          color: isDark ? Colors.white : const Color(0xFF1E3A8A),
                                           letterSpacing: -0.5,
                                         ),
                                       ),
@@ -352,7 +357,7 @@ class _SignUpPageState extends State<SignUpPage>
                                         'Join us to get started',
                                         style: TextStyle(
                                           fontSize: 16,
-                                          color: Colors.white.withOpacity(0.9),
+                                          color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
                                           fontWeight: FontWeight.w400,
                                         ),
                                       ),
@@ -363,6 +368,7 @@ class _SignUpPageState extends State<SignUpPage>
                                         controller: _fullNameController,
                                         hintText: 'Full Name',
                                         icon: Icons.person_outline,
+                                        isDark: isDark,
                                         validator: (value) {
                                           if (value == null || value.isEmpty) {
                                             return 'Please enter your full name';
@@ -377,6 +383,7 @@ class _SignUpPageState extends State<SignUpPage>
                                         hintText: 'Email Address',
                                         icon: Icons.email_outlined,
                                         keyboardType: TextInputType.emailAddress,
+                                        isDark: isDark,
                                         validator: (value) {
                                           if (value == null || value.isEmpty) {
                                             return 'Please enter your email';
@@ -396,6 +403,7 @@ class _SignUpPageState extends State<SignUpPage>
                                         obscureText: !_isPasswordVisible,
                                         hasVisibilityToggle: true,
                                         isVisible: _isPasswordVisible,
+                                        isDark: isDark,
                                         onVisibilityToggle: () {
                                           setState(() {
                                             _isPasswordVisible = !_isPasswordVisible;
@@ -420,6 +428,7 @@ class _SignUpPageState extends State<SignUpPage>
                                         obscureText: !_isConfirmPasswordVisible,
                                         hasVisibilityToggle: true,
                                         isVisible: _isConfirmPasswordVisible,
+                                        isDark: isDark,
                                         onVisibilityToggle: () {
                                           setState(() {
                                             _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
@@ -443,11 +452,12 @@ class _SignUpPageState extends State<SignUpPage>
                                         width: double.infinity,
                                         height: 56,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF2C3E50),
+                                          color: isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2),
                                           borderRadius: BorderRadius.circular(12),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: const Color(0xFF2C3E50).withOpacity(0.3),
+                                              color: (isDark ? const Color(0xFF2C3E50) : const Color(0xFF4A90E2))
+                                                  .withOpacity(0.3),
                                               blurRadius: 8,
                                               offset: const Offset(0, 4),
                                             ),
@@ -493,7 +503,7 @@ class _SignUpPageState extends State<SignUpPage>
                                           Text(
                                             'Already have an account?',
                                             style: TextStyle(
-                                              color: Colors.white.withOpacity(0.9),
+                                              color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
                                               fontSize: 16,
                                               fontWeight: FontWeight.w400,
                                             ),
@@ -503,7 +513,7 @@ class _SignUpPageState extends State<SignUpPage>
                                               Navigator.pushReplacementNamed(context, '/login');
                                             },
                                             style: TextButton.styleFrom(
-                                              foregroundColor: const Color(0xFF4A90E2),
+                                              foregroundColor: isDark ? const Color(0xFF4A90E2) : const Color(0xFF1E3A8A),
                                               padding: const EdgeInsets.only(left: 8),
                                             ),
                                             child: const Text(

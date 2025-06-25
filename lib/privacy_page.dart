@@ -64,21 +64,24 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    // Always use dark mode colors
+    // App color scheme
     final Color primaryColor = theme.colorScheme.primary;
     final Color secondaryColor = theme.colorScheme.secondary;
-    final Color backgroundColor = Colors.black;
-    final Color cardColor = Colors.grey[900]!;
-    final Color textPrimary = Colors.white;
-    final Color textSecondary = Colors.white70;
-    final Color iconColor = Colors.white;
+    final Color backgroundColor = theme.scaffoldBackgroundColor;
+    final Color cardColor = theme.cardColor;
+    final Color textPrimary =
+        theme.textTheme.bodyLarge?.color ??
+        (isDark ? Colors.white : Colors.black);
+    final Color textSecondary = isDark ? Colors.white70 : Colors.grey[700]!;
+    final Color iconColor = isDark ? Colors.white : const Color(0xFF1E293B);
 
-    // Gradient for header and support card (dark mode)
-    final List<Color> gradientColors = [
-      primaryColor.withOpacity(0.85),
-      secondaryColor.withOpacity(0.85),
-    ];
+    // Gradient for header and support card
+    final List<Color> gradientColors =
+        isDark
+            ? [primaryColor.withOpacity(0.85), secondaryColor.withOpacity(0.85)]
+            : [const Color(0xFF667EEA), const Color(0xFF764BA2)];
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -189,6 +192,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       cardColor: cardColor,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
+                      isDark: isDark,
                     ),
                     _buildSection(
                       key: 'information',
@@ -200,6 +204,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       cardColor: cardColor,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
+                      isDark: isDark,
                     ),
                     _buildSection(
                       key: 'communication',
@@ -211,6 +216,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       cardColor: cardColor,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
+                      isDark: isDark,
                     ),
                     _buildSection(
                       key: 'protection',
@@ -222,6 +228,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       cardColor: cardColor,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
+                      isDark: isDark,
                     ),
                     _buildSection(
                       key: 'changes',
@@ -233,6 +240,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       cardColor: cardColor,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
+                      isDark: isDark,
                     ),
                     _buildSection(
                       key: 'consent',
@@ -244,6 +252,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       cardColor: cardColor,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
+                      isDark: isDark,
                     ),
                     _buildSection(
                       key: 'program',
@@ -255,6 +264,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       cardColor: cardColor,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
+                      isDark: isDark,
                     ),
                     const SizedBox(height: 40),
                     Container(
@@ -336,6 +346,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
     required Color cardColor,
     required Color textPrimary,
     required Color textSecondary,
+    required bool isDark,
   }) {
     final isExpanded = _expandedSections[key] == true;
 
@@ -346,7 +357,10 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color:
+                isDark
+                    ? Colors.black.withOpacity(0.15)
+                    : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -393,12 +407,12 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.grey[800],
+                          color: isDark ? Colors.grey[800] : Colors.grey[100],
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           Icons.keyboard_arrow_down_rounded,
-                          color: Colors.white70,
+                          color: isDark ? Colors.white70 : Colors.grey[600],
                           size: 20,
                         ),
                       ),
@@ -415,7 +429,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[900],
+                    color: isDark ? Colors.grey[900] : Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: color.withOpacity(0.2), width: 1),
                   ),

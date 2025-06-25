@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
+import '../chat_screen.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -288,13 +289,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   bool isLoading = true;
   String? error;
 
-  // Always use dark mode colors
-  final Color _backgroundColor = Colors.black;
-  final Color _cardColor = Color(0xFF1A1A1A);
-  final Color _borderColor = Colors.grey;
-  final Color _textPrimary = Colors.white;
-  final Color _textSecondary = Colors.white70;
-
   @override
   void initState() {
     super.initState();
@@ -432,22 +426,17 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Scaffold(
-        backgroundColor: _backgroundColor,
-        body: const Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (error != null) {
       return Scaffold(
-        backgroundColor: _backgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(error!, style: TextStyle(color: _textPrimary)),
+              Text(error!),
               const SizedBox(height: 16),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: BuddyTheme.primaryColor),
                 onPressed: () {
                   setState(() {
                     isLoading = true;
@@ -455,7 +444,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   });
                   _fetchServiceDetails();
                 },
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text('Retry'),
               ),
             ],
           ),
@@ -463,7 +452,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       );
     }
     return Scaffold(
-      backgroundColor: _backgroundColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
@@ -511,21 +499,28 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
-      backgroundColor: _cardColor,
+      backgroundColor: cardColor,
       elevation: 0,
       leading: Container(
         margin: const EdgeInsets.all(BuddyTheme.spacingXs),
         decoration: BoxDecoration(
-          color: Colors.grey[900],
+          color: Colors.white.withOpacity(0.9),
           shape: BoxShape.circle,
         ),
         child: IconButton(
           icon: const Icon(
             Icons.arrow_back,
-            color: Colors.white,
+            color: BuddyTheme.textPrimaryColor,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -534,13 +529,16 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         Container(
           margin: const EdgeInsets.all(BuddyTheme.spacingXs),
           decoration: BoxDecoration(
-            color: Colors.grey[900],
+            color: Colors.white.withOpacity(0.9),
             shape: BoxShape.circle,
           ),
           child: IconButton(
             icon: Icon(
               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              color: isBookmarked ? BuddyTheme.primaryColor : Colors.white,
+              color:
+                  isBookmarked
+                      ? BuddyTheme.primaryColor
+                      : BuddyTheme.textPrimaryColor,
             ),
             onPressed: () async {
               await _toggleBookmark();
@@ -551,11 +549,11 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         Container(
           margin: const EdgeInsets.all(BuddyTheme.spacingXs),
           decoration: BoxDecoration(
-            color: Colors.grey[900],
+            color: Colors.white.withOpacity(0.9),
             shape: BoxShape.circle,
           ),
           child: IconButton(
-            icon: const Icon(Icons.share, color: Colors.white),
+            icon: const Icon(Icons.share, color: BuddyTheme.textPrimaryColor),
             onPressed: _shareService,
           ),
         ),
@@ -586,7 +584,6 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 itemBuilder: (context, index) {
                   return Container(
                     decoration: BoxDecoration(
-                      color: Colors.black,
                       image: DecorationImage(
                         image: NetworkImage(serviceImages[index]),
                         fit: BoxFit.cover,
@@ -626,12 +623,20 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   }
 
   Widget _buildServiceHeader() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor =
+        isDark
+            ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+            : Color.alphaBlend(Colors.black.withOpacity(0.04), theme.cardColor);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.black54;
     return Container(
       decoration: BoxDecoration(
-        color: _cardColor,
+        color: cardColor,
         borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
         border: Border.all(
-          color: _borderColor.withOpacity(0.2),
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
         ),
       ),
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
@@ -643,7 +648,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             style: TextStyle(
               fontSize: BuddyTheme.fontSizeXl,
               fontWeight: FontWeight.bold,
-              color: _textPrimary,
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: BuddyTheme.spacingXs),
@@ -652,14 +657,14 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               Icon(
                 Icons.location_on,
                 size: BuddyTheme.iconSizeSm,
-                color: _textSecondary,
+                color: textSecondary,
               ),
               const SizedBox(width: BuddyTheme.spacingXs),
               Expanded(
                 child: Text(
                   '${serviceData.location}',
-                  style: TextStyle(
-                    color: _textSecondary,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: textSecondary,
                     fontSize: BuddyTheme.fontSizeMd,
                   ),
                 ),
@@ -1350,15 +1355,33 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  final Uri emailUri = Uri(
-                    scheme: 'mailto',
-                    path: serviceData.email,
-                    query: 'subject=Enquiry about ${serviceData.serviceName}',
+                  final otherUserId = serviceData.userId;
+                  final otherUserName = serviceData.serviceName ?? 'User';
+                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                  if (otherUserId == null || otherUserId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No user ID found for this user.')),
+                    );
+                    return;
+                  }
+                  if (currentUserId == otherUserId) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('You cannot chat with yourself.')),
+                    );
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        otherUserId: otherUserId,
+                        otherUserName: otherUserName,
+                      ),
+                    ),
                   );
-                  await launchUrl(emailUri);
                 },
-                icon: const Icon(Icons.email),
-                label: const Text('Email'),
+                icon: const Icon(Icons.chat),
+                label: const Text('Message'),
               ),
             ),
           ],

@@ -43,9 +43,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _pages = [
-      HomePage(key: const Key('home'), onTabChange: _onItemTapped, selectedCity: _selectedCity, onCityChanged: _onCityChanged),
+      HomePage(
+        key: const Key('home'),
+        onTabChange: _onItemTapped,
+        selectedCity: _selectedCity,
+        onCityChanged: _onCityChanged,
+      ),
       NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
-      NeedFlatmatePage(key: const Key('needflatmate'), selectedCity: _selectedCity),
+      NeedFlatmatePage(
+        key: const Key('needflatmate'),
+        selectedCity: _selectedCity,
+      ),
       ProfilePage(key: const Key('profile')),
     ];
   }
@@ -55,9 +63,17 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedCity = city;
       // Rebuild _pages to propagate city change
       _pages = [
-        HomePage(key: const Key('home'), onTabChange: _onItemTapped, selectedCity: _selectedCity, onCityChanged: _onCityChanged),
+        HomePage(
+          key: const Key('home'),
+          onTabChange: _onItemTapped,
+          selectedCity: _selectedCity,
+          onCityChanged: _onCityChanged,
+        ),
         NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
-        NeedFlatmatePage(key: const Key('needflatmate'), selectedCity: _selectedCity),
+        NeedFlatmatePage(
+          key: const Key('needflatmate'),
+          selectedCity: _selectedCity,
+        ),
         ProfilePage(key: const Key('profile')),
       ];
     });
@@ -125,7 +141,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   )
                   : null,
-          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: BottomAppBar(
             notchMargin: BuddyTheme.spacingSm,
             elevation: BuddyTheme.elevationMd,
@@ -232,7 +249,12 @@ class HomePage extends StatefulWidget {
   final String selectedCity;
   final ValueChanged<String> onCityChanged;
 
-  const HomePage({super.key, this.onTabChange, required this.selectedCity, required this.onCityChanged});
+  const HomePage({
+    super.key,
+    this.onTabChange,
+    required this.selectedCity,
+    required this.onCityChanged,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -836,7 +858,7 @@ class _HomePageState extends State<HomePage>
       context: context,
       builder: (BuildContext context) {
         return Container(
-          height: 350,
+          height: 360,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -848,16 +870,18 @@ class _HomePageState extends State<HomePage>
                 ).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              ...['Select Location', 'Pune', 'Mumbai', 'Nanded', 'Latur'].map((city) => ListTile(
-                leading: const Icon(Icons.location_city),
-                title: Text(city),
-                onTap: () {
-                  setState(() {
-                    widget.onCityChanged(city);
-                  });
-                  Navigator.pop(context);
-                },
-              )),
+              ...['Select Location', 'Pune', 'Mumbai', 'Nanded', 'Latur'].map(
+                (city) => ListTile(
+                  leading: const Icon(Icons.location_city),
+                  title: Text(city),
+                  onTap: () {
+                    setState(() {
+                      widget.onCityChanged(city);
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
             ],
           ),
         );
@@ -876,7 +900,13 @@ class _HomePageState extends State<HomePage>
     final theme = Theme.of(context);
 
     return InkWell(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HostelPgPage(selectedCity: widget.selectedCity))),
+      onTap:
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HostelPgPage(selectedCity: widget.selectedCity),
+            ),
+          ),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
       child: Container(
         height: 180,
@@ -1200,7 +1230,13 @@ class _HomePageState extends State<HomePage>
     final theme = Theme.of(context);
 
     return InkWell(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ServicesPage(selectedCity: widget.selectedCity))),
+      onTap:
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ServicesPage(selectedCity: widget.selectedCity),
+            ),
+          ),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
       child: Container(
         height: 220,
