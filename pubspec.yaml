@@ -95,3 +95,4 @@ flutter:
     - assets/animations/login.json
     - assets/animations/phonenumber.json
     - assets/animations/otp.json
+    - assets/animations/splash_screen.json

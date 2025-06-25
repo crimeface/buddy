@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import services for SystemChrome
 import 'login.dart';
 import 'signup.dart';
 import 'theme.dart';
@@ -27,6 +28,8 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Hide system navigation and status bars at app startup
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
   await Firebase.initializeApp();
 
   final firebaseApi = FirebaseApi();

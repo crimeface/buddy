@@ -15,6 +15,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'Hostelpg_page.dart';
 import 'service_page.dart';
+import 'splash_screen.dart';
 
 export 'profile_page.dart';
 export 'need_room_page.dart';
@@ -30,11 +31,20 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _selectedCity = 'Select Location'; // Default to 'Select Location'
+  bool _bannersLoaded = false;
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  void _onBannersLoadedChanged(bool loaded) {
+    if (_bannersLoaded != loaded) {
+      setState(() {
+        _bannersLoaded = loaded;
+      });
+    }
   }
 
   late List<Widget> _pages;
@@ -48,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTabChange: _onItemTapped,
         selectedCity: _selectedCity,
         onCityChanged: _onCityChanged,
+        onBannersLoadedChanged: _onBannersLoadedChanged,
       ),
       NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
       NeedFlatmatePage(
@@ -68,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onTabChange: _onItemTapped,
           selectedCity: _selectedCity,
           onCityChanged: _onCityChanged,
+          onBannersLoadedChanged: _onBannersLoadedChanged,
         ),
         NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
         NeedFlatmatePage(
@@ -125,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _pages[_selectedIndex],
           ),
           floatingActionButton:
-              _selectedIndex == 0
+              _selectedIndex == 0 && _bannersLoaded
                   ? Container(
                     decoration: BuddyTheme.fabShadowDecoration,
                     child: FloatingActionButton(
@@ -143,60 +155,62 @@ class _HomeScreenState extends State<HomeScreen> {
                   : null,
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
-          bottomNavigationBar: BottomAppBar(
-            notchMargin: BuddyTheme.spacingSm,
-            elevation: BuddyTheme.elevationMd,
-            padding: EdgeInsets.zero,
-            color: navBarColor,
-            surfaceTintColor: Colors.transparent,
-            shadowColor: Colors.black26,
-            shape: const CircularNotchedRectangle(),
-            clipBehavior: Clip.antiAlias,
-            child: Container(
-              height: 60,
-              padding: const EdgeInsets.symmetric(
-                horizontal: BuddyTheme.spacingSm,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildNavItem(
-                    0,
-                    Icons.home_outlined,
-                    Icons.home,
-                    'Home',
-                    navBarIconColor,
-                    navBarSelectedColor,
+          bottomNavigationBar: _bannersLoaded
+              ? BottomAppBar(
+                  notchMargin: BuddyTheme.spacingSm,
+                  elevation: BuddyTheme.elevationMd,
+                  padding: EdgeInsets.zero,
+                  color: navBarColor,
+                  surfaceTintColor: Colors.transparent,
+                  shadowColor: Colors.black26,
+                  shape: const CircularNotchedRectangle(),
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    height: 60,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BuddyTheme.spacingSm,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildNavItem(
+                          0,
+                          Icons.home_outlined,
+                          Icons.home,
+                          'Home',
+                          navBarIconColor,
+                          navBarSelectedColor,
+                        ),
+                        _buildNavItem(
+                          1,
+                          Icons.hotel_outlined,
+                          Icons.hotel,
+                          'Need\nRoom',
+                          navBarIconColor,
+                          navBarSelectedColor,
+                        ),
+                        if (_selectedIndex == 0) const SizedBox(width: 56),
+                        _buildNavItem(
+                          2,
+                          Icons.group_outlined,
+                          Icons.group,
+                          'Need\nFlatmate',
+                          navBarIconColor,
+                          navBarSelectedColor,
+                        ),
+                        _buildNavItem(
+                          3,
+                          Icons.person_outline,
+                          Icons.person,
+                          'Profile',
+                          navBarIconColor,
+                          navBarSelectedColor,
+                        ),
+                      ],
+                    ),
                   ),
-                  _buildNavItem(
-                    1,
-                    Icons.hotel_outlined,
-                    Icons.hotel,
-                    'Need\nRoom',
-                    navBarIconColor,
-                    navBarSelectedColor,
-                  ),
-                  if (_selectedIndex == 0) const SizedBox(width: 56),
-                  _buildNavItem(
-                    2,
-                    Icons.group_outlined,
-                    Icons.group,
-                    'Need\nFlatmate',
-                    navBarIconColor,
-                    navBarSelectedColor,
-                  ),
-                  _buildNavItem(
-                    3,
-                    Icons.person_outline,
-                    Icons.person,
-                    'Profile',
-                    navBarIconColor,
-                    navBarSelectedColor,
-                  ),
-                ],
-              ),
-            ),
-          ),
+                )
+              : null,
         ),
       ),
     );
@@ -248,12 +262,14 @@ class HomePage extends StatefulWidget {
   final void Function(int)? onTabChange;
   final String selectedCity;
   final ValueChanged<String> onCityChanged;
+  final ValueChanged<bool>? onBannersLoadedChanged;
 
   const HomePage({
     super.key,
     this.onTabChange,
     required this.selectedCity,
     required this.onCityChanged,
+    this.onBannersLoadedChanged,
   });
 
   @override
@@ -268,10 +284,29 @@ class _HomePageState extends State<HomePage>
   bool _isAdmin = false;
   List<Map<String, dynamic>> _banners = [];
   bool _bannersLoaded = false;
+  DateTime? _splashStartTime;
+  bool _splashMinTimeElapsed = false;
 
   @override
   void initState() {
     super.initState();
+    _splashStartTime = DateTime.now();
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          _splashMinTimeElapsed = true;
+        });
+        // If banners already loaded, trigger UI update
+        if (_banners.isNotEmpty && !_bannersLoaded) {
+          setState(() {
+            _bannersLoaded = true;
+            _notifyBannersLoadedChanged();
+          });
+        } else {
+          _notifyBannersLoadedChanged();
+        }
+      }
+    });
     _loadUserName();
     _loadProfileImage();
     _checkAdmin();
@@ -323,10 +358,16 @@ class _HomePageState extends State<HomePage>
     final bannersSnap =
         await FirebaseFirestore.instance.collection('promo_banners').get();
     if (bannersSnap.docs.isNotEmpty) {
-      setState(() {
-        _banners = bannersSnap.docs.map((d) => d.data()).toList();
-        _bannersLoaded = true;
-      });
+      _banners = bannersSnap.docs.map((d) => d.data()).toList();
+      if (_splashMinTimeElapsed) {
+        setState(() {
+          _bannersLoaded = true;
+          _notifyBannersLoadedChanged();
+        });
+      } else {
+        _notifyBannersLoadedChanged();
+      }
+      // else: splash will be hidden by timer
     } else {
       // Save current hardcoded banners to Firestore
       final defaultBanners = [
@@ -364,11 +405,21 @@ class _HomePageState extends State<HomePage>
             .collection('promo_banners')
             .add(banner);
       }
-      setState(() {
-        _banners = defaultBanners;
-        _bannersLoaded = true;
-      });
+      _banners = defaultBanners;
+      if (_splashMinTimeElapsed) {
+        setState(() {
+          _bannersLoaded = true;
+          _notifyBannersLoadedChanged();
+        });
+      } else {
+        _notifyBannersLoadedChanged();
+      }
+      // else: splash will be hidden by timer
     }
+  }
+
+  void _notifyBannersLoadedChanged() {
+    widget.onBannersLoadedChanged?.call(_bannersLoaded);
   }
 
   Future<void> _editBanner(int index) async {
@@ -599,6 +650,11 @@ class _HomePageState extends State<HomePage>
   Widget build(BuildContext context) {
     super.build(context);
     Theme.of(context);
+
+    // Show splash screen until banners are loaded AND 5 seconds have passed
+    if (!_bannersLoaded) {
+      return SplashScreen();
+    }
 
     return SafeArea(
       child: RefreshIndicator(

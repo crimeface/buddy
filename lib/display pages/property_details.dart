@@ -1419,62 +1419,97 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildBottomActions() {
+    final hasPhone = propertyData.phone.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final Uri phoneUri = Uri(
-                    scheme: 'tel',
-                    path: propertyData.phone,
-                  );
-                  await launchUrl(phoneUri);
-                },
-                icon: const Icon(Icons.phone),
-                label: const Text('Call'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: BuddyTheme.primaryColor,
-                ),
-              ),
-            ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final otherUserId = propertyData.uid;
-                  final otherUserName = propertyData.ownerName ?? 'User';
-                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                  if (otherUserId == null || otherUserId.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No user ID found for this user.')),
-                    );
-                    return;
-                  }
-                  if (currentUserId == otherUserId) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('You cannot chat with yourself.')),
-                    );
-                    return;
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatScreen(
-                        otherUserId: otherUserId,
-                        otherUserName: otherUserName,
+        child: hasPhone
+            ? Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final Uri phoneUri = Uri(
+                          scheme: 'tel',
+                          path: propertyData.phone,
+                        );
+                        await launchUrl(phoneUri);
+                      },
+                      icon: const Icon(Icons.phone),
+                      label: const Text('Call'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: BuddyTheme.primaryColor,
                       ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.chat),
-                label: const Text('Message'),
+                  ),
+                  const SizedBox(width: BuddyTheme.spacingMd),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final otherUserId = propertyData.uid;
+                        final otherUserName = propertyData.ownerName ?? 'User';
+                        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                        if (otherUserId == null || otherUserId.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('No user ID found for this user.')),
+                          );
+                          return;
+                        }
+                        if (currentUserId == otherUserId) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('You cannot chat with yourself.')),
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(
+                              otherUserId: otherUserId,
+                              otherUserName: otherUserName,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat),
+                      label: const Text('Message'),
+                    ),
+                  ),
+                ],
+              )
+            : SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final otherUserId = propertyData.uid;
+                    final otherUserName = propertyData.ownerName ?? 'User';
+                    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                    if (otherUserId == null || otherUserId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No user ID found for this user.')),
+                      );
+                      return;
+                    }
+                    if (currentUserId == otherUserId) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('You cannot chat with yourself.')),
+                      );
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChatScreen(
+                          otherUserId: otherUserId,
+                          otherUserName: otherUserName,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat),
+                  label: const Text('Message'),
+                ),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
