@@ -287,15 +287,6 @@ class _HomePageState extends State<HomePage>
   DateTime? _splashStartTime;
   bool _splashMinTimeElapsed = false;
 
-  void _tryFinishSplash() {
-    if (_banners.isNotEmpty && _splashMinTimeElapsed && !_bannersLoaded) {
-      setState(() {
-        _bannersLoaded = true;
-        _notifyBannersLoadedChanged();
-      });
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -305,7 +296,15 @@ class _HomePageState extends State<HomePage>
         setState(() {
           _splashMinTimeElapsed = true;
         });
-        _tryFinishSplash();
+        // If banners already loaded, trigger UI update
+        if (_banners.isNotEmpty && !_bannersLoaded) {
+          setState(() {
+            _bannersLoaded = true;
+            _notifyBannersLoadedChanged();
+          });
+        } else {
+          _notifyBannersLoadedChanged();
+        }
       }
     });
     _loadUserName();
@@ -360,8 +359,15 @@ class _HomePageState extends State<HomePage>
         await FirebaseFirestore.instance.collection('promo_banners').get();
     if (bannersSnap.docs.isNotEmpty) {
       _banners = bannersSnap.docs.map((d) => d.data()).toList();
-      _tryFinishSplash();
-      _notifyBannersLoadedChanged();
+      if (_splashMinTimeElapsed) {
+        setState(() {
+          _bannersLoaded = true;
+          _notifyBannersLoadedChanged();
+        });
+      } else {
+        _notifyBannersLoadedChanged();
+      }
+      // else: splash will be hidden by timer
     } else {
       // Save current hardcoded banners to Firestore
       final defaultBanners = [
@@ -400,8 +406,15 @@ class _HomePageState extends State<HomePage>
             .add(banner);
       }
       _banners = defaultBanners;
-      _tryFinishSplash();
-      _notifyBannersLoadedChanged();
+      if (_splashMinTimeElapsed) {
+        setState(() {
+          _bannersLoaded = true;
+          _notifyBannersLoadedChanged();
+        });
+      } else {
+        _notifyBannersLoadedChanged();
+      }
+      // else: splash will be hidden by timer
     }
   }
 
