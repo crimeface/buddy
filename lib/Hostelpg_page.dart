@@ -5,8 +5,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HostelPgPage extends StatefulWidget {
-  final String selectedCity;
-  const HostelPgPage({Key? key, required this.selectedCity}) : super(key: key);
+  const HostelPgPage({Key? key}) : super(key: key);
 
   @override
   State<HostelPgPage> createState() => _HostelPgPageState();
@@ -61,9 +60,6 @@ class _HostelPgPageState extends State<HostelPgPage> {
       var query = FirebaseFirestore.instance
           .collection('hostel_listings')
           .where('visibility', isEqualTo: true);
-      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities') {
-        query = query.where('city', isEqualTo: widget.selectedCity);
-      }
       final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loadedHostels = [];
@@ -315,7 +311,7 @@ class _HostelPgPageState extends State<HostelPgPage> {
                           ),
                         )
                         .toList(),
-                  const SizedBox(height: BuddyTheme.spacingMd),
+                  SizedBox(height: BuddyTheme.spacingMd + MediaQuery.of(context).padding.bottom),
                 ],
               ),
             ),

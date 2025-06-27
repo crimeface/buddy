@@ -1,3 +1,4 @@
+import 'package:buddy/api/map_location_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,7 @@ import 'dart:io';
 import '../theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_storage_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class RoomRequestForm extends StatefulWidget {
   const RoomRequestForm({Key? key}) : super(key: key);
@@ -51,8 +53,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   // Room Requirements
   final _locationController = TextEditingController();
-  final _minBudgetController = TextEditingController();
-  final _maxBudgetController = TextEditingController();
   DateTime? _moveInDate;
   String _preferredRoomType = 'Private';
   int _preferredFlatmates = 1;
@@ -70,13 +70,15 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   final _emailController = TextEditingController();
   final _bioController = TextEditingController();
 
+  // Budget
+  final _minBudgetController = TextEditingController();
+  final _maxBudgetController = TextEditingController();
+
   late ThemeData theme;
   late Color scaffoldBg;
   late Color cardColor;
   late Color textPrimary;
   late Color textSecondary;
-
-  String _selectedCity = 'Pune'; // Add this for city dropdown
 
   @override
   void initState() {
@@ -148,8 +150,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     _nameController.dispose();
     _ageController.dispose();
     _locationController.dispose();
-    _minBudgetController.dispose();
-    _maxBudgetController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     _bioController.dispose();
@@ -614,75 +614,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
-            // City Dropdown
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 400),
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: value,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedCity,
-                        decoration: InputDecoration(
-                          labelText: 'City',
-                          prefixIcon: Icon(
-                            Icons.location_city,
-                            color: BuddyTheme.primaryColor,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              BuddyTheme.borderRadiusMd,
-                            ),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: cardColor,
-                        ),
-                        items:
-                            ['Pune', 'Mumbai', 'Nanded', 'Latur']
-                                .map(
-                                  (city) => DropdownMenuItem(
-                                    value: city,
-                                    child: Text(city),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedCity = value;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
             _buildAnimatedTextField(
               controller: _minBudgetController,
               label: 'Min Budget (₹)',
@@ -955,7 +886,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                       Icon(
                         Icons.access_time,
                         color:
-                            isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                            isSelected
+                                ? BuddyTheme.primaryColor
+                                : Colors.grey,
                       ),
                       const SizedBox(width: BuddyTheme.spacingMd),
                       Expanded(
@@ -1460,54 +1393,53 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   }
 
   Widget _buildNavigationButtons() {
-    return Container(
-      padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-      decoration: BoxDecoration(
-        color: cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (_currentStep > 0) ...[
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _previousStep,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingMd,
-                  ),
-                  side: BorderSide(color: BuddyTheme.primaryColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+        decoration: BoxDecoration(
+          color: cardColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            if (_currentStep > 0) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _previousStep,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: BuddyTheme.spacingMd,
+                    ),
+                    side: BorderSide(color: BuddyTheme.primaryColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
-                    const SizedBox(width: BuddyTheme.spacingSm),
-                    Text(
-                      'Previous',
-                      style: TextStyle(color: BuddyTheme.primaryColor),
-                    ),
-                  ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
+                      const SizedBox(width: BuddyTheme.spacingSm),
+                      Text(
+                        'Previous',
+                        style: TextStyle(color: BuddyTheme.primaryColor),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-          ],
-          Expanded(
-            flex: _currentStep == 0 ? 1 : 1,
-            child: ScaleTransition(
-              scale: _fabAnimation,
+              const SizedBox(width: BuddyTheme.spacingMd),
+            ],
+            Expanded(
+              flex: _currentStep == 0 ? 1 : 1,
               child: ElevatedButton(
                 onPressed:
                     _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
@@ -1529,7 +1461,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                   children: [
                     Text(
                       _currentStep == _totalSteps - 1
-                          ? 'Submit Listing'
+                          ? 'Submit Request'
                           : 'Next',
                       style: const TextStyle(
                         color: Colors.white,
@@ -1547,8 +1479,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

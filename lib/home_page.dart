@@ -30,7 +30,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  String _selectedCity = 'Select Location'; // Default to 'Select Location'
   bool _bannersLoaded = false;
 
   void _onItemTapped(int index) {
@@ -56,39 +55,12 @@ class _HomeScreenState extends State<HomeScreen> {
       HomePage(
         key: const Key('home'),
         onTabChange: _onItemTapped,
-        selectedCity: _selectedCity,
-        onCityChanged: _onCityChanged,
         onBannersLoadedChanged: _onBannersLoadedChanged,
       ),
-      NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
-      NeedFlatmatePage(
-        key: const Key('needflatmate'),
-        selectedCity: _selectedCity,
-      ),
+      NeedRoomPage(key: const Key('needroom')),
+      NeedFlatmatePage(key: const Key('needflatmate')),
       ProfilePage(key: const Key('profile')),
     ];
-  }
-
-  void _onCityChanged(String city) {
-    setState(() {
-      _selectedCity = city;
-      // Rebuild _pages to propagate city change
-      _pages = [
-        HomePage(
-          key: const Key('home'),
-          onTabChange: _onItemTapped,
-          selectedCity: _selectedCity,
-          onCityChanged: _onCityChanged,
-          onBannersLoadedChanged: _onBannersLoadedChanged,
-        ),
-        NeedRoomPage(key: const Key('needroom'), selectedCity: _selectedCity),
-        NeedFlatmatePage(
-          key: const Key('needflatmate'),
-          selectedCity: _selectedCity,
-        ),
-        ProfilePage(key: const Key('profile')),
-      ];
-    });
   }
 
   void _showActionSheet(BuildContext context) async {
@@ -155,62 +127,63 @@ class _HomeScreenState extends State<HomeScreen> {
                   : null,
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
-          bottomNavigationBar: _bannersLoaded
-              ? BottomAppBar(
-                  notchMargin: BuddyTheme.spacingSm,
-                  elevation: BuddyTheme.elevationMd,
-                  padding: EdgeInsets.zero,
-                  color: navBarColor,
-                  surfaceTintColor: Colors.transparent,
-                  shadowColor: Colors.black26,
-                  shape: const CircularNotchedRectangle(),
-                  clipBehavior: Clip.antiAlias,
-                  child: Container(
-                    height: 60,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: BuddyTheme.spacingSm,
+          bottomNavigationBar:
+              _bannersLoaded
+                  ? BottomAppBar(
+                    notchMargin: BuddyTheme.spacingSm,
+                    elevation: BuddyTheme.elevationMd,
+                    padding: EdgeInsets.zero,
+                    color: navBarColor,
+                    surfaceTintColor: Colors.transparent,
+                    shadowColor: Colors.black26,
+                    shape: const CircularNotchedRectangle(),
+                    clipBehavior: Clip.antiAlias,
+                    child: Container(
+                      height: 60 + MediaQuery.of(context).padding.bottom,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: BuddyTheme.spacingSm,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildNavItem(
+                            0,
+                            Icons.home_outlined,
+                            Icons.home,
+                            'Home',
+                            navBarIconColor,
+                            navBarSelectedColor,
+                          ),
+                          _buildNavItem(
+                            1,
+                            Icons.hotel_outlined,
+                            Icons.hotel,
+                            'Need\nRoom',
+                            navBarIconColor,
+                            navBarSelectedColor,
+                          ),
+                          if (_selectedIndex == 0) const SizedBox(width: 56),
+                          _buildNavItem(
+                            2,
+                            Icons.group_outlined,
+                            Icons.group,
+                            'Need\nFlatmate',
+                            navBarIconColor,
+                            navBarSelectedColor,
+                          ),
+                          _buildNavItem(
+                            3,
+                            Icons.person_outline,
+                            Icons.person,
+                            'Profile',
+                            navBarIconColor,
+                            navBarSelectedColor,
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildNavItem(
-                          0,
-                          Icons.home_outlined,
-                          Icons.home,
-                          'Home',
-                          navBarIconColor,
-                          navBarSelectedColor,
-                        ),
-                        _buildNavItem(
-                          1,
-                          Icons.hotel_outlined,
-                          Icons.hotel,
-                          'Need\nRoom',
-                          navBarIconColor,
-                          navBarSelectedColor,
-                        ),
-                        if (_selectedIndex == 0) const SizedBox(width: 56),
-                        _buildNavItem(
-                          2,
-                          Icons.group_outlined,
-                          Icons.group,
-                          'Need\nFlatmate',
-                          navBarIconColor,
-                          navBarSelectedColor,
-                        ),
-                        _buildNavItem(
-                          3,
-                          Icons.person_outline,
-                          Icons.person,
-                          'Profile',
-                          navBarIconColor,
-                          navBarSelectedColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : null,
+                  )
+                  : null,
         ),
       ),
     );
@@ -260,15 +233,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class HomePage extends StatefulWidget {
   final void Function(int)? onTabChange;
-  final String selectedCity;
-  final ValueChanged<String> onCityChanged;
   final ValueChanged<bool>? onBannersLoadedChanged;
 
   const HomePage({
     super.key,
     this.onTabChange,
-    required this.selectedCity,
-    required this.onCityChanged,
     this.onBannersLoadedChanged,
   });
 
@@ -748,7 +717,7 @@ class _HomePageState extends State<HomePage>
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            widget.selectedCity,
+                            'Select Location',
                             style: theme.textTheme.bodyMedium!.copyWith(
                               color:
                                   theme.brightness == Brightness.dark
@@ -915,7 +884,7 @@ class _HomePageState extends State<HomePage>
       builder: (BuildContext context) {
         return Container(
           height: 360,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -925,14 +894,14 @@ class _HomePageState extends State<HomePage>
                   context,
                 ).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 5),
               ...['Select Location', 'Pune', 'Mumbai', 'Nanded', 'Latur'].map(
                 (city) => ListTile(
                   leading: const Icon(Icons.location_city),
                   title: Text(city),
                   onTap: () {
                     setState(() {
-                      widget.onCityChanged(city);
+                      // No need to update _pages or _selectedIndex
                     });
                     Navigator.pop(context);
                   },
@@ -945,13 +914,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // Example usage in a listing widget (pseudo-code):
-  // if (widget.selectedCity == 'Select Location') {
-  //   // Show all listings from all cities
-  // } else {
-  //   // Filter listings by widget.selectedCity
-  // }
-
   Widget _buildHostelsBannerSection(BuildContext context) {
     final theme = Theme.of(context);
 
@@ -960,7 +922,7 @@ class _HomePageState extends State<HomePage>
           () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => HostelPgPage(selectedCity: widget.selectedCity),
+              builder: (_) => HostelPgPage(),
             ),
           ),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),
@@ -1290,7 +1252,7 @@ class _HomePageState extends State<HomePage>
           () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ServicesPage(selectedCity: widget.selectedCity),
+              builder: (_) => ServicesPage(),
             ),
           ),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),

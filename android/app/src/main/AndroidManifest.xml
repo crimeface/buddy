@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permissions for geolocator -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- For background location (optional, only if needed) -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
+
     <application
         android:label="buddy"
         android:name="${applicationName}"
@@ -33,6 +39,8 @@
         <meta-data
         android:name="com.google.firebase.messaging.default_notification_channel_id"
         android:value="high_importance_channel" />
+        <meta-data android:name="com.google.android.geo.API_KEY"
+                   android:value="AIzaSyCD4EL2AxcBHHB6xlj7PY7hzx-QjQ8iTM8"/>
 
     </application>
     <!-- Required to query activities that can process text, see:

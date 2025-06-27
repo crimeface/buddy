@@ -7,8 +7,7 @@ import 'theme.dart';
 import 'display pages/service_details.dart';
 
 class ServicesPage extends StatefulWidget {
-  final String selectedCity;
-  const ServicesPage({Key? key, required this.selectedCity}) : super(key: key);
+  const ServicesPage({Key? key}) : super(key: key);
 
   @override
   State<ServicesPage> createState() => _ServicesPageState();
@@ -43,9 +42,6 @@ class _ServicesPageState extends State<ServicesPage> {
       var query = FirebaseFirestore.instance
           .collection('service_listings')
           .where('visibility', isEqualTo: true);
-      if (widget.selectedCity.isNotEmpty && widget.selectedCity != 'All Cities') {
-        query = query.where('city', isEqualTo: widget.selectedCity);
-      }
       final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loaded = [];

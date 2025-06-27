@@ -1,3 +1,4 @@
+import 'package:buddy/api/map_location_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
@@ -7,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart' show FieldValue;
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/firebase_storage_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geoflutterfire2/geoflutterfire2.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -34,8 +37,6 @@ class _ListRoomFormState extends State<ListRoomForm>
   // Flat Details
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
-  final _locationUrlController =
-      TextEditingController(); // Not used in this example
   final _rentController = TextEditingController();
   final _depositController = TextEditingController();
   final _brokerageController = TextEditingController(); // Added controller
@@ -111,8 +112,7 @@ class _ListRoomFormState extends State<ListRoomForm>
   late Color textPrimary;
   late Color textSecondary;
 
-  // New variable for city selection
-  String _selectedCity = 'Pune'; // Add this for city dropdown
+  LatLng? _pickedLocation;
 
   @override
   void initState() {
@@ -180,7 +180,6 @@ class _ListRoomFormState extends State<ListRoomForm>
     _fabAnimationController.dispose();
     _titleController.dispose();
     _locationController.dispose();
-    _locationUrlController.dispose();
     _rentController.dispose();
     _depositController.dispose();
     _brokerageController.dispose();
@@ -188,7 +187,6 @@ class _ListRoomFormState extends State<ListRoomForm>
     _phoneController.dispose();
     _emailController.dispose();
     _notesController.dispose();
-    _nameController.dispose(); // Dispose the controller
     super.dispose();
   }
 
@@ -251,8 +249,6 @@ class _ListRoomFormState extends State<ListRoomForm>
       'userId': userId ?? 'anonymous',
       'title': _titleController.text,
       'location': _locationController.text,
-      'locationUrl': _locationUrlController.text,
-      'city': _selectedCity, // Add city to form data
       'rent': _rentController.text,
       'deposit': _depositController.text,
       'brokerage': _brokerageController.text,
@@ -291,7 +287,8 @@ class _ListRoomFormState extends State<ListRoomForm>
     };
 
     try {
-      await FirebaseFirestore.instance.collection('room_listings').add(data);
+      final newRoomDocRef = await FirebaseFirestore.instance.collection('room_listings').add(data);
+      final newRoomDocId = newRoomDocRef.id;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -303,6 +300,21 @@ class _ListRoomFormState extends State<ListRoomForm>
           ),
         ),
       );
+
+      final geo = GeoFlutterFire();
+      if (_pickedLocation != null) {
+        final geoPoint = geo.point(
+          latitude: _pickedLocation!.latitude,
+          longitude: _pickedLocation!.longitude,
+        );
+        await FirebaseFirestore.instance
+            .collection('room_listings')
+            .doc(newRoomDocId)
+            .set({
+              'position': geoPoint.data,
+            }, SetOptions(merge: true));
+      }
+
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -620,81 +632,31 @@ class _ListRoomFormState extends State<ListRoomForm>
 
             const SizedBox(height: BuddyTheme.spacingXl),
 
-            _buildAnimatedTextField(
-              controller: _locationUrlController,
-              label: 'Location URL (Optional)',
-              hint: 'Enter Location link from Google Maps',
-              icon: Icons.location_on_outlined,
-              maxLines: 2,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            // City Dropdown
-            TweenAnimationBuilder(
-              duration: const Duration(milliseconds: 500),
-              tween: Tween<double>(begin: 0.0, end: 1.0),
-              builder:
-                  (context, value, child) => Transform.scale(
-                    scale: 0.8 + (0.2 * value),
-                    child: Opacity(
-                      opacity: value,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(
-                            BuddyTheme.borderRadiusMd,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedCity,
-                          decoration: InputDecoration(
-                            labelText: 'City',
-                            prefixIcon: Icon(
-                              Icons.location_city,
-                              color: BuddyTheme.primaryColor,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                BuddyTheme.borderRadiusMd,
-                              ),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: cardColor,
-                          ),
-                          items:
-                              ['Pune', 'Mumbai', 'Nanded', 'Latur']
-                                  .map(
-                                    (city) => DropdownMenuItem(
-                                      value: city,
-                                      child: Text(city),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedCity = value;
-                              });
-                            }
-                          },
-                        ),
-                      ),
+            // Map Picker Button for Location
+            ElevatedButton.icon(
+              icon: Icon(Icons.map),
+              label: Text(_pickedLocation == null ? 'Pick Location on Map' : 'Location Selected'),
+              onPressed: () async {
+                final LatLng? result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MapLocationPicker(
+                      initialLocation: _pickedLocation,
                     ),
                   ),
+                );
+                if (result != null) {
+                  setState(() {
+                    _pickedLocation = result;
+                  });
+                }
+              },
             ),
+            if (_pickedLocation != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Selected: \\${_pickedLocation!.latitude}, \\${_pickedLocation!.longitude}'),
+              ),
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
@@ -2024,95 +1986,97 @@ class _ListRoomFormState extends State<ListRoomForm>
   }
 
   Widget _buildNavigationButtons() {
-    return Container(
-      padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-      decoration: BoxDecoration(
-        color: cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (_currentStep > 0) ...[
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _previousStep,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingMd,
-                  ),
-                  side: BorderSide(color: BuddyTheme.primaryColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
-                    const SizedBox(width: BuddyTheme.spacingSm),
-                    Text(
-                      'Previous',
-                      style: TextStyle(color: BuddyTheme.primaryColor),
-                    ),
-                  ],
-                ),
-              ),
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+        decoration: BoxDecoration(
+          color: cardColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
-            const SizedBox(width: BuddyTheme.spacingMd),
           ],
-          Expanded(
-            flex: _currentStep == 0 ? 1 : 1,
-            child: ScaleTransition(
-              scale: _fabAnimation,
-              child: ElevatedButton(
-                onPressed:
-                    _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BuddyTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingMd,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusMd,
+        ),
+        child: Row(
+          children: [
+            if (_currentStep > 0) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _previousStep,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: BuddyTheme.spacingMd,
                     ),
-                  ),
-                  elevation: 2,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _currentStep == _totalSteps - 1
-                          ? 'Submit Listing'
-                          : 'Next',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                    side: BorderSide(color: BuddyTheme.primaryColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
                       ),
                     ),
-                    const SizedBox(width: BuddyTheme.spacingXs),
-                    Icon(
-                      _currentStep == _totalSteps - 1
-                          ? Icons.check
-                          : Icons.arrow_forward,
-                      color: cardColor,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
+                      const SizedBox(width: BuddyTheme.spacingSm),
+                      Text(
+                        'Previous',
+                        style: TextStyle(color: BuddyTheme.primaryColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: BuddyTheme.spacingMd),
+            ],
+            Expanded(
+              flex: _currentStep == 0 ? 1 : 1,
+              child: ScaleTransition(
+                scale: _fabAnimation,
+                child: ElevatedButton(
+                  onPressed:
+                      _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: BuddyTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: BuddyTheme.spacingMd,
                     ),
-                  ],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _currentStep == _totalSteps - 1
+                            ? 'Submit Listing'
+                            : 'Next',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: BuddyTheme.spacingXs),
+                      Icon(
+                        _currentStep == _totalSteps - 1
+                            ? Icons.check
+                            : Icons.arrow_forward,
+                        color: cardColor,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

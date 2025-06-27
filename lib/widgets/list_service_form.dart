@@ -105,9 +105,6 @@ class _ListServiceFormState extends State<ListServiceForm>
   late Color textPrimary;
   late Color textSecondary;
 
-  // New variable for city selection
-  String _selectedCity = 'Pune';
-
   @override
   void initState() {
     super.initState();
@@ -323,7 +320,6 @@ class _ListServiceFormState extends State<ListServiceForm>
       'serviceName': _serviceNameController.text,
       'location': _locationController.text,
       'mapLink': _mapLinkController.text,
-      'city': _selectedCity, // Add city to form data
       'description': _descriptionController.text,
       'contact': _contactController.text,
       'email': _emailController.text,
@@ -593,75 +589,6 @@ class _ListServiceFormState extends State<ListServiceForm>
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
-            // City Dropdown
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 400),
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: value,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedCity,
-                        decoration: InputDecoration(
-                          labelText: 'City',
-                          prefixIcon: Icon(
-                            Icons.location_city,
-                            color: BuddyTheme.primaryColor,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              BuddyTheme.borderRadiusMd,
-                            ),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: cardColor,
-                        ),
-                        items:
-                            ['Pune', 'Mumbai', 'Nanded', 'Latur']
-                                .map(
-                                  (city) => DropdownMenuItem(
-                                    value: city,
-                                    child: Text(city),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedCity = value;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
             _buildAnimatedTextField(
               controller: _descriptionController,
               label: 'Description',
@@ -864,7 +791,9 @@ class _ListServiceFormState extends State<ListServiceForm>
                       Icon(
                         Icons.access_time,
                         color:
-                            isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                            isSelected
+                                ? BuddyTheme.primaryColor
+                                : Colors.grey,
                       ),
                       const SizedBox(width: BuddyTheme.spacingMd),
                       Expanded(
@@ -1836,97 +1765,94 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   Widget _buildNavigationButtons() {
-    return Container(
-      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-      decoration: BoxDecoration(
-        color: cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (_currentStep > 0)
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+        decoration: BoxDecoration(
+          color: cardColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            if (_currentStep > 0) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _previousStep,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: BuddyTheme.spacingMd,
+                    ),
+                    side: BorderSide(color: BuddyTheme.primaryColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
+                      const SizedBox(width: BuddyTheme.spacingSm),
+                      Text(
+                        'Previous',
+                        style: TextStyle(color: BuddyTheme.primaryColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: BuddyTheme.spacingMd),
+            ],
             Expanded(
-              child: OutlinedButton(
-                onPressed: _previousStep,
-                style: OutlinedButton.styleFrom(
+              flex: _currentStep == 0 ? 1 : 1,
+              child: ElevatedButton(
+                onPressed:
+                    _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BuddyTheme.primaryColor,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     vertical: BuddyTheme.spacingMd,
                   ),
-                  side: BorderSide(color: BuddyTheme.primaryColor),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusSm,
+                      BuddyTheme.borderRadiusMd,
                     ),
                   ),
+                  elevation: 2,
                 ),
-                child: Text(
-                  'Previous',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: BuddyTheme.primaryColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          if (_currentStep > 0) const SizedBox(width: BuddyTheme.spacingMd),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                if (_currentStep == _totalSteps - 1) {
-                  if (_formKey.currentState?.validate() ?? false) {
-                    _submitForm(); // This submits to Firebase
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please fill in all required fields'),
-                        backgroundColor: Colors.red,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _currentStep == _totalSteps - 1
+                          ? 'Submit Listing'
+                          : 'Next',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
-                    );
-                  }
-                } else {
-                  _nextStep();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BuddyTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  vertical: BuddyTheme.spacingMd,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    BuddyTheme.borderRadiusSm,
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _currentStep == _totalSteps - 1 ? 'Submit Listing' : 'Next',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                  const SizedBox(width: BuddyTheme.spacingXs),
-                  Icon(
-                    _currentStep == _totalSteps - 1
-                        ? Icons.check
-                        : Icons.arrow_forward,
-                    color: cardColor,
-                  ),
-                ],
+                    const SizedBox(width: BuddyTheme.spacingXs),
+                    Icon(
+                      _currentStep == _totalSteps - 1
+                          ? Icons.check
+                          : Icons.arrow_forward,
+                      color: cardColor,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

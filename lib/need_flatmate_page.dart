@@ -8,8 +8,7 @@ import 'display pages/flatmate_details.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NeedFlatmatePage extends StatefulWidget {
-  final String selectedCity;
-  const NeedFlatmatePage({super.key, required this.selectedCity});
+  const NeedFlatmatePage({super.key});
 
   @override
   State<NeedFlatmatePage> createState() => _NeedFlatmatePageState();
@@ -58,11 +57,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
         statusBarBrightness: Brightness.dark, // for iOS
       ),
     );
-    _selectedLocation =
-        (widget.selectedCity.isNotEmpty &&
-                widget.selectedCity != 'Select Location')
-            ? widget.selectedCity
-            : 'All Cities';
+    _selectedLocation = 'All Cities';
     _fetchFlatmates();
   }
 
@@ -75,11 +70,6 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       var query = FirebaseFirestore.instance
           .collection('roomRequests')
           .where('visibility', isEqualTo: true);
-      if (widget.selectedCity.isNotEmpty &&
-          widget.selectedCity != 'All Cities' &&
-          widget.selectedCity != 'Select Location') {
-        query = query.where('city', isEqualTo: widget.selectedCity);
-      }
       final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loaded = [];
@@ -239,6 +229,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                   ),
                   const SizedBox(height: BuddyTheme.spacingSm),
                   ..._buildFlatmateListings(context, cardColor, labelColor),
+                  SizedBox(height: MediaQuery.of(context).padding.bottom),
                 ],
               ),
             ),

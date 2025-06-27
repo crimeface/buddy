@@ -6,6 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart'; // Add this import at the top
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geoflutterfire2/geoflutterfire2.dart';
+import '../../api/map_location_picker.dart';
 
 class ListHostelForm extends StatefulWidget {
   ListHostelForm({Key? key}) : super(key: key) {}
@@ -110,8 +113,7 @@ class _ListHostelFormState extends State<ListHostelForm>
   late Color textPrimary;
   late Color textSecondary;
 
-  // New variable for city selection
-  String _selectedCity = 'Pune'; // Add this for city dropdown
+  LatLng? _pickedLocation;
 
   @override
   void initState() {
@@ -335,7 +337,6 @@ class _ListHostelFormState extends State<ListHostelForm>
       'phone': _phoneController.text,
       'email': _emailController.text,
       'address': _addressController.text,
-      'city': _selectedCity, // Add city to form data
       'landmark': _landmarkController.text,
       'mapLink': _mapLinkController.text,
       'roomTypes': _roomTypes,
@@ -358,6 +359,9 @@ class _ListHostelFormState extends State<ListHostelForm>
       'selectedPlan': _selectedPlan,
       'expiryDate': expiryDate.toIso8601String(),
       'visibility': true,
+      'pickedLocation': _pickedLocation != null
+          ? {'lat': _pickedLocation!.latitude, 'lng': _pickedLocation!.longitude}
+          : null,
     };
 
     try {
@@ -563,74 +567,6 @@ class _ListHostelFormState extends State<ListHostelForm>
             ),
             const SizedBox(height: BuddyTheme.spacingLg),
 
-            // City Dropdown
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 400),
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: value,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedCity,
-                        decoration: InputDecoration(
-                          labelText: 'City',
-                          prefixIcon: Icon(
-                            Icons.location_city,
-                            color: BuddyTheme.primaryColor,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              BuddyTheme.borderRadiusMd,
-                            ),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: cardColor,
-                        ),
-                        items:
-                            ['Pune', 'Mumbai', 'Nanded', 'Latur']
-                                .map(
-                                  (city) => DropdownMenuItem(
-                                    value: city,
-                                    child: Text(city),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedCity = value;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: BuddyTheme.spacingLg),
-
             _buildAnimatedTextField(
               controller: _landmarkController,
               label: 'Landmark / Nearby Institute',
@@ -645,6 +581,33 @@ class _ListHostelFormState extends State<ListHostelForm>
               hint: 'Paste Google Maps link',
               icon: Icons.map,
             ),
+            const SizedBox(height: BuddyTheme.spacingLg),
+
+            // Pick Location from Map Button
+            ElevatedButton.icon(
+              icon: Icon(Icons.map),
+              label: Text(_pickedLocation == null ? 'Pick Location on Map' : 'Location Selected'),
+              onPressed: () async {
+                final LatLng? result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MapLocationPicker(
+                      initialLocation: _pickedLocation,
+                    ),
+                  ),
+                );
+                if (result != null) {
+                  setState(() {
+                    _pickedLocation = result;
+                  });
+                }
+              },
+            ),
+            if (_pickedLocation != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Selected: \\${_pickedLocation!.latitude}, \\${_pickedLocation!.longitude}'),
+              ),
           ],
         ),
       ),
@@ -1048,7 +1011,9 @@ class _ListHostelFormState extends State<ListHostelForm>
                       Icon(
                         Icons.access_time,
                         color:
-                            isSelected ? BuddyTheme.primaryColor : Colors.grey,
+                            isSelected
+                                ? BuddyTheme.primaryColor
+                                : Colors.grey,
                       ),
                       const SizedBox(width: BuddyTheme.spacingMd),
                       Expanded(
@@ -1431,7 +1396,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1684,150 +1649,143 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
 
   Widget _buildPhotoUploadSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Property Photos',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: textPrimary,
-          ),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Property Photos',
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
         ),
-        const SizedBox(height: BuddyTheme.spacingSm),
-        Text(
-          'Add photos of different areas (${_uploadedPhotos.length} uploaded)',
-          style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
+      ),
+      const SizedBox(height: BuddyTheme.spacingSm),
+      Text(
+        'Add photos of different areas (${_uploadedPhotos.length} uploaded)',
+        style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
+      ),
+      const SizedBox(height: BuddyTheme.spacingMd),
+      GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 1.2,
+          crossAxisSpacing: BuddyTheme.spacingSm,
+          mainAxisSpacing: BuddyTheme.spacingSm,
         ),
-        const SizedBox(height: BuddyTheme.spacingMd),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: BuddyTheme.spacingSm,
-            mainAxisSpacing: BuddyTheme.spacingSm,
-          ),
-          itemCount: _requiredPhotoTypes.length,
-          itemBuilder: (context, index) {
-            String photoType = _requiredPhotoTypes[index];
-            String? photoUrl = _uploadedPhotos[photoType];
+        itemCount: _requiredPhotoTypes.length,
+        itemBuilder: (context, index) {
+          String photoType = _requiredPhotoTypes[index];
+          String? photoUrl = _uploadedPhotos[photoType];
 
-            return TweenAnimationBuilder<double>(
-              duration: Duration(milliseconds: 300 + (index * 100)),
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: value,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _pickAndUploadPhoto(photoType),
-                        borderRadius: BorderRadius.circular(
-                          BuddyTheme.borderRadiusMd,
+          return TweenAnimationBuilder<double>(
+            duration: Duration(milliseconds: 300 + (index * 100)),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: 0.8 + (0.2 * value),
+                child: Opacity(
+                  opacity: value,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _pickAndUploadPhoto(photoType),
+                      borderRadius:
+                          BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: photoUrl != null
+                              ? BuddyTheme.primaryColor.withOpacity(0.1)
+                              : cardColor,
+                          borderRadius:
+                              BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                          border: Border.all(
+                            color: photoUrl != null
+                                ? BuddyTheme.primaryColor
+                                : BuddyTheme.borderColor,
+                            style: photoUrl != null
+                                ? BorderStyle.solid
+                                : BorderStyle.none,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color:
-                                photoUrl != null
-                                    ? BuddyTheme.primaryColor.withOpacity(0.1)
-                                    : cardColor,
-                            borderRadius: BorderRadius.circular(
-                              BuddyTheme.borderRadiusMd,
-                            ),
-                            border: Border.all(
-                              color:
-                                  photoUrl != null
-                                      ? BuddyTheme.primaryColor
-                                      : BuddyTheme.borderColor,
-                              style:
-                                  photoUrl != null
-                                      ? BorderStyle.solid
-                                      : BorderStyle.none,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (photoUrl != null)
-                                Expanded(
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(
-                                      BuddyTheme.borderRadiusSm,
-                                    ),
-                                    child: Image.network(
-                                      photoUrl,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Icon(
-                                                Icons.broken_image,
-                                                size: 32,
-                                              ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (photoUrl != null)
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                      BuddyTheme.borderRadiusSm),
+                                  child: Image.network(
+                                    photoUrl,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(
+                                      Icons.broken_image,
+                                      size: 32,
                                     ),
                                   ),
-                                )
-                              else
-                                Icon(
-                                  Icons.add_a_photo_outlined,
-                                  size: 32,
-                                  color: textSecondary,
                                 ),
-                              const SizedBox(height: BuddyTheme.spacingSm),
+                              )
+                            else
+                              Icon(
+                                Icons.add_a_photo_outlined,
+                                size: 32,
+                                color: textSecondary,
+                              ),
+                            const SizedBox(height: BuddyTheme.spacingSm),
+                            Text(
+                              photoType,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: photoUrl != null
+                                    ? BuddyTheme.primaryColor
+                                    : textSecondary,
+                                fontWeight: photoUrl != null
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            if (photoUrl != null) ...[
+                              const SizedBox(height: BuddyTheme.spacingXs),
                               Text(
-                                photoType,
+                                'Tap to change',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color:
-                                      photoUrl != null
-                                          ? BuddyTheme.primaryColor
-                                          : textSecondary,
-                                  fontWeight:
-                                      photoUrl != null
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
+                                  color: textSecondary,
+                                  fontSize: 10,
                                 ),
                               ),
-                              if (photoUrl != null) ...[
-                                const SizedBox(height: BuddyTheme.spacingXs),
-                                Text(
-                                  'Tap to change',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: textSecondary,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
                             ],
-                          ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                );
-              },
-            );
-          },
-        ),
-      ],
-    );
-  }
+                ),
+              );
+            },
+          );
+        },
+      ),
+    ],
+  );
+}
+
 
   Widget _buildPreviewCard() {
     return TweenAnimationBuilder<double>(
@@ -1922,8 +1880,6 @@ class _ListHostelFormState extends State<ListHostelForm>
                     _buildPreviewItem('Phone', _phoneController.text),
                     _buildPreviewItem('Email', _emailController.text),
                     _buildPreviewItem('Address', _addressController.text),
-                    _buildPreviewItem('City', _selectedCity),
-                    _buildPreviewItem('Landmark', _landmarkController.text),
                   ]),
 
                   const SizedBox(height: BuddyTheme.spacingMd),
@@ -2076,8 +2032,7 @@ class _ListHostelFormState extends State<ListHostelForm>
   }
 
   Widget _buildNavigationButtons() {
-    return ScaleTransition(
-      scale: _fabAnimation,
+    return SafeArea(
       child: Container(
         padding: const EdgeInsets.all(BuddyTheme.spacingLg),
         decoration: BoxDecoration(
@@ -2103,7 +2058,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                     side: BorderSide(color: BuddyTheme.primaryColor),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(
-                        BuddyTheme.borderRadiusSm,
+                        BuddyTheme.borderRadiusMd,
                       ),
                     ),
                   ),
@@ -2111,7 +2066,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.arrow_back, color: BuddyTheme.primaryColor),
-                      const SizedBox(width: BuddyTheme.spacingXs),
+                      const SizedBox(width: BuddyTheme.spacingSm),
                       Text(
                         'Previous',
                         style: TextStyle(color: BuddyTheme.primaryColor),
@@ -2122,43 +2077,47 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
               const SizedBox(width: BuddyTheme.spacingMd),
             ],
-
             Expanded(
               flex: _currentStep == 0 ? 1 : 1,
-              child: ElevatedButton(
-                onPressed:
-                    _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BuddyTheme.primaryColor,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: BuddyTheme.spacingMd,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusSm,
+              child: ScaleTransition(
+                scale: _fabAnimation,
+                child: ElevatedButton(
+                  onPressed:
+                      _currentStep == _totalSteps - 1 ? _submitForm : _nextStep,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: BuddyTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: BuddyTheme.spacingMd,
                     ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _currentStep == _totalSteps - 1
-                          ? 'Submit Listing'
-                          : 'Next',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusMd,
                       ),
                     ),
-                    const SizedBox(width: BuddyTheme.spacingXs),
-                    Icon(
-                      _currentStep == _totalSteps - 1
-                          ? Icons.check
-                          : Icons.arrow_forward,
-                      color: cardColor,
-                    ),
-                  ],
+                    elevation: 2,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _currentStep == _totalSteps - 1
+                            ? 'Submit Listing'
+                            : 'Next',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: BuddyTheme.spacingXs),
+                      Icon(
+                        _currentStep == _totalSteps - 1
+                            ? Icons.check
+                            : Icons.arrow_forward,
+                        color: cardColor,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -7,8 +7,7 @@ import 'main.dart'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NeedRoomPage extends StatefulWidget {
-  final String selectedCity;
-  const NeedRoomPage({Key? key, required this.selectedCity}) : super(key: key);
+  const NeedRoomPage({Key? key}) : super(key: key);
 
   @override
   State<NeedRoomPage> createState() => _NeedRoomPageState();
@@ -83,11 +82,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   void _initializeFilters() {
     if (mounted) {
       setState(() {
-        _selectedLocation =
-            (widget.selectedCity.isNotEmpty &&
-                    widget.selectedCity != 'Select Location')
-                ? widget.selectedCity
-                : 'All Cities';
+        _selectedLocation = 'All Cities';
         _selectedPriceRange = 'All Prices';
         _selectedRoomType = 'All Types';
         _selectedFlatSize = 'All Sizes';
@@ -109,11 +104,6 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       var query = FirebaseFirestore.instance
           .collection('room_listings')
           .where('visibility', isEqualTo: true);
-      if (widget.selectedCity.isNotEmpty &&
-          widget.selectedCity != 'All Cities' &&
-          widget.selectedCity != 'Select Location') {
-        query = query.where('city', isEqualTo: widget.selectedCity);
-      }
       final querySnapshot = await query.get();
 
       final List<Map<String, dynamic>> loadedRooms = [];
@@ -390,7 +380,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                                       ),
                                     )
                                     .toList()),
-                            const SizedBox(height: BuddyTheme.spacingMd),
+                            SizedBox(height: BuddyTheme.spacingMd + MediaQuery.of(context).padding.bottom),
                           ],
                         ),
                       ),
