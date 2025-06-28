@@ -4,7 +4,6 @@ import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'display pages/service_details.dart';
 import 'theme.dart';
-import 'display pages/service_details.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({Key? key}) : super(key: key);
@@ -46,11 +45,11 @@ class _ServicesPageState extends State<ServicesPage> {
 
       final List<Map<String, dynamic>> loaded = [];
       final batch = FirebaseFirestore.instance.batch();
-      
+
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
         DateTime? expiryDate;
-        
+
         // Handle different expiry date formats
         if (data['expiryDate'] != null) {
           if (data['expiryDate'] is Timestamp) {
@@ -62,10 +61,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
         // If expired, update visibility to false
         if (expiryDate != null && expiryDate.isBefore(now)) {
-          batch.update(
-            doc.reference,
-            {'visibility': false}
-          );
+          batch.update(doc.reference, {'visibility': false});
           continue; // Skip adding to loaded list since it's expired
         }
 
@@ -85,7 +81,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
       // Commit all visibility updates
       await batch.commit();
-      
+
       // Sort services by createdAt timestamp, newest first
       loaded.sort((a, b) {
         var aTime = a['createdAt'];
@@ -120,9 +116,9 @@ class _ServicesPageState extends State<ServicesPage> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load services: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load services: $e')));
       }
     }
   }
@@ -457,7 +453,8 @@ class _ServicesPageState extends State<ServicesPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceDetailsScreen(serviceId: service['key']),
+            builder:
+                (context) => ServiceDetailsScreen(serviceId: service['key']),
           ),
         );
       },
@@ -644,7 +641,10 @@ class _ServicesPageState extends State<ServicesPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ServiceDetailsScreen(serviceId: service['key']),
+                                builder:
+                                    (context) => ServiceDetailsScreen(
+                                      serviceId: service['key'],
+                                    ),
                               ),
                             );
                           },
@@ -667,7 +667,7 @@ class _ServicesPageState extends State<ServicesPage> {
             ),
           ],
         ),
-        ),
+      ),
     );
   }
 }

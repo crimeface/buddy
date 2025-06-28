@@ -1,3 +1,4 @@
+import 'package:buddy/api/map_location_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme.dart';
@@ -16,6 +17,9 @@ import 'package:image_picker/image_picker.dart';
 import 'Hostelpg_page.dart';
 import 'service_page.dart';
 import 'splash_screen.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geoflutterfire2/geoflutterfire2.dart';
+import 'features_map_search_page.dart';
 
 export 'profile_page.dart';
 export 'need_room_page.dart';
@@ -733,70 +737,160 @@ class _HomePageState extends State<HomePage>
                 ),
               ),
               // Profile Avatar with black circle border and tap functionality
-              GestureDetector(
-                onTap:
-                    () =>
-                        widget.onTabChange?.call(3), // Navigate to Profile tab
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color:
-                          theme.brightness == Brightness.dark
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () => widget.onTabChange?.call(3),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.brightness == Brightness.dark
                               ? Colors.white.withOpacity(0.4)
                               : Colors.black.withOpacity(0.4),
-                      width: 2,
-                    ),
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color:
-                          theme.brightness == Brightness.dark
+                          width: 2,
+                        ),
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: theme.brightness == Brightness.dark
                               ? Colors.white.withOpacity(0.1)
                               : Colors.black.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: ClipOval(
-                      child:
-                          _profileImageUrl != null
+                          shape: BoxShape.circle,
+                        ),
+                        child: ClipOval(
+                          child: _profileImageUrl != null
                               ? CachedNetworkImage(
-                                imageUrl: _profileImageUrl!,
-                                width: 44,
-                                height: 44,
-                                fit: BoxFit.cover,
-                                placeholder:
-                                    (context, url) => Container(
-                                      color: theme.colorScheme.surfaceVariant,
-                                      child: Icon(
-                                        Icons.person,
-                                        color: theme.colorScheme.primary,
-                                        size: 24,
-                                      ),
+                                  imageUrl: _profileImageUrl!,
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: theme.colorScheme.surfaceVariant,
+                                    child: Icon(
+                                      Icons.person,
+                                      color: theme.colorScheme.primary,
+                                      size: 24,
                                     ),
-                                errorWidget:
-                                    (context, url, error) => Container(
-                                      color: theme.colorScheme.surfaceVariant,
-                                      child: Icon(
-                                        Icons.person,
-                                        color: theme.colorScheme.primary,
-                                        size: 24,
-                                      ),
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: theme.colorScheme.surfaceVariant,
+                                    child: Icon(
+                                      Icons.person,
+                                      color: theme.colorScheme.primary,
+                                      size: 24,
                                     ),
-                              )
+                                  ),
+                                )
                               : Container(
-                                color: theme.colorScheme.surfaceVariant,
-                                child: Icon(
-                                  Icons.person,
-                                  color: theme.colorScheme.primary,
-                                  size: 24,
+                                  color: theme.colorScheme.surfaceVariant,
+                                  child: Icon(
+                                    Icons.person,
+                                    color: theme.colorScheme.primary,
+                                    size: 24,
+                                  ),
                                 ),
-                              ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  // Map Pin Button
+                  Material(
+                    color: Colors.transparent,
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      icon: const Icon(Icons.pin_drop, color: Colors.white),
+                      tooltip: 'Search Nearby',
+                      onPressed: () async {
+                        double radius = 3;
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) {
+                            return StatefulBuilder(
+                              builder: (context, setState) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                                  ),
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.pin_drop, color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Text('Set Search Radius', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Text('Radius: \\${radius.toStringAsFixed(1)} km', style: const TextStyle(color: Colors.white)),
+                                      Slider(
+                                        value: radius,
+                                        min: 1,
+                                        max: 10,
+                                        divisions: 9,
+                                        label: '\\${radius.toStringAsFixed(1)} km',
+                                        onChanged: (v) => setState(() => radius = v),
+                                        activeColor: Colors.white,
+                                        inactiveColor: Colors.white24,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          icon: const Icon(Icons.map, color: Colors.white),
+                                          label: const Text('Drop Pin on Map', style: TextStyle(color: Colors.white)),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: BuddyTheme.primaryColor,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                          onPressed: () {
+                                            Navigator.pop(context, radius);
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ).then((selectedRadius) async {
+                          if (selectedRadius != null) {
+                            // Show map for pin drop
+                            final LatLng? picked = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MapLocationPicker(),
+                              ),
+                            );
+                            if (picked != null) {
+                              // Navigate to the new features map search page
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FeaturesMapSearchPage(
+                                    center: picked,
+                                    radiusKm: selectedRadius,
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

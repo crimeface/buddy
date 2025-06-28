@@ -10,6 +10,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/firebase_storage_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geoflutterfire2/geoflutterfire2.dart';
+import 'location_autocomplete_field.dart';
+import '../api/maptiler_autocomplete.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -622,12 +624,20 @@ class _ListRoomFormState extends State<ListRoomForm>
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
 
-            _buildAnimatedTextField(
+            LocationAutocompleteField(
               controller: _locationController,
               label: 'Location',
-              hint: 'Enter exact address or locality',
+              hint: 'Start typing to search for locations...',
               icon: Icons.location_on_outlined,
               maxLines: 2,
+              onLocationSelected: (result) {
+                // Update the picked location if coordinates are available
+                if (result.latitude != null && result.longitude != null) {
+                  setState(() {
+                    _pickedLocation = LatLng(result.latitude!, result.longitude!);
+                  });
+                }
+              },
             ),
 
             const SizedBox(height: BuddyTheme.spacingXl),
@@ -655,7 +665,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             if (_pickedLocation != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Selected: \\${_pickedLocation!.latitude}, \\${_pickedLocation!.longitude}'),
+                child: Text('Selected: ${_pickedLocation!.latitude}, ${_pickedLocation!.longitude}'),
               ),
 
             const SizedBox(height: BuddyTheme.spacingLg),

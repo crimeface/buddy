@@ -1,3 +1,4 @@
+import 'package:buddy/display%20pages/service_details.dart';
 import 'package:buddy/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -109,6 +110,13 @@ class BuddyApp extends StatelessWidget {
                   as Map<String, dynamic>?;
           final propertyId = args?['propertyId'] as String? ?? '';
           return PropertyDetailsScreen(propertyId: propertyId);
+        },
+        '/service_details': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
+          final serviceId = args?['serviceId'] as String? ?? '';
+          return ServiceDetailsScreen(serviceId: serviceId);
         },
         '/editService': (context) {
           final args =

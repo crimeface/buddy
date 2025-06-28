@@ -5,6 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geoflutterfire2/geoflutterfire2.dart';
+import '../api/map_location_picker.dart';
+import 'location_autocomplete_field.dart';
+import '../api/maptiler_autocomplete.dart';
 
 class ListServiceForm extends StatefulWidget {
   const ListServiceForm({Key? key}) : super(key: key);
@@ -104,6 +109,8 @@ class _ListServiceFormState extends State<ListServiceForm>
   late Color cardColor;
   late Color textPrimary;
   late Color textSecondary;
+
+  LatLng? _pickedLocation;
 
   @override
   void initState() {
@@ -370,7 +377,21 @@ class _ListServiceFormState extends State<ListServiceForm>
     };
 
     try {
-      await FirebaseFirestore.instance.collection('service_listings').add(data);
+      final newServiceDocRef = await FirebaseFirestore.instance.collection('service_listings').add(data);
+      final newServiceDocId = newServiceDocRef.id;
+      final geo = GeoFlutterFire();
+      if (_pickedLocation != null) {
+        final geoPoint = geo.point(
+          latitude: _pickedLocation!.latitude,
+          longitude: _pickedLocation!.longitude,
+        );
+        await FirebaseFirestore.instance
+            .collection('service_listings')
+            .doc(newServiceDocId)
+            .set({
+              'position': geoPoint.data,
+            }, SetOptions(merge: true));
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -570,13 +591,50 @@ class _ListServiceFormState extends State<ListServiceForm>
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
-            _buildAnimatedTextField(
+            LocationAutocompleteField(
               controller: _locationController,
               label: 'Location',
-              hint: 'Enter complete address',
+              hint: 'Start typing to search for locations...',
               icon: Icons.location_on_outlined,
               maxLines: 2,
+              onLocationSelected: (result) {
+                // Update the picked location if coordinates are available
+                if (result.latitude != null && result.longitude != null) {
+                  setState(() {
+                    _pickedLocation = LatLng(result.latitude!, result.longitude!);
+                  });
+                }
+              },
             ),
+
+            const SizedBox(height: BuddyTheme.spacingLg),
+
+            // Map Picker Button for Location
+            ElevatedButton.icon(
+              icon: Icon(Icons.map),
+              label: Text(_pickedLocation == null ? 'Pick Location on Map' : 'Location Selected'),
+              onPressed: () async {
+                final LatLng? result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MapLocationPicker(
+                      initialLocation: _pickedLocation,
+                    ),
+                  ),
+                );
+                if (result != null) {
+                  setState(() {
+                    _pickedLocation = result;
+                  });
+                }
+              },
+            ),
+
+            if (_pickedLocation != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Selected: ${_pickedLocation!.latitude}, ${_pickedLocation!.longitude}'),
+              ),
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
