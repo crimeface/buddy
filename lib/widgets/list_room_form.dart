@@ -456,6 +456,7 @@ class _ListRoomFormState extends State<ListRoomForm>
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: scaffoldBg,
       appBar: AppBar(
         title: const Text('List Your Room'),
@@ -468,29 +469,32 @@ class _ListRoomFormState extends State<ListRoomForm>
       ),
       body: Form(
         key: _formKey,
-        child: Column(
-          children: [
-            _buildProgressIndicator(),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildFlatDetailsStep(),
-                  _buildLocationAndDateStep(),
-                  _buildPricingStep(),
-                  _buildFlatmateDetailsStep(),
-                  _buildFacilitiesStep(),
-                  _buildPreferencesStep(),
-                  _buildPhotosAndContactStep(),
-                  _buildPaymentPlanStep(),
-                ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildProgressIndicator(),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildFlatDetailsStep(),
+                    _buildLocationAndDateStep(),
+                    _buildPricingStep(),
+                    _buildFlatmateDetailsStep(),
+                    _buildFacilitiesStep(),
+                    _buildPreferencesStep(),
+                    _buildPhotosAndContactStep(),
+                    _buildPaymentPlanStep(),
+                  ],
+                ),
               ),
-            ),
-            _buildNavigationButtons(),
-          ],
+            ],
+          ),
         ),
       ),
+      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -630,14 +634,6 @@ class _ListRoomFormState extends State<ListRoomForm>
               hint: 'Start typing to search for locations...',
               icon: Icons.location_on_outlined,
               maxLines: 2,
-              onLocationSelected: (result) {
-                // Update the picked location if coordinates are available
-                if (result.latitude != null && result.longitude != null) {
-                  setState(() {
-                    _pickedLocation = LatLng(result.latitude!, result.longitude!);
-                  });
-                }
-              },
             ),
 
             const SizedBox(height: BuddyTheme.spacingXl),

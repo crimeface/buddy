@@ -418,7 +418,6 @@ class _ListServiceFormState extends State<ListServiceForm>
   Widget build(BuildContext context) {
     theme = Theme.of(context);
     scaffoldBg = theme.scaffoldBackgroundColor;
-    // Custom card color for better contrast
     cardColor =
         theme.brightness == Brightness.dark
             ? const Color(0xFF23262F)
@@ -428,65 +427,43 @@ class _ListServiceFormState extends State<ListServiceForm>
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: scaffoldBg,
       appBar: AppBar(
         title: const Text('List Your Service'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: scaffoldBg,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: BuddyTheme.spacingMd),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BuddyTheme.spacingSm,
-                  vertical: BuddyTheme.spacingXs,
-                ),
-                decoration: BoxDecoration(
-                  color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    BuddyTheme.borderRadiusSm,
-                  ),
-                ),
-                child: Text(
-                  'Step ${_currentStep + 1}/$_totalSteps',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: BuddyTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
-        child: Column(
-          children: [
-            _buildProgressIndicator(),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildServiceTypeStep(),
-                  _buildBasicDetailsStep(),
-                  _buildTimingsAndContactStep(),
-                  _buildSpecificDetailsStep(),
-                  _buildPhotosStep(),
-                  _buildPaymentPlanStep(),
-                ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildProgressIndicator(),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildServiceTypeStep(),
+                    _buildBasicDetailsStep(),
+                    _buildTimingsAndContactStep(),
+                    _buildSpecificDetailsStep(),
+                    _buildPhotosStep(),
+                    _buildPaymentPlanStep(),
+                  ],
+                ),
               ),
-            ),
-            _buildNavigationButtons(),
-          ],
+            ],
+          ),
         ),
       ),
+      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -597,14 +574,6 @@ class _ListServiceFormState extends State<ListServiceForm>
               hint: 'Start typing to search for locations...',
               icon: Icons.location_on_outlined,
               maxLines: 2,
-              onLocationSelected: (result) {
-                // Update the picked location if coordinates are available
-                if (result.latitude != null && result.longitude != null) {
-                  setState(() {
-                    _pickedLocation = LatLng(result.latitude!, result.longitude!);
-                  });
-                }
-              },
             ),
 
             const SizedBox(height: BuddyTheme.spacingLg),

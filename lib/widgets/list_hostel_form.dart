@@ -415,39 +415,43 @@ class _ListHostelFormState extends State<ListHostelForm>
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Text('List Your Hostel / PG'),
-        backgroundColor: Colors.transparent,
+        title: const Text('List Your Hostel/PG'),
+        backgroundColor: scaffoldBg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
-        children: [
-          _buildProgressIndicator(),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildBasicInformationStep(),
-                _buildRoomTypesStep(),
-                _buildFacilitiesStep(),
-                _buildRulesStep(),
-                _buildAvailabilityStep(),
-                _buildPhotosStep(),
-                _buildAdditionalInfoStep(),
-                _buildPreviewStep(),
-                _buildPaymentPlanStep(), // Payment plan as final step
-              ],
-            ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildProgressIndicator(),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildBasicDetailsStep(),
+                    _buildRoomTypesStep(),
+                    _buildFacilitiesStep(),
+                    _buildRulesStep(),
+                    _buildPhotosStep(),
+                    _buildPaymentPlanStep(),
+                  ],
+                ),
+              ),
+            ],
           ),
-          _buildNavigationButtons(),
-        ],
+        ),
       ),
+      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -508,7 +512,7 @@ class _ListHostelFormState extends State<ListHostelForm>
     );
   }
 
-  Widget _buildBasicInformationStep() {
+  Widget _buildBasicDetailsStep() {
     return _buildStepContainer(
       child: SingleChildScrollView(
         child: Column(
@@ -578,14 +582,6 @@ class _ListHostelFormState extends State<ListHostelForm>
               hint: 'Start typing to search for locations...',
               icon: Icons.location_on,
               maxLines: 3,
-              onLocationSelected: (result) {
-                // Update the picked location if coordinates are available
-                if (result.latitude != null && result.longitude != null) {
-                  setState(() {
-                    _pickedLocation = LatLng(result.latitude!, result.longitude!);
-                  });
-                }
-              },
             ),
             const SizedBox(height: BuddyTheme.spacingLg),
 
@@ -829,37 +825,6 @@ class _ListHostelFormState extends State<ListHostelForm>
     );
   }
 
-  Widget _buildAvailabilityStep() {
-    return _buildStepContainer(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStepHeader(
-              '📅 Availability & Booking',
-              'Set availability and booking preferences',
-            ),
-            const SizedBox(height: BuddyTheme.spacingXl),
-
-            _buildDatePickerCard(),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildSelectionCard(
-              'Minimum Stay Duration',
-              _minimumStay,
-              ['1 month', '2 months', '3 months', '6 months', '1 year'],
-              (value) => setState(() => _minimumStay = value),
-              Icons.calendar_month,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildPhotosStep() {
     return _buildStepContainer(
       child: SingleChildScrollView(
@@ -873,51 +838,6 @@ class _ListHostelFormState extends State<ListHostelForm>
             const SizedBox(height: BuddyTheme.spacingXl),
 
             _buildPhotoUploadSection(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdditionalInfoStep() {
-    return _buildStepContainer(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStepHeader(
-              '💬 Additional Information',
-              'Add extra details about your hostel/PG',
-            ),
-            const SizedBox(height: BuddyTheme.spacingXl),
-
-            _buildAnimatedTextField(
-              controller: _descriptionController,
-              label: 'Short Description (Optional)',
-              hint: 'Describe your hostel/PG in a few lines...',
-              icon: Icons.description_outlined,
-              maxLines: 4,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _offersController,
-              label: 'Offers/Discounts (Optional)',
-              hint: 'Any special offers or discounts...',
-              icon: Icons.local_offer_outlined,
-              maxLines: 2,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _specialFeaturesController,
-              label: 'Special Features (Optional)',
-              hint: 'e.g., High-speed WiFi, Balcony, etc.',
-              icon: Icons.star_outline,
-              maxLines: 2,
-            ),
           ],
         ),
       ),
@@ -1147,25 +1067,6 @@ class _ListHostelFormState extends State<ListHostelForm>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPreviewStep() {
-    return _buildStepContainer(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStepHeader(
-              '🧾 Listing Preview',
-              'Review your hostel listing',
-            ),
-            const SizedBox(height: BuddyTheme.spacingXl),
-
-            _buildPreviewCard(),
-          ],
-        ),
       ),
     );
   }
@@ -1813,250 +1714,6 @@ class _ListHostelFormState extends State<ListHostelForm>
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildPreviewCard() {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 500),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (BuildContext context, double value, Widget? child) {
-        return Transform.scale(
-          scale: 0.9 + (0.1 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title and Basic Info
-                  Text(
-                    _titleController.text.isNotEmpty
-                        ? _titleController.text
-                        : 'Hostel Title',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingXs),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: BuddyTheme.spacingSm,
-                          vertical: BuddyTheme.spacingXs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: BuddyTheme.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(
-                            BuddyTheme.borderRadiusSm,
-                          ),
-                        ),
-                        child: Text(
-                          _hostelType,
-                          style: TextStyle(
-                            color: BuddyTheme.primaryColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: BuddyTheme.spacingSm,
-                          vertical: BuddyTheme.spacingXs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: BuddyTheme.accentColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(
-                            BuddyTheme.borderRadiusSm,
-                          ),
-                        ),
-                        child: Text(
-                          _hostelFor,
-                          style: TextStyle(
-                            color: BuddyTheme.accentColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-                  const Divider(),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Contact Info
-                  _buildPreviewSection('Contact Information', [
-                    _buildPreviewItem(
-                      'Contact Person',
-                      _contactPersonController.text,
-                    ),
-                    _buildPreviewItem('Phone', _phoneController.text),
-                    _buildPreviewItem('Email', _emailController.text),
-                    _buildPreviewItem('Address', _addressController.text),
-                  ]),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Room Types
-                  _buildPreviewSection(
-                    'Room Types',
-                    _roomTypes.entries
-                        .where((entry) => entry.value)
-                        .map(
-                          (entry) => _buildPreviewItem(entry.key, 'Available'),
-                        )
-                        .toList(),
-                  ),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Facilities
-                  _buildPreviewSection('Facilities', [
-                    _buildPreviewFacilities(),
-                  ]),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Rules
-                  _buildPreviewSection('Rules & Policies', [
-                    _buildPreviewItem(
-                      'Entry Timings',
-                      _hasEntryTimings
-                          ? (_entryTime?.format(context) ?? 'Not specified')
-                          : 'No restrictions',
-                    ),
-                    _buildPreviewItem('Smoking', _smokingPolicy),
-                    _buildPreviewItem('Drinking', _drinkingPolicy),
-                    _buildPreviewItem('Guests', _guestsPolicy),
-                    _buildPreviewItem('Pets', _petsPolicy),
-                    _buildPreviewItem('Food Type', _foodType),
-                  ]),
-
-                  const SizedBox(height: BuddyTheme.spacingMd),
-
-                  // Availability
-                  _buildPreviewSection('Availability', [
-                    _buildPreviewItem(
-                      'Available From',
-                      _availableFromDate != null
-                          ? '${_availableFromDate!.day}/${_availableFromDate!.month}/${_availableFromDate!.year}'
-                          : 'Not specified',
-                    ),
-                    _buildPreviewItem('Minimum Stay', _minimumStay),
-                    _buildPreviewItem('Booking Mode', _bookingMode),
-                  ]),
-
-                  if (_descriptionController.text.isNotEmpty)
-                    _buildPreviewSection('Description', [
-                      const SizedBox(height: BuddyTheme.spacingMd),
-                      Text(
-                        _descriptionController.text,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ]),
-                ],
-              ),
-            ),
-          ),
-        );
-      }, // ✅ Correctly close the builder block here
-    );
-  }
-
-  Widget _buildPreviewSection(String title, List<Widget> children) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: BuddyTheme.primaryColor,
-          ),
-        ),
-        const SizedBox(height: BuddyTheme.spacingSm),
-        ...children,
-      ],
-    );
-  }
-
-  Widget _buildPreviewItem(String label, String value) {
-    if (value.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: BuddyTheme.spacingXs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 100, child: Text(label)),
-          Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodySmall),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPreviewFacilities() {
-    List<String> selectedFacilities =
-        _facilities.entries
-            .where((entry) => entry.value)
-            .map((entry) => entry.key)
-            .toList();
-
-    if (selectedFacilities.isEmpty) {
-      return Text(
-        'No facilities selected',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: BuddyTheme.textSecondaryColor),
-      );
-    }
-
-    return Wrap(
-      spacing: BuddyTheme.spacingXs,
-      runSpacing: BuddyTheme.spacingXs,
-      children:
-          selectedFacilities
-              .map(
-                (facility) => Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: BuddyTheme.spacingSm,
-                    vertical: BuddyTheme.spacingXs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: BuddyTheme.successColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(
-                      BuddyTheme.borderRadiusSm,
-                    ),
-                  ),
-                  child: Text(
-                    facility,
-                    style: TextStyle(
-                      color: BuddyTheme.successColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
     );
   }
 

@@ -51,6 +51,17 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
     }
   }
 
+  void _startSessionIfNeeded() {
+    // Start a new session if the field is empty and gets focus
+    if (_focusNode.hasFocus && widget.controller.text.isEmpty) {
+      _autocompleteService.startNewSession();
+    }
+  }
+
+  void _resetSession() {
+    _autocompleteService.startNewSession();
+  }
+
   @override
   void dispose() {
     _focusNode.removeListener(_onFocusChange);
@@ -63,6 +74,7 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
     setState(() {
       _showSuggestions = _focusNode.hasFocus && _suggestions.isNotEmpty;
     });
+    _startSessionIfNeeded();
   }
 
   Future<void> _searchPlaces(String query) async {
@@ -108,18 +120,21 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
   }
 
   void _onSuggestionSelected(AutocompleteResult result) {
-    widget.controller.text = result.displayName;
+    widget.controller.text = result.formattedAddress;
     widget.onLocationSelected?.call(result);
     
     setState(() {
       _showSuggestions = false;
       _suggestions = [];
     });
-    
     _focusNode.unfocus();
+    _resetSession(); // Reset session after selection
   }
 
   void _onTextChanged(String value) {
+    if (value.isEmpty) {
+      _resetSession(); // Reset session if cleared
+    }
     _searchPlaces(value);
   }
 
@@ -185,7 +200,7 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
         ],
         
         // Suggestions dropdown
-        if (_showSuggestions && _suggestions.isNotEmpty) ...[
+        if (_showSuggestions && (_suggestions.isNotEmpty || widget.controller.text.isNotEmpty)) ...[
           const SizedBox(height: 8),
           Container(
             constraints: const BoxConstraints(maxHeight: 300),
@@ -205,11 +220,67 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
             child: ListView.builder(
               shrinkWrap: true,
               padding: EdgeInsets.zero,
-              itemCount: _suggestions.length,
+              itemCount: (_suggestions.isNotEmpty ? 1 : 0) + _suggestions.length,
               itemBuilder: (context, index) {
-                final suggestion = _suggestions[index];
-                final displayText = suggestion.displayName.isNotEmpty
-                    ? suggestion.displayName
+                // First suggestion: user-typed text
+                if (index == 0 && widget.controller.text.isNotEmpty) {
+                  final typedText = widget.controller.text;
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        widget.controller.text = typedText;
+                        setState(() {
+                          _showSuggestions = false;
+                          _suggestions = [];
+                        });
+                        _focusNode.unfocus();
+                        _resetSession();
+                        if (widget.onLocationSelected != null) {
+                          widget.onLocationSelected!(
+                            AutocompleteResult(
+                              id: '',
+                              name: typedText,
+                              address: '',
+                              city: '',
+                              state: '',
+                              country: '',
+                              postcode: '',
+                              formattedAddress: typedText,
+                              latitude: null,
+                              longitude: null,
+                              type: '',
+                              relevance: 1.0,
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_location_alt, color: BuddyTheme.primaryColor, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Use "$typedText"',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                // MapTiler suggestions
+                final suggestion = _suggestions[index - 1 + (widget.controller.text.isNotEmpty ? 0 : 1)];
+                final displayText = suggestion.formattedAddress.isNotEmpty
+                    ? suggestion.formattedAddress
                     : (suggestion.name.isNotEmpty
                         ? suggestion.name
                         : (suggestion.address.isNotEmpty

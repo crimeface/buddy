@@ -83,6 +83,12 @@ class MapTilerAutocompleteService {
     _sessionToken = null;
     _sessionExpiry = null;
   }
+  
+  // Public method to start a new session (for autocomplete session grouping)
+  void startNewSession() {
+    _sessionToken = _generateSessionToken();
+    _sessionExpiry = DateTime.now().add(const Duration(hours: 1));
+  }
 }
 
 class AutocompleteResult {

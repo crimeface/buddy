@@ -8,6 +8,8 @@ import '../theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_storage_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'location_autocomplete_field.dart';
+import '../api/maptiler_autocomplete.dart';
 
 class RoomRequestForm extends StatefulWidget {
   const RoomRequestForm({Key? key}) : super(key: key);
@@ -422,65 +424,43 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Text('Request a Room'),
+        title: const Text('Room Request'),
         backgroundColor: scaffoldBg,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: BuddyTheme.spacingMd),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BuddyTheme.spacingSm,
-                  vertical: BuddyTheme.spacingXs,
-                ),
-                decoration: BoxDecoration(
-                  color: BuddyTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    BuddyTheme.borderRadiusSm,
-                  ),
-                ),
-                child: Text(
-                  'Step ${_currentStep + 1}/$_totalSteps',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: BuddyTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
-        child: Column(
-          children: [
-            _buildProgressIndicator(),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildBasicInfoStep(),
-                  _buildRoomRequirementsStep(),
-                  _buildAdditionalPreferencesStep(),
-                  _buildContactDetailsStep(),
-                  _buildProfilePhotoStep(),
-                  _buildPaymentPlanStep(),
-                ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildProgressIndicator(),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildBasicInfoStep(),
+                    _buildRoomRequirementsStep(),
+                    _buildAdditionalPreferencesStep(),
+                    _buildContactDetailsStep(),
+                    _buildProfilePhotoStep(),
+                    _buildPaymentPlanStep(),
+                  ],
+                ),
               ),
-            ),
-            _buildNavigationButtons(),
-          ],
+            ],
+          ),
         ),
       ),
+      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -604,10 +584,10 @@ class _RoomRequestFormState extends State<RoomRequestForm>
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
 
-            _buildAnimatedTextField(
+            LocationAutocompleteField(
               controller: _locationController,
-              label: 'Preferred Location(s)',
-              hint: 'Enter preferred localities',
+              label: 'Preferred Location',
+              hint: 'Start typing to search for locations...',
               icon: Icons.location_on_outlined,
               maxLines: 2,
             ),
@@ -1313,82 +1293,113 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     final c = cardColor ?? t.cardColor;
     final tp = textPrimary ?? t.textTheme.bodyLarge?.color ?? Colors.black;
 
-    return Container(
-      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-      decoration: BoxDecoration(
-        color: c,
-        borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today_outlined,
-                color: BuddyTheme.primaryColor,
-              ),
-              const SizedBox(width: BuddyTheme.spacingMd),
-              Text(
-                'Move-in Date',
-                style: t.textTheme.titleMedium?.copyWith(
-                  color: tp,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: BuddyTheme.spacingMd),
-          InkWell(
-            onTap: () async {
-              final DateTime? picked = await showDatePicker(
-                context: context,
-                initialDate: _moveInDate ?? DateTime.now(),
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-              );
-              if (picked != null && picked != _moveInDate) {
-                setState(() {
-                  _moveInDate = picked;
-                });
-              }
-            },
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(50 * (1 - value), 0),
+          child: Opacity(
+            opacity: value,
             child: Container(
               padding: const EdgeInsets.all(BuddyTheme.spacingMd),
               decoration: BoxDecoration(
-                color: theme?.scaffoldBackgroundColor ?? Colors.grey[100],
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-                border: Border.all(
-                  color: BuddyTheme.primaryColor.withOpacity(0.2),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _moveInDate == null
-                        ? 'Select Date'
-                        : '${_moveInDate!.day}/${_moveInDate!.month}/${_moveInDate!.year}',
-                    style: t.textTheme.bodyLarge?.copyWith(color: tp),
+                color: c,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: BuddyTheme.primaryColor,
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        color: BuddyTheme.primaryColor,
+                      ),
+                      const SizedBox(width: BuddyTheme.spacingSm),
+                      Text(
+                        'Move-in Date',
+                        style: t.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: tp,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _moveInDate ?? DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          builder: (context, child) {
+                            return Theme(
+                              data: t.copyWith(
+                                colorScheme: t.colorScheme.copyWith(
+                                  primary: BuddyTheme.primaryColor,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null && picked != _moveInDate) {
+                          setState(() {
+                            _moveInDate = picked;
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(
+                        BuddyTheme.borderRadiusSm,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                        decoration: BoxDecoration(
+                          color: scaffoldBg,
+                          borderRadius: BorderRadius.circular(
+                            BuddyTheme.borderRadiusSm,
+                          ),
+                          border: Border.all(color: BuddyTheme.borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.event, color: BuddyTheme.primaryColor),
+                            const SizedBox(width: BuddyTheme.spacingSm),
+                            Text(
+                              _moveInDate != null
+                                  ? '${_moveInDate!.day}/${_moveInDate!.month}/${_moveInDate!.year}'
+                                  : 'Select Date',
+                              style: t.textTheme.bodyMedium?.copyWith(
+                                color:
+                                    _moveInDate != null
+                                        ? tp
+                                        : textSecondary,
+                              ),
+                            ),
+                            const Spacer(),
+                            Icon(Icons.arrow_drop_down, color: textSecondary),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
