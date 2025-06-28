@@ -21,7 +21,6 @@ class ListHostelForm extends StatefulWidget {
 
 class _ListHostelFormState extends State<ListHostelForm>
     with TickerProviderStateMixin {
-  late PageController _pageController;
   late AnimationController _progressAnimationController;
   late AnimationController _slideAnimationController;
   late AnimationController _fabAnimationController;
@@ -32,7 +31,7 @@ class _ListHostelFormState extends State<ListHostelForm>
   bool _isPageChanging = false;
 
   int _currentStep = 0;
-  final int _totalSteps = 9;
+  final int _totalSteps = 6;
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
@@ -120,7 +119,6 @@ class _ListHostelFormState extends State<ListHostelForm>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
     _fetchPlanPrices();
 
     _progressAnimationController = AnimationController(
@@ -169,17 +167,13 @@ class _ListHostelFormState extends State<ListHostelForm>
 
   @override
   void dispose() {
-    _pageController.dispose();
     _progressAnimationController.dispose();
     _slideAnimationController.dispose();
     _fabAnimationController.dispose();
     _titleController.dispose();
     _contactPersonController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
     _addressController.dispose();
-    _landmarkController.dispose();
-    _mapLinkController.dispose();
     _descriptionController.dispose();
     _offersController.dispose();
     _specialFeaturesController.dispose();
@@ -188,14 +182,64 @@ class _ListHostelFormState extends State<ListHostelForm>
   }
 
   void _nextStep() {
+    // Validate current step before proceeding
+    bool isValid = true;
+    
+    switch (_currentStep) {
+      case 0: // Basic Details Step
+        if (_titleController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter a listing title'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        } else if (_contactPersonController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter contact person name'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        } else if (_phoneController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter phone number'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        } else if (_addressController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter exact address'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        }
+        break;
+      case 1: // Room Types Step
+        if (_startingPriceController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter room starting price'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        }
+        break;
+    }
+    
+    if (!isValid) return;
+    
     if (_currentStep < _totalSteps - 1) {
       setState(() {
         _currentStep++;
       });
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOutCubic,
-      );
       _updateProgress();
       _triggerSlideAnimation();
     }
@@ -206,10 +250,6 @@ class _ListHostelFormState extends State<ListHostelForm>
       setState(() {
         _currentStep--;
       });
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
       _updateProgress();
       _triggerSlideAnimation();
     }
@@ -337,10 +377,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               : 0,
       'contactPerson': _contactPersonController.text,
       'phone': _phoneController.text,
-      'email': _emailController.text,
       'address': _addressController.text,
-      'landmark': _landmarkController.text,
-      'mapLink': _mapLinkController.text,
       'roomTypes': _roomTypes,
       'facilities': _facilities,
       'hasEntryTimings': _hasEntryTimings,
@@ -428,30 +465,22 @@ class _ListHostelFormState extends State<ListHostelForm>
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildProgressIndicator(),
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.7,
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
                   children: [
-                    _buildBasicDetailsStep(),
-                    _buildRoomTypesStep(),
-                    _buildFacilitiesStep(),
-                    _buildRulesStep(),
-                    _buildPhotosStep(),
-                    _buildPaymentPlanStep(),
+                    _buildProgressIndicator(),
+                    _buildCurrentStepContent(),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            _buildNavigationButtons(),
+          ],
         ),
       ),
-      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -506,10 +535,29 @@ class _ListHostelFormState extends State<ListHostelForm>
     return SlideTransition(
       position: _slideAnimation,
       child: Container(
-        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+        padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingLg),
         child: child,
       ),
     );
+  }
+
+  Widget _buildCurrentStepContent() {
+    switch (_currentStep) {
+      case 0:
+        return _buildBasicDetailsStep();
+      case 1:
+        return _buildRoomTypesStep();
+      case 2:
+        return _buildFacilitiesStep();
+      case 3:
+        return _buildRulesStep();
+      case 4:
+        return _buildPhotosStep();
+      case 5:
+        return _buildPaymentPlanStep();
+      default:
+        return Container();
+    }
   }
 
   Widget _buildBasicDetailsStep() {
@@ -567,15 +615,6 @@ class _ListHostelFormState extends State<ListHostelForm>
             ),
             const SizedBox(height: BuddyTheme.spacingLg),
 
-            _buildAnimatedTextField(
-              controller: _emailController,
-              label: 'Email ID',
-              hint: 'Enter email address',
-              icon: Icons.email,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: BuddyTheme.spacingLg),
-
             LocationAutocompleteField(
               controller: _addressController,
               label: 'Exact Address',
@@ -586,45 +625,27 @@ class _ListHostelFormState extends State<ListHostelForm>
             const SizedBox(height: BuddyTheme.spacingLg),
 
             // Map Picker Button for Location
-            ElevatedButton.icon(
-              icon: Icon(Icons.map),
-              label: Text(_pickedLocation == null ? 'Pick Location on Map' : 'Location Selected'),
-              onPressed: () async {
-                final LatLng? result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => MapLocationPicker(
-                      initialLocation: _pickedLocation,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: BuddyTheme.spacingMd),
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.map),
+                label: Text(_pickedLocation == null ? 'Pick Location on Map' : 'Location Selected'),
+                onPressed: () async {
+                  final LatLng? result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MapLocationPicker(
+                        initialLocation: _pickedLocation,
+                      ),
                     ),
-                  ),
-                );
-                if (result != null) {
-                  setState(() {
-                    _pickedLocation = result;
-                  });
-                }
-              },
-            ),
-            if (_pickedLocation != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Selected: ${_pickedLocation!.latitude}, ${_pickedLocation!.longitude}'),
+                  );
+                  if (result != null) {
+                    setState(() {
+                      _pickedLocation = result;
+                    });
+                  }
+                },
               ),
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _landmarkController,
-              label: 'Landmark / Nearby Institute',
-              hint: 'Enter nearby landmark or institute name',
-              icon: Icons.place,
-            ),
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _mapLinkController,
-              label: 'Google Map Link (Optional)',
-              hint: 'Paste Google Maps link',
-              icon: Icons.map,
             ),
           ],
         ),
@@ -715,6 +736,12 @@ class _ListHostelFormState extends State<ListHostelForm>
                   TextFormField(
                     controller: _startingPriceController,
                     keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter starting price';
+                      }
+                      return null;
+                    },
                     decoration: InputDecoration(
                       hintText: 'Enter starting price',
                       prefixText: '₹ ',
@@ -819,6 +846,8 @@ class _ListHostelFormState extends State<ListHostelForm>
               (value) => setState(() => _foodType = value),
               Icons.restaurant,
             ),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -891,6 +920,8 @@ class _ListHostelFormState extends State<ListHostelForm>
                   .toList(),
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -1021,7 +1052,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1112,6 +1143,7 @@ class _ListHostelFormState extends State<ListHostelForm>
     required IconData icon,
     TextInputType? keyboardType,
     int maxLines = 1,
+    String? Function(String?)? validator,
   }) {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 400),
@@ -1137,6 +1169,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                 controller: controller,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
+                validator: validator,
                 style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   labelText: label,
@@ -1154,7 +1187,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1254,7 +1287,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1319,7 +1352,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1431,7 +1464,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1572,7 +1605,7 @@ class _ListHostelFormState extends State<ListHostelForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }

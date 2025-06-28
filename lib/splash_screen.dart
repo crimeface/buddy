@@ -3,7 +3,9 @@ import 'package:lottie/lottie.dart';
 import 'package:flutter/services.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  final VoidCallback? onBannersLoaded;
+  
+  const SplashScreen({Key? key, this.onBannersLoaded}) : super(key: key);
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -52,6 +54,11 @@ class _SplashScreenState extends State<SplashScreen>
     _loadingController.dispose();
     _textController.dispose();
     super.dispose();
+  }
+
+  // Method to be called when banners are loaded
+  void onBannersLoaded() {
+    widget.onBannersLoaded?.call();
   }
 
   @override

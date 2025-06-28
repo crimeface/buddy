@@ -20,7 +20,6 @@ class RoomRequestForm extends StatefulWidget {
 
 class _RoomRequestFormState extends State<RoomRequestForm>
     with TickerProviderStateMixin {
-  late PageController _pageController;
   late AnimationController _progressAnimationController;
   late AnimationController _slideAnimationController;
   late AnimationController _fabAnimationController;
@@ -58,7 +57,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   DateTime? _moveInDate;
   String _preferredRoomType = 'Private';
   int _preferredFlatmates = 1;
-  String _preferredFlatmateGender = 'Any';
+  String _preferredFlatmateGender = 'Male Only';
   String _preferredRoomSize = '1RK';
 
   // Additional Preferences
@@ -69,7 +68,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   // Contact Details
   final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
   final _bioController = TextEditingController();
 
   // Budget
@@ -85,18 +83,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-
-    // Add listener to sync page changes with step counter
-    _pageController.addListener(() {
-      if (_pageController.page != null &&
-          !_pageController.position.isScrollingNotifier.value) {
-        final newStep = _pageController.page!.round();
-        if (newStep != _currentStep) {
-          setState(() => _currentStep = newStep);
-        }
-      }
-    });
 
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
@@ -145,7 +131,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   @override
   void dispose() {
-    _pageController.dispose();
     _progressAnimationController.dispose();
     _slideAnimationController.dispose();
     _fabAnimationController.dispose();
@@ -153,7 +138,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     _ageController.dispose();
     _locationController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -165,6 +149,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     if (now.difference(_lastNavigationTime).inMilliseconds < 300)
       return; // Debounce check
 
+    // Validate required fields based on current step
+    if (!_validateCurrentStep()) return;
+
     _isNavigating = true;
     _lastNavigationTime = now;
 
@@ -172,18 +159,49 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       _currentStep++;
     });
 
-    _pageController
-        .animateToPage(
-          _currentStep,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        )
-        .then((_) {
-          _isNavigating = false;
-        });
-
+    _isNavigating = false;
     _updateProgress();
     _triggerSlideAnimation();
+  }
+
+  bool _validateCurrentStep() {
+    switch (_currentStep) {
+      case 0: // Basic Info
+        if (_nameController.text.trim().isEmpty) {
+          _showValidationError('Please enter your full name');
+          return false;
+        }
+        if (_ageController.text.trim().isEmpty) {
+          _showValidationError('Please enter your age');
+          return false;
+        }
+        break;
+      case 1: // Room Requirements
+        if (_locationController.text.trim().isEmpty) {
+          _showValidationError('Please enter your preferred location');
+          return false;
+        }
+        if (_minBudgetController.text.trim().isEmpty) {
+          _showValidationError('Please enter your minimum budget');
+          return false;
+        }
+        if (_maxBudgetController.text.trim().isEmpty) {
+          _showValidationError('Please enter your maximum budget');
+          return false;
+        }
+        break;
+    }
+    return true;
+  }
+
+  void _showValidationError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _previousStep() {
@@ -200,16 +218,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       _currentStep--;
     });
 
-    _pageController
-        .animateToPage(
-          _currentStep,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        )
-        .then((_) {
-          _isNavigating = false;
-        });
-
+    _isNavigating = false;
     _updateProgress();
     _triggerSlideAnimation();
   }
@@ -328,8 +337,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       'drinkingPreference': _drinkingPreference,
       'furnishingPreference': _furnishingPreference,
       'phone': _phoneController.text,
-      'email': _emailController.text,
-      'bio': _bioController.text,
       'selectedPlan': _selectedPlan,
       'createdAt': FieldValue.serverTimestamp(),
       'expiryDate': expiryDate.toIso8601String(),
@@ -437,30 +444,22 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildProgressIndicator(),
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.7,
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
                   children: [
-                    _buildBasicInfoStep(),
-                    _buildRoomRequirementsStep(),
-                    _buildAdditionalPreferencesStep(),
-                    _buildContactDetailsStep(),
-                    _buildProfilePhotoStep(),
-                    _buildPaymentPlanStep(),
+                    _buildProgressIndicator(),
+                    _buildCurrentStepContent(),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            _buildNavigationButtons(),
+          ],
         ),
       ),
-      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -511,14 +510,23 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     );
   }
 
-  Widget _buildStepContainer({required Widget child}) {
-    return SlideTransition(
-      position: _slideAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-        child: child,
-      ),
-    );
+  Widget _buildCurrentStepContent() {
+    switch (_currentStep) {
+      case 0:
+        return _buildBasicInfoStep();
+      case 1:
+        return _buildRoomRequirementsStep();
+      case 2:
+        return _buildAdditionalPreferencesStep();
+      case 3:
+        return _buildContactDetailsStep();
+      case 4:
+        return _buildProfilePhotoStep();
+      case 5:
+        return _buildPaymentPlanStep();
+      default:
+        return Container();
+    }
   }
 
   Widget _buildBasicInfoStep() {
@@ -532,7 +540,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             _buildAnimatedTextField(
               controller: _nameController,
-              label: 'Full Name',
+              label: 'Full Name *',
               hint: 'Enter your full name',
               icon: Icons.person_outline,
             ),
@@ -541,7 +549,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             _buildAnimatedTextField(
               controller: _ageController,
-              label: 'Age',
+              label: 'Age *',
               hint: 'Enter your age',
               icon: Icons.calendar_today_outlined,
               keyboardType: TextInputType.number,
@@ -566,6 +574,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _occupation = value),
               Icons.work_outline,
             ),
+            
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -586,7 +596,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             LocationAutocompleteField(
               controller: _locationController,
-              label: 'Preferred Location',
+              label: 'Preferred Location *',
               hint: 'Start typing to search for locations...',
               icon: Icons.location_on_outlined,
               maxLines: 2,
@@ -596,7 +606,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             _buildAnimatedTextField(
               controller: _minBudgetController,
-              label: 'Min Budget (₹)',
+              label: 'Min Budget (₹) *',
               hint: 'Minimum',
               icon: Icons.currency_rupee,
               keyboardType: TextInputType.number,
@@ -606,7 +616,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
             _buildAnimatedTextField(
               controller: _maxBudgetController,
-              label: 'Max Budget (₹)',
+              label: 'Max Budget (₹) *',
               hint: 'Maximum',
               icon: Icons.currency_rupee,
               keyboardType: TextInputType.number,
@@ -654,6 +664,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _preferredFlatmateGender = value),
               Icons.people,
             ),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -675,7 +687,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
             _buildSelectionCard(
               'Food Preference',
               _foodPreference,
-              ['Veg', 'Non-Veg', 'Eggetarian'],
+              ['Veg', 'Non-Veg', 'Eggetarian', "Doesn't Matter"],
               (value) => setState(() => _foodPreference = value),
               Icons.restaurant_outlined,
             ),
@@ -709,6 +721,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               (value) => setState(() => _furnishingPreference = value),
               Icons.chair_outlined,
             ),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -732,25 +746,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               keyboardType: TextInputType.phone,
             ),
 
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _emailController,
-              label: 'Email Address',
-              hint: 'Enter your email address',
-              icon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _bioController,
-              label: 'About You (Optional)',
-              hint: 'Tell potential flatmates about yourself...',
-              icon: Icons.person_outline,
-              maxLines: 4,
-            ),
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -804,6 +800,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                   .toList(),
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -1404,19 +1402,19 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   }
 
   Widget _buildNavigationButtons() {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
-        decoration: BoxDecoration(
-          color: cardColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+      decoration: BoxDecoration(
+        color: cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
         child: Row(
           children: [
             if (_currentStep > 0) ...[
@@ -1587,6 +1585,16 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStepContainer({required Widget child}) {
+    return SlideTransition(
+      position: _slideAnimation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingLg),
+        child: child,
       ),
     );
   }

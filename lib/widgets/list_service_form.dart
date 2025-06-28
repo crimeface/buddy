@@ -20,7 +20,6 @@ class ListServiceForm extends StatefulWidget {
 
 class _ListServiceFormState extends State<ListServiceForm>
     with TickerProviderStateMixin {
-  late PageController _pageController;
   late AnimationController _progressAnimationController;
   late AnimationController _slideAnimationController;
 
@@ -45,9 +44,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   String _serviceType = 'Library';
   final _serviceNameController = TextEditingController();
   final _locationController = TextEditingController();
-  final _mapLinkController = TextEditingController();
   final _contactController = TextEditingController();
-  final _emailController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   // Timings
@@ -77,7 +74,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   final _monthlyPriceController = TextEditingController();
   Map<String, bool> _mealTimings = {
     'Breakfast': false,
-    'Lunch': false,
+    'Lunch': true,
     'Dinner': false,
   };
   bool _hasHomeDelivery = false;
@@ -115,19 +112,7 @@ class _ListServiceFormState extends State<ListServiceForm>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
     _fetchPlanPrices();
-
-    // Add listener to sync page changes with step counter
-    _pageController.addListener(() {
-      if (_pageController.page != null &&
-          !_pageController.position.isScrollingNotifier.value) {
-        final newStep = _pageController.page!.round();
-        if (newStep != _currentStep) {
-          setState(() => _currentStep = newStep);
-        }
-      }
-    });
 
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
@@ -162,14 +147,11 @@ class _ListServiceFormState extends State<ListServiceForm>
 
   @override
   void dispose() {
-    _pageController.dispose();
     _progressAnimationController.dispose();
     _slideAnimationController.dispose();
     _serviceNameController.dispose();
     _locationController.dispose();
-    _mapLinkController.dispose();
     _contactController.dispose();
-    _emailController.dispose();
     _descriptionController.dispose();
     _seatingCapacityController.dispose();
     _chargesController.dispose();
@@ -235,6 +217,96 @@ class _ListServiceFormState extends State<ListServiceForm>
   }
 
   void _nextStep() {
+    // Validate current step before proceeding
+    bool isValid = true;
+    
+    switch (_currentStep) {
+      case 0: // Service Type Step
+        // No validation needed for service type selection
+        break;
+      case 1: // Basic Details Step
+        if (_serviceNameController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter service name'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        } else if (_locationController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter location'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        }
+        break;
+      case 2: // Timings and Contact Step
+        if (_contactController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter contact number'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        }
+        break;
+      case 3: // Specific Details Step
+        if (_serviceType == 'Library') {
+          if (_seatingCapacityController.text.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Please enter seating capacity'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            isValid = false;
+          } else if (_chargesController.text.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Please enter monthly charge'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            isValid = false;
+          }
+        } else if (_serviceType == 'Café') {
+          if (_priceRangeController.text.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Please enter price range'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            isValid = false;
+          }
+        } else if (_serviceType == 'Mess') {
+          if (_seatingCapacityController.text.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Please enter seating capacity'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            isValid = false;
+          } else if (_monthlyPriceController.text.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Please enter monthly price'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            isValid = false;
+          }
+        }
+        break;
+    }
+    
+    if (!isValid) return;
+
     if (_isNavigating || _currentStep >= _totalSteps - 1) return;
 
     final now = DateTime.now();
@@ -247,16 +319,7 @@ class _ListServiceFormState extends State<ListServiceForm>
       _currentStep++;
     });
 
-    _pageController
-        .animateToPage(
-          _currentStep,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        )
-        .then((_) {
-          _isNavigating = false;
-        });
-
+    _isNavigating = false;
     _updateProgress();
     _triggerSlideAnimation();
   }
@@ -274,16 +337,7 @@ class _ListServiceFormState extends State<ListServiceForm>
       _currentStep--;
     });
 
-    _pageController
-        .animateToPage(
-          _currentStep,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        )
-        .then((_) {
-          _isNavigating = false;
-        });
-
+    _isNavigating = false;
     _updateProgress();
     _triggerSlideAnimation();
   }
@@ -326,10 +380,8 @@ class _ListServiceFormState extends State<ListServiceForm>
       'serviceType': _serviceType,
       'serviceName': _serviceNameController.text,
       'location': _locationController.text,
-      'mapLink': _mapLinkController.text,
       'description': _descriptionController.text,
       'contact': _contactController.text,
-      'email': _emailController.text,
       'openingTime':
           _openingTime != null ? _openingTime!.format(context) : null,
       'closingTime':
@@ -440,30 +492,22 @@ class _ListServiceFormState extends State<ListServiceForm>
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildProgressIndicator(),
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.7,
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
                   children: [
-                    _buildServiceTypeStep(),
-                    _buildBasicDetailsStep(),
-                    _buildTimingsAndContactStep(),
-                    _buildSpecificDetailsStep(),
-                    _buildPhotosStep(),
-                    _buildPaymentPlanStep(),
+                    _buildProgressIndicator(),
+                    _buildCurrentStepContent(),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            _buildNavigationButtons(),
+          ],
         ),
       ),
-      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -518,7 +562,7 @@ class _ListServiceFormState extends State<ListServiceForm>
     return SlideTransition(
       position: _slideAnimation,
       child: Container(
-        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+        padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingLg),
         child: child,
       ),
     );
@@ -599,21 +643,6 @@ class _ListServiceFormState extends State<ListServiceForm>
               },
             ),
 
-            if (_pickedLocation != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Selected: ${_pickedLocation!.latitude}, ${_pickedLocation!.longitude}'),
-              ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _mapLinkController,
-              label: 'Google Maps Link (Optional)',
-              hint: 'Paste Google Maps link for easy navigation',
-              icon: Icons.map_outlined,
-            ),
-
             const SizedBox(height: BuddyTheme.spacingLg),
 
             _buildAnimatedTextField(
@@ -663,15 +692,7 @@ class _ListServiceFormState extends State<ListServiceForm>
               keyboardType: TextInputType.phone,
             ),
 
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _emailController,
-              label: 'Email ID',
-              hint: 'Enter your email address',
-              icon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-            ),
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -763,6 +784,8 @@ class _ListServiceFormState extends State<ListServiceForm>
                   .toList(),
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -1306,6 +1329,8 @@ class _ListServiceFormState extends State<ListServiceForm>
           (value) => setState(() => _hasStudyCabin = value),
           Icons.meeting_room,
         ),
+
+        const SizedBox(height: BuddyTheme.spacingXl),
       ],
     );
   }
@@ -2075,6 +2100,25 @@ class _ListServiceFormState extends State<ListServiceForm>
         return '🏢 Service Details';
       default:
         return '📝 Service Details';
+    }
+  }
+
+  Widget _buildCurrentStepContent() {
+    switch (_currentStep) {
+      case 0:
+        return _buildServiceTypeStep();
+      case 1:
+        return _buildBasicDetailsStep();
+      case 2:
+        return _buildTimingsAndContactStep();
+      case 3:
+        return _buildSpecificDetailsStep();
+      case 4:
+        return _buildPhotosStep();
+      case 5:
+        return _buildPaymentPlanStep();
+      default:
+        return Container();
     }
   }
 }

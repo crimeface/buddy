@@ -22,7 +22,6 @@ class ListRoomForm extends StatefulWidget {
 
 class _ListRoomFormState extends State<ListRoomForm>
     with TickerProviderStateMixin {
-  late PageController _pageController;
   late AnimationController _progressAnimationController;
   late AnimationController _slideAnimationController;
   late AnimationController _fabAnimationController;
@@ -119,16 +118,6 @@ class _ListRoomFormState extends State<ListRoomForm>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-    _pageController.addListener(() {
-      if (_pageController.page?.round() != _currentStep) {
-        setState(() {
-          _currentStep = _pageController.page!.round();
-        });
-        _updateProgress();
-        _triggerSlideAnimation();
-      }
-    });
     _fetchPlanPrices();
     _progressAnimationController = AnimationController(
       vsync: this,
@@ -176,7 +165,6 @@ class _ListRoomFormState extends State<ListRoomForm>
 
   @override
   void dispose() {
-    _pageController.dispose();
     _progressAnimationController.dispose();
     _slideAnimationController.dispose();
     _fabAnimationController.dispose();
@@ -187,29 +175,84 @@ class _ListRoomFormState extends State<ListRoomForm>
     _brokerageController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
   void _nextStep() {
+    // Validate current step before proceeding
+    bool isValid = true;
+    
+    switch (_currentStep) {
+      case 0: // Basic Details Step
+        if (_titleController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter a listing title'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        } else if (_locationController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter location'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        } else if (_availableFromDate == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please select available from date'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        }
+        break;
+      case 1: // Pricing Step
+        if (_rentController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter monthly rent'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        }
+        break;
+      case 7: // Contact Details Step
+        if (_nameController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter your name'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          isValid = false;
+        }
+        break;
+    }
+    
+    if (!isValid) return;
+
     if (_currentStep >= _totalSteps - 1) return;
 
-    _pageController.animateToPage(
-      _currentStep + 1,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    setState(() {
+      _currentStep++;
+    });
+    _updateProgress();
+    _triggerSlideAnimation();
   }
 
   void _previousStep() {
     if (_currentStep <= 0) return;
 
-    _pageController.animateToPage(
-      _currentStep - 1,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    setState(() {
+      _currentStep--;
+    });
+    _updateProgress();
+    _triggerSlideAnimation();
   }
 
   void _updateProgress() {
@@ -284,8 +327,6 @@ class _ListRoomFormState extends State<ListRoomForm>
       'expiryDate': expiryDate.toIso8601String(),
       'visibility': true, // Always true on creation,
       'phone': _phoneController.text,
-      'email': _emailController.text,
-      'notes': _notesController.text,
     };
 
     try {
@@ -469,32 +510,22 @@ class _ListRoomFormState extends State<ListRoomForm>
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildProgressIndicator(),
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.7,
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
                   children: [
-                    _buildFlatDetailsStep(),
-                    _buildLocationAndDateStep(),
-                    _buildPricingStep(),
-                    _buildFlatmateDetailsStep(),
-                    _buildFacilitiesStep(),
-                    _buildPreferencesStep(),
-                    _buildPhotosAndContactStep(),
-                    _buildPaymentPlanStep(),
+                    _buildProgressIndicator(),
+                    _buildCurrentStepContent(),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            _buildNavigationButtons(),
+          ],
         ),
       ),
-      bottomNavigationBar: _buildNavigationButtons(),
     );
   }
 
@@ -549,10 +580,33 @@ class _ListRoomFormState extends State<ListRoomForm>
     return SlideTransition(
       position: _slideAnimation,
       child: Container(
-        padding: const EdgeInsets.all(BuddyTheme.spacingLg),
+        padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingLg),
         child: child,
       ),
     );
+  }
+
+  Widget _buildCurrentStepContent() {
+    switch (_currentStep) {
+      case 0:
+        return _buildFlatDetailsStep();
+      case 1:
+        return _buildLocationAndDateStep();
+      case 2:
+        return _buildPricingStep();
+      case 3:
+        return _buildFlatmateDetailsStep();
+      case 4:
+        return _buildFacilitiesStep();
+      case 5:
+        return _buildPreferencesStep();
+      case 6:
+        return _buildPhotosAndContactStep();
+      case 7:
+        return _buildPaymentPlanStep();
+      default:
+        return Container();
+    }
   }
 
   Widget _buildFlatDetailsStep() {
@@ -610,6 +664,8 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _hasAttachedBathroom = value),
               Icons.bathroom_outlined,
             ),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -658,11 +714,6 @@ class _ListRoomFormState extends State<ListRoomForm>
                 }
               },
             ),
-            if (_pickedLocation != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Selected: ${_pickedLocation!.latitude}, ${_pickedLocation!.longitude}'),
-              ),
 
             const SizedBox(height: BuddyTheme.spacingLg),
 
@@ -766,6 +817,8 @@ class _ListRoomFormState extends State<ListRoomForm>
               (value) => setState(() => _occupation = value),
               Icons.work_outline,
             ),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -872,25 +925,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               keyboardType: TextInputType.phone,
             ),
 
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _emailController,
-              label: 'Email ID',
-              hint: 'Enter your email address',
-              icon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _notesController,
-              label: 'Additional Notes (Optional)',
-              hint: 'Any additional information about the property...',
-              icon: Icons.note_outlined,
-              maxLines: 4,
-            ),
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -944,6 +979,8 @@ class _ListRoomFormState extends State<ListRoomForm>
                   .toList(),
             const SizedBox(height: BuddyTheme.spacingXl),
             _buildPlanInfoCard(),
+
+            const SizedBox(height: BuddyTheme.spacingXl),
           ],
         ),
       ),
@@ -1164,6 +1201,7 @@ class _ListRoomFormState extends State<ListRoomForm>
     required IconData icon,
     TextInputType? keyboardType,
     int maxLines = 1,
+    String? Function(String?)? validator,
   }) {
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 500),
@@ -1192,6 +1230,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                       controller: controller,
                       keyboardType: keyboardType,
                       maxLines: maxLines,
+                      validator: validator,
                       style: TextStyle(color: textPrimary),
                       decoration: InputDecoration(
                         labelText: label,
@@ -1484,7 +1523,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1767,7 +1806,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-        );
+          );
       },
     );
   }
@@ -1864,6 +1903,7 @@ class _ListRoomFormState extends State<ListRoomForm>
           (value) => setState(() => _guestsPolicy = value),
           Icons.people_outline,
         ),
+        const SizedBox(height: BuddyTheme.spacingXl),
       ],
     );
   }

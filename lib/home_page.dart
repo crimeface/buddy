@@ -16,7 +16,6 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'Hostelpg_page.dart';
 import 'service_page.dart';
-import 'splash_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geoflutterfire2/geoflutterfire2.dart';
 import 'features_map_search_page.dart';
@@ -257,29 +256,10 @@ class _HomePageState extends State<HomePage>
   bool _isAdmin = false;
   List<Map<String, dynamic>> _banners = [];
   bool _bannersLoaded = false;
-  DateTime? _splashStartTime;
-  bool _splashMinTimeElapsed = false;
 
   @override
   void initState() {
     super.initState();
-    _splashStartTime = DateTime.now();
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() {
-          _splashMinTimeElapsed = true;
-        });
-        // If banners already loaded, trigger UI update
-        if (_banners.isNotEmpty && !_bannersLoaded) {
-          setState(() {
-            _bannersLoaded = true;
-            _notifyBannersLoadedChanged();
-          });
-        } else {
-          _notifyBannersLoadedChanged();
-        }
-      }
-    });
     _loadUserName();
     _loadProfileImage();
     _checkAdmin();
@@ -331,16 +311,11 @@ class _HomePageState extends State<HomePage>
     final bannersSnap =
         await FirebaseFirestore.instance.collection('promo_banners').get();
     if (bannersSnap.docs.isNotEmpty) {
-      _banners = bannersSnap.docs.map((d) => d.data()).toList();
-      if (_splashMinTimeElapsed) {
-        setState(() {
-          _bannersLoaded = true;
-          _notifyBannersLoadedChanged();
-        });
-      } else {
+      setState(() {
+        _banners = bannersSnap.docs.map((d) => d.data()).toList();
+        _bannersLoaded = true;
         _notifyBannersLoadedChanged();
-      }
-      // else: splash will be hidden by timer
+      });
     } else {
       // Save current hardcoded banners to Firestore
       final defaultBanners = [
@@ -378,16 +353,11 @@ class _HomePageState extends State<HomePage>
             .collection('promo_banners')
             .add(banner);
       }
-      _banners = defaultBanners;
-      if (_splashMinTimeElapsed) {
-        setState(() {
-          _bannersLoaded = true;
-          _notifyBannersLoadedChanged();
-        });
-      } else {
+      setState(() {
+        _banners = defaultBanners;
+        _bannersLoaded = true;
         _notifyBannersLoadedChanged();
-      }
-      // else: splash will be hidden by timer
+      });
     }
   }
 
@@ -623,11 +593,6 @@ class _HomePageState extends State<HomePage>
   Widget build(BuildContext context) {
     super.build(context);
     Theme.of(context);
-
-    // Show splash screen until banners are loaded AND 5 seconds have passed
-    if (!_bannersLoaded) {
-      return SplashScreen();
-    }
 
     return SafeArea(
       child: RefreshIndicator(

@@ -23,6 +23,7 @@ import 'authentication_options.dart'; // Importing the new Authentication Option
 import 'phone_verification.dart'; // Added import for phone verification
 import 'api/firebase_api.dart'; // Import Firebase API for notifications
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'splash_screen_wrapper.dart'; // Import the new splash screen wrapper
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
@@ -150,7 +151,7 @@ class AuthStateHandler extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasData) {
-          return const HomeScreen();
+          return const SplashScreenWrapper(); // Changed from HomeScreen to SplashScreenWrapper
         } else {
           // Show OnboardingScreen first, then navigate to LoginPage
           return OnboardingScreenWrapper(); // Changed from LandingScreenWrapper
