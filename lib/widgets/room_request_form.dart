@@ -1290,6 +1290,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     final t = theme ?? Theme.of(context);
     final c = cardColor ?? t.cardColor;
     final tp = textPrimary ?? t.textTheme.bodyLarge?.color ?? Colors.black;
+    final scaffoldBg = t.scaffoldBackgroundColor;
+    final textSecondary = t.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.black54;
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 600),
@@ -1299,101 +1301,92 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           offset: Offset(50 * (1 - value), 0),
           child: Opacity(
             opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: c,
-                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        color: BuddyTheme.primaryColor,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      color: BuddyTheme.primaryColor,
+                    ),
+                    const SizedBox(width: BuddyTheme.spacingSm),
+                    Text(
+                      'Move-in Date',
+                      style: t.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: tp,
                       ),
-                      const SizedBox(width: BuddyTheme.spacingSm),
-                      Text(
-                        'Move-in Date',
-                        style: t.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: tp,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: BuddyTheme.spacingMd),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: _moveInDate ?? DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                          builder: (context, child) {
-                            return Theme(
-                              data: t.copyWith(
-                                colorScheme: t.colorScheme.copyWith(
-                                  primary: BuddyTheme.primaryColor,
-                                ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: BuddyTheme.spacingMd),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: _moveInDate ?? DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        builder: (context, child) {
+                          return Theme(
+                            data: t.copyWith(
+                              colorScheme: t.colorScheme.copyWith(
+                                primary: BuddyTheme.primaryColor,
                               ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (picked != null && picked != _moveInDate) {
-                          setState(() {
-                            _moveInDate = picked;
-                          });
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(
-                        BuddyTheme.borderRadiusSm,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(BuddyTheme.spacingMd),
-                        decoration: BoxDecoration(
-                          color: scaffoldBg,
-                          borderRadius: BorderRadius.circular(
-                            BuddyTheme.borderRadiusSm,
-                          ),
-                          border: Border.all(color: BuddyTheme.borderColor),
+                            ),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (picked != null && picked != _moveInDate) {
+                        setState(() {
+                          _moveInDate = picked;
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(
+                      BuddyTheme.borderRadiusMd,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(BuddyTheme.spacingMd),
+                      decoration: BoxDecoration(
+                        color: scaffoldBg,
+                        borderRadius: BorderRadius.circular(
+                          BuddyTheme.borderRadiusMd,
                         ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.event, color: BuddyTheme.primaryColor),
-                            const SizedBox(width: BuddyTheme.spacingSm),
-                            Text(
+                        border: Border.all(color: BuddyTheme.borderColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.event, color: BuddyTheme.primaryColor),
+                          const SizedBox(width: BuddyTheme.spacingSm),
+                          Expanded(
+                            child: Text(
                               _moveInDate != null
                                   ? '${_moveInDate!.day}/${_moveInDate!.month}/${_moveInDate!.year}'
                                   : 'Select Date',
                               style: t.textTheme.bodyMedium?.copyWith(
-                                color:
-                                    _moveInDate != null
-                                        ? tp
-                                        : textSecondary,
+                                color: _moveInDate != null ? tp : textSecondary,
                               ),
                             ),
-                            const Spacer(),
-                            Icon(Icons.arrow_drop_down, color: textSecondary),
-                          ],
-                        ),
+                          ),
+                          Icon(Icons.arrow_drop_down, color: textSecondary),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );

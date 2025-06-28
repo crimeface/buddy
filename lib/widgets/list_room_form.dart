@@ -183,7 +183,7 @@ class _ListRoomFormState extends State<ListRoomForm>
     bool isValid = true;
     
     switch (_currentStep) {
-      case 0: // Basic Details Step
+      case 0: // Basic Details Step - Only title is required
         if (_titleController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -192,7 +192,10 @@ class _ListRoomFormState extends State<ListRoomForm>
             ),
           );
           isValid = false;
-        } else if (_locationController.text.trim().isEmpty) {
+        }
+        break;
+      case 1: // Location and Date Step - Location and date are required
+        if (_locationController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Please enter location'),
@@ -210,7 +213,7 @@ class _ListRoomFormState extends State<ListRoomForm>
           isValid = false;
         }
         break;
-      case 1: // Pricing Step
+      case 2: // Pricing Step
         if (_rentController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1595,106 +1598,48 @@ class _ListRoomFormState extends State<ListRoomForm>
     bool isSelected, {
     bool fullWidth = false,
   }) {
-    return TweenAnimationBuilder(
+    return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 400),
-      tween: Tween<double>(begin: 0.0, end: 1.0),
-      builder:
-          (BuildContext context, double value, Widget? child) =>
-              Transform.scale(
-                scale: 0.8 + (0.2 * value),
-                child: Opacity(
-                  opacity: value,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _facilities[facility] = !isSelected;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(
-                        BuddyTheme.borderRadiusMd,
-                      ),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(BuddyTheme.spacingSm),
-                        width: fullWidth ? double.infinity : null,
-                        decoration: BoxDecoration(
-                          color:
-                              isSelected
-                                  ? BuddyTheme.primaryColor.withOpacity(0.1)
-                                  : Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            BuddyTheme.borderRadiusMd,
-                          ),
-                          border: Border.all(
-                            color:
-                                isSelected
-                                    ? BuddyTheme.primaryColor
-                                    : BuddyTheme.borderColor,
-                            width: isSelected ? 2 : 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color:
-                                    isSelected
-                                        ? BuddyTheme.primaryColor
-                                        : Colors.transparent,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color:
-                                      isSelected
-                                          ? BuddyTheme.primaryColor
-                                          : BuddyTheme.borderColor,
-                                ),
-                              ),
-                              child:
-                                  isSelected
-                                      ? const Icon(
-                                        Icons.check,
-                                        color: Colors.white,
-                                        size: 14,
-                                      )
-                                      : null,
-                            ),
-                            const SizedBox(width: BuddyTheme.spacingSm),
-                            Expanded(
-                              child: Text(
-                                facility,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.copyWith(
-                                  color:
-                                      isSelected
-                                          ? BuddyTheme.primaryColor
-                                          : BuddyTheme.textPrimaryColor,
-                                  fontWeight:
-                                      isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _facilities[facility] = !isSelected;
+              });
+            },
+            child: Container(
+              width: fullWidth ? double.infinity : null,
+              padding: EdgeInsets.symmetric(
+                horizontal: BuddyTheme.spacingMd,
+                vertical: BuddyTheme.spacingSm,
+              ),
+              decoration: BoxDecoration(
+                color:
+                    isSelected
+                        ? BuddyTheme.primaryColor.withOpacity(0.1)
+                        : cardColor,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
+                border: Border.all(
+                  color:
+                      isSelected
+                          ? BuddyTheme.primaryColor
+                          : Colors.grey.withOpacity(0.3),
                 ),
               ),
+              child: Text(
+                facility,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isSelected ? BuddyTheme.primaryColor : textSecondary,
+                ),
+              ),
+            ),
+          ),
+          );
+      },
     );
   }
 
