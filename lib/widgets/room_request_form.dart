@@ -10,6 +10,8 @@ import '../services/firebase_storage_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'location_autocomplete_field.dart';
 import '../api/maptiler_autocomplete.dart';
+import 'validation_widgets.dart';
+import '../utils/user_utils.dart';
 
 class RoomRequestForm extends StatefulWidget {
   const RoomRequestForm({Key? key}) : super(key: key);
@@ -34,7 +36,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   int _currentStep = 0;
   final int _totalSteps =
-      6; // Updated total steps to include profile photo section
+      5; // Updated total steps to remove contact details step
 
   // Form controllers and data
   final _formKey = GlobalKey<FormState>();
@@ -46,7 +48,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   String? _planPricesError;
 
   // Basic Info
-  final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   String _gender = 'Male';
   String _occupation = 'Student';
@@ -65,10 +66,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   String _smokingPreference = 'No';
   String _drinkingPreference = 'No';
   String _furnishingPreference = 'Furnished';
-
-  // Contact Details
-  final _phoneController = TextEditingController();
-  final _bioController = TextEditingController();
 
   // Budget
   final _minBudgetController = TextEditingController();
@@ -134,12 +131,19 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     _progressAnimationController.dispose();
     _slideAnimationController.dispose();
     _fabAnimationController.dispose();
-    _nameController.dispose();
     _ageController.dispose();
     _locationController.dispose();
-    _phoneController.dispose();
-    _bioController.dispose();
+    _minBudgetController.dispose();
+    _maxBudgetController.dispose();
     super.dispose();
+  }
+
+  void _showValidationError(String message) {
+    ValidationSnackBar.showError(context, message);
+  }
+
+  void _showValidationSuccess(String message) {
+    ValidationSnackBar.showSuccess(context, message);
   }
 
   void _nextStep() {
@@ -167,12 +171,13 @@ class _RoomRequestFormState extends State<RoomRequestForm>
   bool _validateCurrentStep() {
     switch (_currentStep) {
       case 0: // Basic Info
-        if (_nameController.text.trim().isEmpty) {
-          _showValidationError('Please enter your full name');
-          return false;
-        }
         if (_ageController.text.trim().isEmpty) {
           _showValidationError('Please enter your age');
+          return false;
+        }
+        final age = int.tryParse(_ageController.text.trim());
+        if (age == null || age < 16 || age > 100) {
+          _showValidationError('Please enter a valid age between 16 and 100');
           return false;
         }
         break;
@@ -185,23 +190,33 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           _showValidationError('Please enter your minimum budget');
           return false;
         }
+        final minBudget = int.tryParse(_minBudgetController.text.trim());
+        if (minBudget == null || minBudget <= 0) {
+          _showValidationError('Please enter a valid minimum budget');
+          return false;
+        }
         if (_maxBudgetController.text.trim().isEmpty) {
           _showValidationError('Please enter your maximum budget');
+          return false;
+        }
+        final maxBudget = int.tryParse(_maxBudgetController.text.trim());
+        if (maxBudget == null || maxBudget <= 0) {
+          _showValidationError('Please enter a valid maximum budget');
+          return false;
+        }
+        if (maxBudget < minBudget) {
+          _showValidationError('Maximum budget cannot be less than minimum budget');
+          return false;
+        }
+        break;
+      case 3: // Profile Photo
+        if (_profileImage == null) {
+          _showValidationError('Please upload a profile photo');
           return false;
         }
         break;
     }
     return true;
-  }
-
-  void _showValidationError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   void _previousStep() {
@@ -240,12 +255,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       final url = await FirebaseStorageService.uploadImage(_profileImage!.path);
       return url;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error uploading image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ValidationSnackBar.showError(context, 'Error uploading image: $e');
       return null;
     } finally {
       setState(() => _isUploading = false);
@@ -254,14 +264,11 @@ class _RoomRequestFormState extends State<RoomRequestForm>
 
   Future<void> _submitForm() async {
     // Validate required fields
-    if (_nameController.text.isEmpty ||
-        _ageController.text.isEmpty ||
+    if (_ageController.text.isEmpty ||
         _locationController.text.isEmpty ||
         _minBudgetController.text.isEmpty ||
         _maxBudgetController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
-      );
+      ValidationSnackBar.showError(context, 'Please fill all required fields');
       return;
     }
     if (_formKey.currentState == null || !_formKey.currentState!.validate())
@@ -293,37 +300,33 @@ class _RoomRequestFormState extends State<RoomRequestForm>
     // Ensure user is logged in
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please login first')));
+      ValidationSnackBar.showError(context, 'Please login first');
       setState(() => _isUploading = false);
       return;
     }
 
-    // Upload profile image if selected
-    String? profilePhotoUrl;
-    if (_profileImage != null) {
-      try {
-        profilePhotoUrl = await FirebaseStorageService.uploadImage(
-          _profileImage!.path,
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error uploading image: $e')));
-        setState(() => _isUploading = false);
-        return;
-      }
+    // Upload profile image (required)
+    String profilePhotoUrl;
+    try {
+      profilePhotoUrl = await FirebaseStorageService.uploadImage(
+        _profileImage!.path,
+      );
+    } catch (e) {
+      ValidationSnackBar.showError(context, 'Error uploading image: $e');
+      setState(() => _isUploading = false);
+      return;
     }
+
+    // Get username automatically from user account
+    final username = await UserUtils.getCurrentUsername();
 
     final requestData = {
       'userId': user.uid,
-      'name': _nameController.text,
+      'name': username, // Automatically use username from account
       'age': int.tryParse(_ageController.text) ?? 0,
       'gender': _gender,
       'occupation': _occupation,
-      'profilePhotoUrl':
-          profilePhotoUrl ?? 'https://randomuser.me/api/portraits/men/1.jpg',
+      'profilePhotoUrl': profilePhotoUrl,
       'location': _locationController.text,
       'minBudget': int.tryParse(_minBudgetController.text) ?? 0,
       'maxBudget': int.tryParse(_maxBudgetController.text) ?? 0,
@@ -336,7 +339,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       'smokingPreference': _smokingPreference,
       'drinkingPreference': _drinkingPreference,
       'furnishingPreference': _furnishingPreference,
-      'phone': _phoneController.text,
+      'phone': '', // Empty string since contact details step was removed
       'selectedPlan': _selectedPlan,
       'createdAt': FieldValue.serverTimestamp(),
       'expiryDate': expiryDate.toIso8601String(),
@@ -349,16 +352,12 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           .add(requestData);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Room request submitted successfully!')),
-        );
+        ValidationSnackBar.showSuccess(context, 'Room request submitted successfully!');
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error submitting request: $e')));
+        ValidationSnackBar.showError(context, 'Error submitting request: $e');
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -519,10 +518,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       case 2:
         return _buildAdditionalPreferencesStep();
       case 3:
-        return _buildContactDetailsStep();
-      case 4:
         return _buildProfilePhotoStep();
-      case 5:
+      case 4:
         return _buildPaymentPlanStep();
       default:
         return Container();
@@ -537,15 +534,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           children: [
             _buildStepHeader('👤 Basic Information', 'Tell us about yourself'),
             const SizedBox(height: BuddyTheme.spacingXl),
-
-            _buildAnimatedTextField(
-              controller: _nameController,
-              label: 'Full Name *',
-              hint: 'Enter your full name',
-              icon: Icons.person_outline,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
 
             _buildAnimatedTextField(
               controller: _ageController,
@@ -720,30 +708,6 @@ class _RoomRequestFormState extends State<RoomRequestForm>
               ['Furnished', 'Semi-furnished', 'Unfurnished'],
               (value) => setState(() => _furnishingPreference = value),
               Icons.chair_outlined,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingXl),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactDetailsStep() {
-    return _buildStepContainer(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStepHeader('📞 Contact Details', 'How can people reach you?'),
-            const SizedBox(height: BuddyTheme.spacingXl),
-
-            _buildAnimatedTextField(
-              controller: _phoneController,
-              label: 'Phone Number',
-              hint: 'Enter your contact number',
-              icon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
             ),
 
             const SizedBox(height: BuddyTheme.spacingXl),
@@ -1498,12 +1462,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ValidationSnackBar.showError(context, 'Error picking image: $e');
     }
   }
 
@@ -1514,8 +1473,8 @@ class _RoomRequestFormState extends State<RoomRequestForm>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildStepHeader(
-              '📸 Profile Photo',
-              'Add a profile photo to your request',
+              '📸 Profile Photo *',
+              'Add a profile photo to your request (Required)',
             ),
             const SizedBox(height: BuddyTheme.spacingXl),
             Center(
@@ -1551,7 +1510,7 @@ class _RoomRequestFormState extends State<RoomRequestForm>
                               ),
                               const SizedBox(height: BuddyTheme.spacingSm),
                               Text(
-                                'Tap to add photo',
+                                'Tap to add photo *',
                                 style: TextStyle(
                                   color: BuddyTheme.primaryColor,
                                   fontWeight: FontWeight.w500,

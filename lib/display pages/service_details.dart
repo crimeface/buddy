@@ -128,7 +128,6 @@ class ServiceData {
   final bool hasStudyCabin;
   final String libraryType;
   final String location;
-  final String mapLink;
   final String offDay;
   final String openingTime;
   final int seatingCapacity;
@@ -151,6 +150,8 @@ class ServiceData {
   final bool lunch; // Added for mess meal timings
   final bool dinner; // Added for mess meal timings
   final String usefulness;
+  final double? latitude;
+  final double? longitude;
 
   ServiceData({
     required this.serviceName,
@@ -174,7 +175,6 @@ class ServiceData {
     required this.hasInternet,
     required this.hasStudyCabin,
     required this.libraryType,
-    required this.mapLink,
     required this.offDay,
     required this.seatingCapacity,
     this.usefulness = '', // Default value
@@ -191,6 +191,8 @@ class ServiceData {
     this.breakfast = false, // Added for mess meal timings
     this.lunch = false, // Added for mess meal timings
     this.dinner = false, // Added for mess meal timings
+    this.latitude,
+    this.longitude,
   });
 
   factory ServiceData.fromFirestore(Map<String, dynamic> data) {
@@ -214,7 +216,6 @@ class ServiceData {
       hasStudyCabin: data['hasStudyCabin'] ?? false,
       libraryType: data['libraryType'] ?? '',
       location: data['location'] ?? '',
-      mapLink: data['mapLink'] ?? '',
       offDay: data['offDay'] ?? '',
       openingTime: data['openingTime'] ?? '',
       seatingCapacity:
@@ -241,6 +242,8 @@ class ServiceData {
       lunch: mealTimings['Lunch'] ?? false, // Added for mess meal timings
       dinner: mealTimings['Dinner'] ?? false, // Added for mess meal timings
       usefulness: data['usefulness'] ?? '', // Added for other service type
+      latitude: data['latitude'] as double?,
+      longitude: data['longitude'] as double?,
     );
   }
 }
@@ -382,18 +385,13 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   }
 
   Future<void> _openGoogleMaps() async {
-    if (serviceData.mapLink.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Map link not available')));
-      }
-      return;
-    }
-
-    String url = serviceData.mapLink.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    String url;
+    
+    // Use coordinates if available, otherwise fall back to location text
+    if (serviceData.latitude != null && serviceData.longitude != null) {
+      url = 'https://www.google.com/maps/search/?api=1&query=${serviceData.latitude},${serviceData.longitude}';
+    } else {
+      url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(serviceData.location)}';
     }
 
     try {
@@ -403,16 +401,32 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         mode: LaunchMode.externalApplication,
       );
 
+      if (!launched) {
+        // Fallback to web version
+        final String googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(serviceData.location)}';
+        final Uri gmapsUri = Uri.parse(googleMapsUrl);
+        launched = await launchUrl(
+          gmapsUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
       if (!launched && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not open map')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open maps. URL: $url'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Invalid map link')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening maps: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     }
   }
@@ -669,7 +683,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   ),
                 ),
               ),
-              if (serviceData.mapLink.isNotEmpty)
+              if (serviceData.latitude != null && serviceData.longitude != null)
                 GestureDetector(
                   onTap: _openGoogleMaps,
                   child: Container(
@@ -708,7 +722,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   ),
                 ),
               ),
-              if (serviceData.mapLink.isNotEmpty) ...[
+              if (serviceData.latitude != null && serviceData.longitude != null) ...[
                 const SizedBox(width: BuddyTheme.spacingMd),
                 GestureDetector(
                   onTap: _openGoogleMaps,

@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 import '../chat_screen.dart';
+import '../utils/user_utils.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -133,10 +134,13 @@ class PropertyData {
   final String ownerName;
   final double ownerRating;
   final Map<String, String> preferences;
-  final String phone;
-  final String email;
+  final String? phone;
+  final String? email;
   final String? googleMapsLink;
   final String? uid;
+  final bool sharePhoneNumber;
+  final double? latitude;
+  final double? longitude;
 
   PropertyData({
     required this.title,
@@ -159,10 +163,13 @@ class PropertyData {
     required this.ownerName,
     required this.ownerRating,
     required this.preferences,
-    required this.phone,
-    required this.email,
+    this.phone,
+    this.email,
     this.googleMapsLink,
     this.uid,
+    this.sharePhoneNumber = false,
+    this.latitude,
+    this.longitude,
   });
 
   factory PropertyData.fromJson(Map<String, dynamic> json) {
@@ -211,10 +218,13 @@ class PropertyData {
             (key, value) => MapEntry(key, value?.toString() ?? ''),
           ) ??
           {},
-      phone: json['phone'] ?? '',
-      email: json['email'] ?? '',
+      phone: json['phone'] as String?,
+      email: json['email'] as String?,
       googleMapsLink: json['googleMapsLink'] as String?,
       uid: json['uid'] as String?,
+      sharePhoneNumber: json['sharePhoneNumber'] ?? false,
+      latitude: json['latitude']?.toDouble(),
+      longitude: json['longitude']?.toDouble(),
     );
   }
 }
@@ -237,6 +247,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   final PageController _pageController = PageController();
   bool isLoading = true;
   String? error;
+  
+  // User contact information
+  String? userPhone;
+  String? userEmail;
+  bool isLoadingUserData = false;
 
   @override
   void initState() {
@@ -299,8 +314,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           'monthlyRent': parseDouble(data['rent']),
           'securityDeposit': parseDouble(data['deposit']),
           'brokerage': parseDouble(data['brokerage']),
-          'phone': data['phone']?.toString() ?? '',
-          'email': data['email']?.toString() ?? '',
           'currentFlatmates': parseInt(
             data['currentFlatmates'],
             defaultValue: 1,
@@ -320,12 +333,20 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             'guestPolicy': data['guestsPolicy']?.toString() ?? '',
           },
           'uid': data['userId']?.toString(),
+          'sharePhoneNumber': data['sharePhoneNumber'] ?? false,
+          'latitude': data['latitude']?.toDouble(),
+          'longitude': data['longitude']?.toDouble(),
         };
 
         setState(() {
           propertyData = PropertyData.fromJson(convertedData);
           isLoading = false;
         });
+        
+        // Fetch user contact information if they chose to share phone number
+        if (propertyData.sharePhoneNumber && propertyData.uid != null) {
+          await _fetchUserContactInfo(propertyData.uid!);
+        }
       } else {
         setState(() {
           error = 'Property not found';
@@ -336,6 +357,34 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       setState(() {
         error = 'Error loading property details:  ${e.toString()}';
         isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchUserContactInfo(String userId) async {
+    setState(() {
+      isLoadingUserData = true;
+    });
+
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        setState(() {
+          userPhone = userData['phone']?.toString();
+          userEmail = userData['email']?.toString();
+          isLoadingUserData = false;
+        });
+      } else {
+        setState(() {
+          isLoadingUserData = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching user contact info: $e');
+      setState(() {
+        isLoadingUserData = false;
       });
     }
   }
@@ -390,32 +439,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Future<void> _openGoogleMaps() async {
-    if (propertyData.googleMapsLink == null ||
-        propertyData.googleMapsLink!.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No map link available'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return;
-    }
-
-    String url = propertyData.googleMapsLink!.trim();
-
-    if (url.startsWith('maps.google.com') ||
-        url.startsWith('www.google.com/maps')) {
-      url = 'https://' + url;
-    } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      if (url.contains('maps.google.com') || url.contains('goo.gl/maps')) {
-        url = 'https://' + url;
-      } else {
-        url =
-            'https://www.google.com/maps/search/?api=1&query=' +
-            Uri.encodeComponent(url);
-      }
+    String url;
+    
+    // Use coordinates if available, otherwise fall back to location text
+    if (propertyData.latitude != null && propertyData.longitude != null) {
+      url = 'https://www.google.com/maps/search/?api=1&query=${propertyData.latitude},${propertyData.longitude}';
+    } else {
+      url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(propertyData.location)}';
     }
 
     try {
@@ -426,8 +456,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       );
 
       if (!launched) {
-        final String googleMapsUrl =
-            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(propertyData.location)}';
+        // Fallback to web version
+        final String googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(propertyData.location)}';
         final Uri gmapsUri = Uri.parse(googleMapsUrl);
         launched = await launchUrl(
           gmapsUri,
@@ -777,8 +807,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
                 ),
               ),
-              if (propertyData.googleMapsLink != null &&
-                  propertyData.googleMapsLink!.isNotEmpty)
+              if (propertyData.latitude != null && propertyData.longitude != null)
                 GestureDetector(
                   onTap: _openGoogleMaps,
                   child: Container(
@@ -817,8 +846,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
                 ),
               ),
-              if (propertyData.googleMapsLink != null &&
-                  propertyData.googleMapsLink!.isNotEmpty) ...[
+              if (propertyData.latitude != null && propertyData.longitude != null) ...[
                 const SizedBox(width: BuddyTheme.spacingMd),
                 GestureDetector(
                   onTap: _openGoogleMaps,
@@ -1419,7 +1447,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildBottomActions() {
-    final hasPhone = propertyData.phone.isNotEmpty;
+    final hasPhone = propertyData.sharePhoneNumber && userPhone != null && userPhone!.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: SafeArea(
@@ -1431,7 +1459,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       onPressed: () async {
                         final Uri phoneUri = Uri(
                           scheme: 'tel',
-                          path: propertyData.phone,
+                          path: userPhone!,
                         );
                         await launchUrl(phoneUri);
                       },

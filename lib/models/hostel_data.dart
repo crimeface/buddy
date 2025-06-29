@@ -16,7 +16,6 @@ class HostelData {
   final String hostelFor;
   final String hostelType;
   final String landmark;
-  final String mapLink;
   final String minimumStay;
   final String offers;
   final String petsPolicy;
@@ -46,7 +45,6 @@ class HostelData {
     required this.hostelFor,
     required this.hostelType,
     required this.landmark,
-    required this.mapLink,
     required this.minimumStay,
     required this.offers,
     required this.petsPolicy,
@@ -81,7 +79,6 @@ class HostelData {
       hostelFor: data['hostelFor'] ?? '',
       hostelType: data['hostelType'] ?? '',
       landmark: data['landmark'] ?? '',
-      mapLink: data['mapLink'] ?? '',
       minimumStay: data['minimumStay'] ?? '',
       offers: data['offers'] ?? '',
       petsPolicy: data['petsPolicy'] ?? '',

@@ -11,6 +11,8 @@ import 'package:geoflutterfire2/geoflutterfire2.dart';
 import '../api/map_location_picker.dart';
 import 'location_autocomplete_field.dart';
 import '../api/maptiler_autocomplete.dart';
+import 'validation_widgets.dart';
+import '../utils/user_utils.dart';
 
 class ListHostelForm extends StatefulWidget {
   ListHostelForm({Key? key}) : super(key: key) {}
@@ -44,12 +46,8 @@ class _ListHostelFormState extends State<ListHostelForm>
 
   // Basic Information
   final _titleController = TextEditingController();
-  final _contactPersonController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   final _landmarkController = TextEditingController();
-  final _mapLinkController = TextEditingController();
   String _hostelType = 'Hostel';
   String _hostelFor = 'Male';
 
@@ -171,9 +169,8 @@ class _ListHostelFormState extends State<ListHostelForm>
     _slideAnimationController.dispose();
     _fabAnimationController.dispose();
     _titleController.dispose();
-    _contactPersonController.dispose();
-    _phoneController.dispose();
     _addressController.dispose();
+    _landmarkController.dispose();
     _descriptionController.dispose();
     _offersController.dispose();
     _specialFeaturesController.dispose();
@@ -188,47 +185,24 @@ class _ListHostelFormState extends State<ListHostelForm>
     switch (_currentStep) {
       case 0: // Basic Details Step
         if (_titleController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter a listing title'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          isValid = false;
-        } else if (_contactPersonController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter contact person name'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          isValid = false;
-        } else if (_phoneController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter phone number'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter a listing title');
           isValid = false;
         } else if (_addressController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter exact address'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter exact address');
           isValid = false;
         }
         break;
       case 1: // Room Types Step
         if (_startingPriceController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter room starting price'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter room starting price');
+          isValid = false;
+        }
+        break;
+      case 4: // Photos Step - At least one photo is required
+        // Check if at least one photo is uploaded
+        bool hasAnyPhoto = _uploadedPhotos.values.any((url) => url.isNotEmpty);
+        if (!hasAnyPhoto) {
+          ValidationSnackBar.showError(context, 'Please upload at least one photo');
           isValid = false;
         }
         break;
@@ -278,12 +252,7 @@ class _ListHostelFormState extends State<ListHostelForm>
         setState(() {
           _uploadedPhotos[photoType] = url;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image uploaded successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ValidationSnackBar.showSuccess(context, 'Image uploaded successfully!');
       }
     }
   }
@@ -366,6 +335,11 @@ class _ListHostelFormState extends State<ListHostelForm>
     final now = DateTime.now();
     final expiryDate = now.add(planDuration);
 
+    // Get username automatically from user account
+    final username = await UserUtils.getCurrentUsername();
+    // Get phone number automatically from user account
+    final userPhone = await UserUtils.getCurrentUserPhone();
+
     final data = {
       'uid': userId,
       'title': _titleController.text,
@@ -375,8 +349,8 @@ class _ListHostelFormState extends State<ListHostelForm>
           _startingPriceController.text.isNotEmpty
               ? int.parse(_startingPriceController.text)
               : 0,
-      'contactPerson': _contactPersonController.text,
-      'phone': _phoneController.text,
+      'contactPerson': username, // Automatically use username from account
+      'phone': userPhone ?? '', // Automatically use phone from account
       'address': _addressController.text,
       'roomTypes': _roomTypes,
       'facilities': _facilities,
@@ -398,6 +372,8 @@ class _ListHostelFormState extends State<ListHostelForm>
       'selectedPlan': _selectedPlan,
       'expiryDate': expiryDate.toIso8601String(),
       'visibility': true,
+      'latitude': _pickedLocation?.latitude,
+      'longitude': _pickedLocation?.longitude,
     };
 
     try {
@@ -418,24 +394,10 @@ class _ListHostelFormState extends State<ListHostelForm>
             }, SetOptions(merge: true));
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Hostel listing submitted successfully!'),
-          backgroundColor: BuddyTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-          ),
-        ),
-      );
+      ValidationSnackBar.showSuccess(context, 'Hostel listing submitted successfully!');
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to submit: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ValidationSnackBar.showError(context, 'Failed to submit: $e');
     }
   }
 
@@ -595,23 +557,6 @@ class _ListHostelFormState extends State<ListHostelForm>
               ['Male', 'Female', 'Any'],
               (value) => setState(() => _hostelFor = value),
               Icons.people,
-            ),
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _contactPersonController,
-              label: 'Contact Person Name',
-              hint: 'Enter contact person name',
-              icon: Icons.person,
-            ),
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _phoneController,
-              label: 'Phone Number',
-              hint: 'Enter phone number',
-              icon: Icons.phone,
-              keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: BuddyTheme.spacingLg),
 
@@ -1615,7 +1560,7 @@ class _ListHostelFormState extends State<ListHostelForm>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Property Photos',
+          'Property Photos *',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
@@ -1623,7 +1568,7 @@ class _ListHostelFormState extends State<ListHostelForm>
         ),
         const SizedBox(height: BuddyTheme.spacingSm),
         Text(
-          'Add photos of different areas (${_uploadedPhotos.length} uploaded)',
+          'Please upload at least one photo to proceed',
           style: theme.textTheme.bodySmall?.copyWith(color: textSecondary),
         ),
         const SizedBox(height: BuddyTheme.spacingMd),

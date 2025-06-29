@@ -10,6 +10,8 @@ import 'package:geoflutterfire2/geoflutterfire2.dart';
 import '../api/map_location_picker.dart';
 import 'location_autocomplete_field.dart';
 import '../api/maptiler_autocomplete.dart';
+import 'validation_widgets.dart';
+import '../utils/user_utils.dart';
 
 class ListServiceForm extends StatefulWidget {
   const ListServiceForm({Key? key}) : super(key: key);
@@ -44,7 +46,6 @@ class _ListServiceFormState extends State<ListServiceForm>
   String _serviceType = 'Library';
   final _serviceNameController = TextEditingController();
   final _locationController = TextEditingController();
-  final _contactController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   // Timings
@@ -151,7 +152,6 @@ class _ListServiceFormState extends State<ListServiceForm>
     _slideAnimationController.dispose();
     _serviceNameController.dispose();
     _locationController.dispose();
-    _contactController.dispose();
     _descriptionController.dispose();
     _seatingCapacityController.dispose();
     _chargesController.dispose();
@@ -226,81 +226,47 @@ class _ListServiceFormState extends State<ListServiceForm>
         break;
       case 1: // Basic Details Step
         if (_serviceNameController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter service name'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter service name');
           isValid = false;
         } else if (_locationController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter location'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter location');
           isValid = false;
         }
         break;
-      case 2: // Timings and Contact Step
-        if (_contactController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter contact number'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          isValid = false;
-        }
+      case 2: // Timings Step (removed contact validation)
+        // No validation needed since contact is auto-filled
         break;
       case 3: // Specific Details Step
         if (_serviceType == 'Library') {
           if (_seatingCapacityController.text.trim().isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Please enter seating capacity'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            ValidationSnackBar.showError(context, 'Please enter seating capacity');
             isValid = false;
           } else if (_chargesController.text.trim().isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Please enter monthly charge'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            ValidationSnackBar.showError(context, 'Please enter monthly charge');
             isValid = false;
           }
         } else if (_serviceType == 'Café') {
           if (_priceRangeController.text.trim().isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Please enter price range'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            ValidationSnackBar.showError(context, 'Please enter price range');
             isValid = false;
           }
         } else if (_serviceType == 'Mess') {
           if (_seatingCapacityController.text.trim().isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Please enter seating capacity'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            ValidationSnackBar.showError(context, 'Please enter seating capacity');
             isValid = false;
           } else if (_monthlyPriceController.text.trim().isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Please enter monthly price'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            ValidationSnackBar.showError(context, 'Please enter monthly price');
             isValid = false;
           }
+        }
+        break;
+      case 4: // Photos Step - At least one photo is required
+        // Check if at least one photo is uploaded (cover photo or additional photos)
+        bool hasAnyPhoto = (_coverPhotoUrl != null && _coverPhotoUrl!.isNotEmpty) || 
+                          _additionalPhotoUrls.isNotEmpty;
+        if (!hasAnyPhoto) {
+          ValidationSnackBar.showError(context, 'Please upload at least one photo');
+          isValid = false;
         }
         break;
     }
@@ -375,13 +341,19 @@ class _ListServiceFormState extends State<ListServiceForm>
     final now = DateTime.now();
     final expiryDate = now.add(planDuration);
 
+    // Get username automatically from user account
+    final username = await UserUtils.getCurrentUsername();
+    // Get phone number automatically from user account
+    final userPhone = await UserUtils.getCurrentUserPhone();
+
     final data = {
       'userId': userId,
       'serviceType': _serviceType,
       'serviceName': _serviceNameController.text,
       'location': _locationController.text,
       'description': _descriptionController.text,
-      'contact': _contactController.text,
+      'contact': userPhone ?? '', // Automatically use phone from account
+      'ownerName': username, // Automatically use username from account
       'openingTime':
           _openingTime != null ? _openingTime!.format(context) : null,
       'closingTime':
@@ -426,6 +398,8 @@ class _ListServiceFormState extends State<ListServiceForm>
       'selectedPlan': _selectedPlan,
       'expiryDate': expiryDate.toIso8601String(),
       'visibility': true,
+      'latitude': _pickedLocation?.latitude,
+      'longitude': _pickedLocation?.longitude,
     };
 
     try {
@@ -445,24 +419,10 @@ class _ListServiceFormState extends State<ListServiceForm>
             }, SetOptions(merge: true));
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Service listing submitted successfully!'),
-          backgroundColor: BuddyTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-          ),
-        ),
-      );
+      ValidationSnackBar.showSuccess(context, 'Service listing submitted successfully!');
       Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to submit: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ValidationSnackBar.showError(context, 'Failed to submit: $e');
     }
   }
 
@@ -680,16 +640,6 @@ class _ListServiceFormState extends State<ListServiceForm>
               _offDays,
               (value) => setState(() => _offDay = value),
               Icons.event_busy,
-            ),
-
-            const SizedBox(height: BuddyTheme.spacingLg),
-
-            _buildAnimatedTextField(
-              controller: _contactController,
-              label: 'Contact Number',
-              hint: 'Enter your contact number',
-              icon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
             ),
 
             const SizedBox(height: BuddyTheme.spacingXl),
@@ -1490,14 +1440,14 @@ class _ListServiceFormState extends State<ListServiceForm>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Cover Photo',
+          'Cover Photo *',
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: BuddyTheme.spacingSm),
         Text(
-          'This will be the main photo displayed',
+          'Please upload at least one photo to proceed',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: BuddyTheme.textSecondaryColor),
@@ -1668,19 +1618,9 @@ class _ListServiceFormState extends State<ListServiceForm>
         setState(() {
           _coverPhotoUrl = url;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cover photo uploaded!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ValidationSnackBar.showSuccess(context, 'Cover photo uploaded!');
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ValidationSnackBar.showError(context, 'Failed to upload: $e');
       }
     }
   }
@@ -1702,19 +1642,9 @@ class _ListServiceFormState extends State<ListServiceForm>
         setState(() {
           _additionalPhotoUrls.add(url);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Photo uploaded!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ValidationSnackBar.showSuccess(context, 'Photo uploaded!');
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ValidationSnackBar.showError(context, 'Failed to upload: $e');
       }
     }
   }

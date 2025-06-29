@@ -29,8 +29,6 @@ class _EditServicePageState extends State<EditServicePage> {
   // Common Fields
   final TextEditingController _serviceNameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _contactController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
   // Service Type
@@ -84,8 +82,6 @@ class _EditServicePageState extends State<EditServicePage> {
     // Initialize common fields
     _serviceNameController.text = widget.serviceData['serviceName'] ?? '';
     _locationController.text = widget.serviceData['location'] ?? '';
-    _contactController.text = widget.serviceData['contact'] ?? '';
-    _emailController.text = widget.serviceData['email'] ?? '';
     _descriptionController.text = widget.serviceData['description'] ?? '';
   }
 
@@ -99,8 +95,6 @@ class _EditServicePageState extends State<EditServicePage> {
     _pricingController.dispose();
     _serviceNameController.dispose();
     _locationController.dispose();
-    _contactController.dispose();
-    _emailController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -194,8 +188,6 @@ class _EditServicePageState extends State<EditServicePage> {
         'serviceType': _serviceType,
         'serviceName': _serviceNameController.text,
         'location': _locationController.text,
-        'contact': _contactController.text,
-        'email': _emailController.text,
         'description': _descriptionController.text,
         'selectedPlan': plan,
         'createdAt': now.toIso8601String(),

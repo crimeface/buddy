@@ -225,7 +225,7 @@ class _FeaturesMapSearchPageState extends State<FeaturesMapSearchPage> {
               Navigator.pushNamed(
                 context,
                 '/hostelpg_details',
-                arguments: {'propertyId': item['id']},
+                arguments: {'hostelId': item['id']},
               );
             } else if (type == 'Service') {
               Navigator.pushNamed(

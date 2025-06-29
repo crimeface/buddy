@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 import '../models/hostel_data.dart';
 import '../chat_screen.dart';
+import '../utils/user_utils.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -120,17 +121,16 @@ class HostelData {
   final String bookingMode;
   final String contactPerson;
   final String description;
-  final String email;
+  final String? email;
   final Map<String, bool> facilities;
   final String foodType;
   final bool hasEntryTimings;
   final String hostelFor;
   final String hostelType;
   final String landmark;
-  final String googleMapsLink;
   final String minimumStay;
   final String offers;
-  final String phone;
+  final String? phone;
   final Map<String, bool> roomTypes;
   final Map<String, String> preferences;
   final String selectedPlan;
@@ -139,6 +139,9 @@ class HostelData {
   final Map<String, String> uploadedPhotos;
   final bool visibility;
   final String uid;
+  final bool sharePhoneNumber;
+  final double? latitude;
+  final double? longitude;
 
   HostelData({
     required this.title,
@@ -154,7 +157,6 @@ class HostelData {
     required this.hostelFor,
     required this.hostelType,
     required this.landmark,
-    required this.googleMapsLink,
     required this.minimumStay,
     required this.offers,
     required this.phone,
@@ -166,6 +168,9 @@ class HostelData {
     required this.uploadedPhotos,
     required this.visibility,
     required this.uid,
+    required this.sharePhoneNumber,
+    required this.latitude,
+    required this.longitude,
   });
 
   factory HostelData.fromFirestore(Map<String, dynamic> data) {
@@ -179,8 +184,7 @@ class HostelData {
       bookingMode: data['bookingMode'] ?? '',
       contactPerson: data['contactPerson'] ?? '',
       description: data['description'] ?? '',
-
-      email: data['email'] ?? '',
+      email: data['email'] as String?,
       facilities:
           (data['facilities'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value as bool),
@@ -191,10 +195,9 @@ class HostelData {
       hostelFor: data['hostelFor'] ?? '',
       hostelType: data['hostelType'] ?? '',
       landmark: data['landmark'] ?? '',
-      googleMapsLink: data['mapLink'] ?? '',
       minimumStay: data['minimumStay'] ?? '',
       offers: data['offers'] ?? '',
-      phone: data['phone'] ?? '',
+      phone: data['phone'] as String?,
       roomTypes:
           (data['roomTypes'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value as bool),
@@ -218,6 +221,9 @@ class HostelData {
           {},
       visibility: data['visibility'] ?? false,
       uid: data['uid'] ?? '',
+      sharePhoneNumber: data['sharePhoneNumber'] ?? false,
+      latitude: data['latitude']?.toDouble(),
+      longitude: data['longitude']?.toDouble(),
     );
   }
 }
@@ -266,6 +272,11 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   final PageController _pageController = PageController();
   bool isLoading = true;
   String? error;
+  
+  // User contact information
+  String? userPhone;
+  String? userEmail;
+  bool isLoadingUserData = false;
 
   @override
   void initState() {
@@ -352,6 +363,11 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
             hostelData = HostelData.fromFirestore(data);
             isLoading = false;
           });
+          
+          // Fetch user contact information if they chose to share phone number
+          if (hostelData.sharePhoneNumber && hostelData.uid.isNotEmpty) {
+            await _fetchUserContactInfo(hostelData.uid);
+          }
         } else {
           setState(() {
             error = 'Hostel/PG not found';
@@ -367,33 +383,42 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
     }
   }
 
-  Future<void> _openGoogleMaps() async {
-    if (hostelData.googleMapsLink == null ||
-        hostelData.googleMapsLink.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No map link available'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return;
-    }
+  Future<void> _fetchUserContactInfo(String userId) async {
+    setState(() {
+      isLoadingUserData = true;
+    });
 
-    String url = hostelData.googleMapsLink.trim();
-
-    if (url.startsWith('maps.google.com') ||
-        url.startsWith('www.google.com/maps')) {
-      url = 'https://' + url;
-    } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      if (url.contains('maps.google.com') || url.contains('goo.gl/maps')) {
-        url = 'https://' + url;
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        setState(() {
+          userPhone = userData['phone']?.toString();
+          userEmail = userData['email']?.toString();
+          isLoadingUserData = false;
+        });
       } else {
-        url =
-            'https://www.google.com/maps/search/?api=1&query=' +
-            Uri.encodeComponent(url);
+        setState(() {
+          isLoadingUserData = false;
+        });
       }
+    } catch (e) {
+      print('Error fetching user contact info: $e');
+      setState(() {
+        isLoadingUserData = false;
+      });
+    }
+  }
+
+  Future<void> _openGoogleMaps() async {
+    String url;
+    
+    // Use coordinates if available, otherwise fall back to address and landmark
+    if (hostelData.latitude != null && hostelData.longitude != null) {
+      url = 'https://www.google.com/maps/search/?api=1&query=${hostelData.latitude},${hostelData.longitude}';
+    } else {
+      url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${hostelData.address}, ${hostelData.landmark}')}';
     }
 
     try {
@@ -404,8 +429,8 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
       );
 
       if (!launched) {
-        final String googleMapsUrl =
-            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${hostelData.address}, ${hostelData.landmark}')}';
+        // Fallback to web version
+        final String googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${hostelData.address}, ${hostelData.landmark}')}';
         final Uri gmapsUri = Uri.parse(googleMapsUrl);
         launched = await launchUrl(
           gmapsUri,
@@ -701,8 +726,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                   ),
                 ),
               ),
-              if (hostelData.googleMapsLink != null &&
-                  hostelData.googleMapsLink.isNotEmpty == true)
+              if (hostelData.latitude != null && hostelData.longitude != null) ...[
                 GestureDetector(
                   onTap: _openGoogleMaps,
                   child: Container(
@@ -712,6 +736,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: BuddyTheme.spacingSm),
@@ -741,7 +766,7 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                   ),
                 ),
               ),
-              if (hostelData.googleMapsLink.isNotEmpty) ...[
+              if (hostelData.latitude != null && hostelData.longitude != null) ...[
                 const SizedBox(width: BuddyTheme.spacingMd),
                 GestureDetector(
                   onTap: _openGoogleMaps,
@@ -1207,7 +1232,11 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
     );
   }
 
-  Widget _buildContactItem(IconData icon, String text) {
+  Widget _buildContactItem(IconData icon, String? text) {
+    if (text == null || text.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: BuddyTheme.spacingSm),
       child: Row(
@@ -1263,62 +1292,97 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
   }
 
   Widget _buildBottomActions() {
+    final hasPhone = hostelData.sharePhoneNumber && userPhone != null && userPhone!.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(BuddyTheme.spacingMd),
       child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final Uri phoneUri = Uri(
-                    scheme: 'tel',
-                    path: hostelData.phone,
-                  );
-                  await launchUrl(phoneUri);
-                },
-                icon: const Icon(Icons.phone),
-                label: const Text('Call'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: BuddyTheme.primaryColor,
-                ),
-              ),
-            ),
-            const SizedBox(width: BuddyTheme.spacingMd),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final otherUserId = hostelData.uid;
-                  final otherUserName = hostelData.contactPerson ?? 'User';
-                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                  if (otherUserId == null || otherUserId.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No user ID found for this user.')),
-                    );
-                    return;
-                  }
-                  if (currentUserId == otherUserId) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('You cannot chat with yourself.')),
-                    );
-                    return;
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatScreen(
-                        otherUserId: otherUserId,
-                        otherUserName: otherUserName,
+        child: hasPhone
+            ? Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final Uri phoneUri = Uri(
+                          scheme: 'tel',
+                          path: userPhone!,
+                        );
+                        await launchUrl(phoneUri);
+                      },
+                      icon: const Icon(Icons.phone),
+                      label: const Text('Call'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: BuddyTheme.primaryColor,
                       ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.chat),
-                label: const Text('Message'),
+                  ),
+                  const SizedBox(width: BuddyTheme.spacingMd),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final otherUserId = hostelData.uid;
+                        final otherUserName = hostelData.contactPerson ?? 'User';
+                        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                        if (otherUserId == null || otherUserId.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('No user ID found for this user.')),
+                          );
+                          return;
+                        }
+                        if (currentUserId == otherUserId) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('You cannot chat with yourself.')),
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(
+                              otherUserId: otherUserId,
+                              otherUserName: otherUserName,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat),
+                      label: const Text('Message'),
+                    ),
+                  ),
+                ],
+              )
+            : SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final otherUserId = hostelData.uid;
+                    final otherUserName = hostelData.contactPerson ?? 'User';
+                    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                    if (otherUserId == null || otherUserId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No user ID found for this user.')),
+                      );
+                      return;
+                    }
+                    if (currentUserId == otherUserId) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('You cannot chat with yourself.')),
+                      );
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChatScreen(
+                          otherUserId: otherUserId,
+                          otherUserName: otherUserName,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat),
+                  label: const Text('Message'),
+                ),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

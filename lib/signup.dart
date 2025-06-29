@@ -14,6 +14,7 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPageState extends State<SignUpPage>
     with TickerProviderStateMixin {
   final _fullNameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -74,6 +75,7 @@ class _SignUpPageState extends State<SignUpPage>
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _animationController.dispose();
@@ -118,6 +120,7 @@ class _SignUpPageState extends State<SignUpPage>
         await FirebaseFirestore.instance.collection('users').doc(userId).set({
           'username': _fullNameController.text.trim(),
           'email': userEmail,
+          'phone': _phoneController.text.trim(),
           'createdAt': DateTime.now().toIso8601String(),
         });
 
@@ -361,13 +364,27 @@ class _SignUpPageState extends State<SignUpPage>
                                           fontWeight: FontWeight.w400,
                                         ),
                                       ),
-                                      const SizedBox(height: 32),
+                                      const SizedBox(height: 40),
                                       
                                       // Full Name Field
                                       _buildCustomTextField(
                                         controller: _fullNameController,
                                         hintText: 'Full Name',
                                         icon: Icons.person_outline,
+                                        isDark: isDark,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter your full name';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+
+                                      // Phone Field
+                                      _buildCustomTextField(
+                                        controller: _phoneController,
+                                        hintText: 'Phone Number',
+                                        icon: Icons.phone_android_outlined,
                                         isDark: isDark,
                                         validator: (value) {
                                           if (value == null || value.isEmpty) {

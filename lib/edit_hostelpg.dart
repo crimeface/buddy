@@ -217,7 +217,6 @@ class _EditHostelPGPageState extends State<EditHostelPGPage> {
               'email': _hostelData.email,
               'address': _hostelData.address,
               'landmark': _hostelData.landmark,
-              'mapLink': _hostelData.mapLink,
               'roomTypes': _availableRoomTypes,
               'facilities': _hostelData.facilities,
               'hasEntryTimings': _hostelData.hasEntryTimings,

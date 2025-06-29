@@ -71,6 +71,31 @@ class BuddyTheme {
   static const double iconSizeLg = 32.0;
   static const double iconSizeXl = 48.0;
 
+  // Validation colors
+  static const Color validationSuccessColor = Color(0xFF27AE60);  // Darker green for success
+  static const Color validationErrorColor = Color(0xFFE74C3C);    // Red for errors
+  static const Color validationWarningColor = Color(0xFFF39C12);  // Orange for warnings
+  static const Color validationInfoColor = Color(0xFF3498DB);     // Blue for info
+  static const Color validationNeutralColor = Color(0xFF95A5A6);  // Gray for neutral states
+
+  // Validation background colors
+  static const Color validationSuccessBgColor = Color(0xFFD5F4E6);  // Light green background
+  static const Color validationErrorBgColor = Color(0xFFFADBD8);    // Light red background
+  static const Color validationWarningBgColor = Color(0xFFFDEAA7);  // Light orange background
+  static const Color validationInfoBgColor = Color(0xFFD6EAF8);     // Light blue background
+
+  // Validation border colors
+  static const Color validationSuccessBorderColor = Color(0xFFA9DFBF);
+  static const Color validationErrorBorderColor = Color(0xFFF5B7B1);
+  static const Color validationWarningBorderColor = Color(0xFFF8C471);
+  static const Color validationInfoBorderColor = Color(0xFFA9CCE3);
+
+  // Validation text colors
+  static const Color validationSuccessTextColor = Color(0xFF1E8449);
+  static const Color validationErrorTextColor = Color(0xFFC0392B);
+  static const Color validationWarningTextColor = Color(0xFFD68910);
+  static const Color validationInfoTextColor = Color(0xFF2874A6);
+
   // Get the app theme data
   static ThemeData get lightTheme {
     return ThemeData(

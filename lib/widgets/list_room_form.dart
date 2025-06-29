@@ -11,7 +11,8 @@ import '../services/firebase_storage_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geoflutterfire2/geoflutterfire2.dart';
 import 'location_autocomplete_field.dart';
-import '../api/maptiler_autocomplete.dart';
+import 'validation_widgets.dart';
+import '../utils/user_utils.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -74,17 +75,17 @@ class _ListRoomFormState extends State<ListRoomForm>
   String _guestsPolicy = 'Allowed';
 
   // Photos
-  final Map<String, List<String>> _uploadedPhotos = {
-    'Room': [],
-    'Washroom': [],
-    'Kitchen': [],
-    'Building': [],
-  };
   final Map<String, String> _uploadedPhotoUrls = {
     'Room': '',
     'Washroom': '',
     'Kitchen': '',
     'Building': '',
+  };
+  final Map<String, bool> _photoLoadingStates = {
+    'Room': false,
+    'Washroom': false,
+    'Kitchen': false,
+    'Building': false,
   };
   final ImagePicker _picker = ImagePicker();
   final List<String> _requiredPhotoTypes = [
@@ -95,10 +96,7 @@ class _ListRoomFormState extends State<ListRoomForm>
   ];
 
   // Contact Details
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _notesController = TextEditingController();
+  bool _sharePhoneNumber = true;
 
   // Payment Plan
   String _selectedPlan = '1Day';
@@ -173,70 +171,54 @@ class _ListRoomFormState extends State<ListRoomForm>
     _rentController.dispose();
     _depositController.dispose();
     _brokerageController.dispose();
-    _nameController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
   void _nextStep() {
     // Validate current step before proceeding
     bool isValid = true;
-    
+
     switch (_currentStep) {
       case 0: // Basic Details Step - Only title is required
         if (_titleController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter a listing title'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter a listing title');
           isValid = false;
         }
         break;
-      case 1: // Location and Date Step - Location and date are required
+      case 1: // Location and Date Step - Location, picked location, and date are required
         if (_locationController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter location'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter location');
+          isValid = false;
+        } else if (_pickedLocation == null) {
+          ValidationSnackBar.showError(context, 'Please pick a location on the map');
           isValid = false;
         } else if (_availableFromDate == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please select available from date'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please select available from date');
           isValid = false;
         }
         break;
       case 2: // Pricing Step
         if (_rentController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter monthly rent'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ValidationSnackBar.showError(context, 'Please enter monthly rent');
+          isValid = false;
+        } else if (_depositController.text.trim().isEmpty) {
+          ValidationSnackBar.showError(context, 'Please enter security deposit');
+          isValid = false;
+        }
+        break;
+      case 6: // Photos and Contact Step - All 4 photos are required
+        // Check if all 4 photos are uploaded
+        bool hasAllPhotos = _uploadedPhotoUrls.values.every((url) => url.isNotEmpty);
+        if (!hasAllPhotos) {
+          ValidationSnackBar.showError(context, 'Please upload all 4 required photos');
           isValid = false;
         }
         break;
       case 7: // Contact Details Step
-        if (_nameController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please enter your name'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          isValid = false;
-        }
+        // No validation needed for switch
         break;
     }
-    
+
     if (!isValid) return;
 
     if (_currentStep >= _totalSteps - 1) return;
@@ -292,6 +274,9 @@ class _ListRoomFormState extends State<ListRoomForm>
     final now = DateTime.now();
     final expiryDate = now.add(planDuration);
 
+    // Get username automatically from user account
+    final username = await UserUtils.getCurrentUsername();
+
     // Prepare data
     final data = {
       'userId': userId ?? 'anonymous',
@@ -300,7 +285,7 @@ class _ListRoomFormState extends State<ListRoomForm>
       'rent': _rentController.text,
       'deposit': _depositController.text,
       'brokerage': _brokerageController.text,
-      'name': _nameController.text,
+      'name': username, // Automatically use username from account
       'availableFromDate': _availableFromDate?.toIso8601String(),
       'roomType': _roomType,
       'flatSize': _flatSize,
@@ -329,23 +314,18 @@ class _ListRoomFormState extends State<ListRoomForm>
       'selectedPlan': _selectedPlan,
       'expiryDate': expiryDate.toIso8601String(),
       'visibility': true, // Always true on creation,
-      'phone': _phoneController.text,
+      'sharePhoneNumber': _sharePhoneNumber,
+      'latitude': _pickedLocation?.latitude,
+      'longitude': _pickedLocation?.longitude,
     };
 
     try {
-      final newRoomDocRef = await FirebaseFirestore.instance.collection('room_listings').add(data);
+      final newRoomDocRef = await FirebaseFirestore.instance
+          .collection('room_listings')
+          .add(data);
       final newRoomDocId = newRoomDocRef.id;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Room listing submitted successfully!'),
-          backgroundColor: BuddyTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
-          ),
-        ),
-      );
+      ValidationSnackBar.showSuccess(context, 'Room listing submitted successfully!');
 
       final geo = GeoFlutterFire();
       if (_pickedLocation != null) {
@@ -356,19 +336,12 @@ class _ListRoomFormState extends State<ListRoomForm>
         await FirebaseFirestore.instance
             .collection('room_listings')
             .doc(newRoomDocId)
-            .set({
-              'position': geoPoint.data,
-            }, SetOptions(merge: true));
+            .set({'position': geoPoint.data}, SetOptions(merge: true));
       }
 
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to submit: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ValidationSnackBar.showError(context, 'Failed to submit: $e');
     }
   }
 
@@ -382,28 +355,11 @@ class _ListRoomFormState extends State<ListRoomForm>
       );
       if (image == null) return;
 
-      // Show loading indicator
+      // Set loading state for this photo type
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Text('Uploading image...'),
-            ],
-          ),
-          duration: const Duration(seconds: 1),
-          backgroundColor: BuddyTheme.primaryColor,
-        ),
-      );
+      setState(() {
+        _photoLoadingStates[photoType] = true;
+      });
 
       // Upload to Firebase Storage
       String firebaseUrl = await FirebaseStorageService.uploadImage(image.path);
@@ -411,26 +367,16 @@ class _ListRoomFormState extends State<ListRoomForm>
       if (!mounted) return;
       setState(() {
         _uploadedPhotoUrls[photoType] = firebaseUrl;
+        _photoLoadingStates[photoType] = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image uploaded successfully!'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      ValidationSnackBar.showSuccess(context, 'Image uploaded successfully!');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to upload image: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      setState(() {
+        _photoLoadingStates[photoType] = false;
+      });
+      ValidationSnackBar.showError(context, 'Failed to upload image: $e');
     }
   }
 
@@ -624,7 +570,7 @@ class _ListRoomFormState extends State<ListRoomForm>
             _buildAnimatedTextField(
               controller: _titleController,
               label: 'Listing Title',
-              hint: 'e.g., 1 BHK Flat in Kothrud, Pune – One Room Available',
+              hint: 'e.g, 1 BHK Flat in Kothrud, Pune – One Room Available',
               icon: Icons.title,
             ),
 
@@ -700,14 +646,18 @@ class _ListRoomFormState extends State<ListRoomForm>
             // Map Picker Button for Location
             ElevatedButton.icon(
               icon: Icon(Icons.map),
-              label: Text(_pickedLocation == null ? 'Pick Location on Map' : 'Location Selected'),
+              label: Text(
+                _pickedLocation == null
+                    ? 'Pick Location on Map'
+                    : 'Location Selected',
+              ),
               onPressed: () async {
                 final LatLng? result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => MapLocationPicker(
-                      initialLocation: _pickedLocation,
-                    ),
+                    builder:
+                        (context) =>
+                            MapLocationPicker(initialLocation: _pickedLocation),
                   ),
                 );
                 if (result != null) {
@@ -893,13 +843,9 @@ class _ListRoomFormState extends State<ListRoomForm>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildStepHeader(
-              '📸 Photos & Contact',
-              'Add photos and contact details',
+              '📞 Contact and Photos',
+              'Add contact details and photos',
             ),
-            const SizedBox(height: BuddyTheme.spacingXl),
-
-            _buildPhotoUploadSection(),
-
             const SizedBox(height: BuddyTheme.spacingXl),
 
             Text(
@@ -911,22 +857,17 @@ class _ListRoomFormState extends State<ListRoomForm>
             ),
             const SizedBox(height: BuddyTheme.spacingMd),
 
-            _buildAnimatedTextField(
-              controller: _nameController,
-              label: 'Your Name',
-              hint: 'Enter your name',
-              icon: Icons.person_outline,
+            _buildSwitchCard(
+              'Share Phone Number',
+              'Allow potential tenants to contact you via phone?',
+              _sharePhoneNumber,
+              (value) => setState(() => _sharePhoneNumber = value),
+              Icons.phone_outlined,
             ),
 
-            const SizedBox(height: BuddyTheme.spacingLg),
+            const SizedBox(height: BuddyTheme.spacingXl),
 
-            _buildAnimatedTextField(
-              controller: _phoneController,
-              label: 'Phone Number',
-              hint: 'Enter phone number',
-              icon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
-            ),
+            _buildPhotoUploadSection(),
 
             const SizedBox(height: BuddyTheme.spacingXl),
           ],
@@ -1526,7 +1467,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-          );
+        );
       },
     );
   }
@@ -1638,7 +1579,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-          );
+        );
       },
     );
   }
@@ -1751,7 +1692,7 @@ class _ListRoomFormState extends State<ListRoomForm>
               ),
             ),
           ),
-          );
+        );
       },
     );
   }
@@ -1858,7 +1799,7 @@ class _ListRoomFormState extends State<ListRoomForm>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Required Photos',
+          'Required Photos *',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
@@ -1866,7 +1807,7 @@ class _ListRoomFormState extends State<ListRoomForm>
         ),
         const SizedBox(height: BuddyTheme.spacingMd),
         Text(
-          'Please upload photos for each required section',
+          'Please upload all 4 required photos to proceed',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: BuddyTheme.textSecondaryColor),
@@ -1886,11 +1827,13 @@ class _ListRoomFormState extends State<ListRoomForm>
             final photoType = _requiredPhotoTypes[index];
             final photoUrl = _uploadedPhotoUrls[photoType];
             final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+            final isLoading = _photoLoadingStates[photoType] ?? false;
 
             return _buildPhotoUploadCard(
               photoType: photoType,
               hasPhoto: hasPhoto,
               photoUrl: photoUrl,
+              isLoading: isLoading,
             );
           },
         ),
@@ -1902,6 +1845,7 @@ class _ListRoomFormState extends State<ListRoomForm>
     required String photoType,
     required bool hasPhoto,
     String? photoUrl,
+    required bool isLoading,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -1916,14 +1860,32 @@ class _ListRoomFormState extends State<ListRoomForm>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _uploadPhoto(photoType),
+          onTap: isLoading ? null : () => _uploadPhoto(photoType),
           borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusMd),
           child: Padding(
             padding: const EdgeInsets.all(BuddyTheme.spacingMd),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (hasPhoto && photoUrl != null && photoUrl.isNotEmpty) ...[
+                if (isLoading) ...[
+                  SizedBox(
+                    height: 40,
+                    width: 40,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(BuddyTheme.primaryColor),
+                    ),
+                  ),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                  Text(
+                    'Uploading...',
+                    style: TextStyle(
+                      color: BuddyTheme.primaryColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ] else if (hasPhoto && photoUrl != null && photoUrl.isNotEmpty) ...[
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(
@@ -1961,7 +1923,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (!hasPhoto) ...[
+                if (!hasPhoto && !isLoading) ...[
                   const SizedBox(height: BuddyTheme.spacingXs),
                   Text(
                     'Tap to upload',
