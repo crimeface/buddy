@@ -981,7 +981,7 @@ class _HomePageState extends State<HomePage>
           () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => HostelPgPage(),
+              builder: (_) => HostelpgPage(),
             ),
           ),
       borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusLg),

@@ -29,7 +29,28 @@ class ChatMessage {
     );
   }
 
+  factory ChatMessage.fromRealtimeDatabase(Map<String, dynamic> data) {
+    return ChatMessage(
+      id: data['id'] ?? '',
+      senderId: data['senderId'] ?? '',
+      receiverId: data['receiverId'] ?? '',
+      content: data['content'] ?? '',
+      timestamp: DateTime.fromMillisecondsSinceEpoch(data['timestamp'] ?? 0),
+      isRead: data['isRead'] ?? false,
+    );
+  }
+
   Map<String, dynamic> toMap() {
+    return {
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'content': content,
+      'timestamp': timestamp.millisecondsSinceEpoch,
+      'isRead': isRead,
+    };
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
     return {
       'senderId': senderId,
       'receiverId': receiverId,

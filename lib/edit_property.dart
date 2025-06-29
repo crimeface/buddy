@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/cache_utils.dart';
 
 class EditPropertyPage extends StatefulWidget {
   final Map<String, dynamic> propertyData;
@@ -224,6 +225,9 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
               'selectedPlan': selectedPlan,
             });
       }
+
+      // Invalidate room cache to ensure fresh data
+      await CacheUtils.invalidateRoomCache();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

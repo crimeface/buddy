@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../utils/cache_utils.dart';
 
 class EditFlatmatePage extends StatefulWidget {
   final String flatmateId;
@@ -212,6 +213,9 @@ class _EditFlatmatePageState extends State<EditFlatmatePage> {
           .collection('roomRequests')
           .doc(widget.flatmateId)
           .update(data);
+
+      // Invalidate flatmate cache to ensure fresh data
+      await CacheUtils.invalidateFlatmateCache();
 
       if (mounted) {
         Navigator.pop(context); // Return to previous screen

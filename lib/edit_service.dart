@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../utils/cache_utils.dart';
 
 class EditServicePage extends StatefulWidget {
   final String serviceId;
@@ -214,6 +215,9 @@ class _EditServicePageState extends State<EditServicePage> {
           .collection('service_listings')
           .doc(widget.serviceId)
           .update(data);
+
+      // Invalidate service cache to ensure fresh data
+      await CacheUtils.invalidateServiceCache();
 
       if (mounted) {
         Navigator.pop(context);

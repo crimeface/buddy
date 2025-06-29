@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'services/chat_service.dart';
+import 'services/user_service.dart';
 import 'chat_screen.dart';
 import 'theme.dart';
 
@@ -15,6 +15,7 @@ class ChatListScreen extends StatefulWidget {
 
 class _ChatListScreenState extends State<ChatListScreen> {
   final ChatService _chatService = ChatService();
+  final UserService _userService = UserService();
   String searchQuery = '';
   bool showSearchBar = false;
   final TextEditingController _searchController = TextEditingController();
@@ -136,7 +137,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _chatService.getChatRooms(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -184,7 +185,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
             );
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final chatRooms = snapshot.data ?? [];
+          // Debug print to show all chat rooms received
+          debugPrint('Chat rooms received for user: ${FirebaseAuth.instance.currentUser?.uid}');
+          for (final chatRoom in chatRooms) {
+            debugPrint('ChatRoom: id=${chatRoom['id']}, participants=${chatRoom['participants']}');
+          }
+
+          final filteredChatRooms = chatRooms.where((chatRoom) {
+            if (searchQuery.isEmpty) return true;
+            // Get the other participant's ID
+            final participants = Map<String, dynamic>.from(chatRoom['participants'] ?? {});
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+            final otherUserId = participants.keys.firstWhere(
+              (id) => id != currentUserId,
+              orElse: () => '',
+            );
+            // For now, we'll filter by the other user's ID
+            // In a real app, you'd want to fetch user details and filter by username
+            return otherUserId.toLowerCase().contains(searchQuery.toLowerCase());
+          }).toList();
+
+          if (filteredChatRooms.isEmpty) {
             return Center(
               child: Container(
                 padding: const EdgeInsets.all(32),
@@ -199,78 +221,30 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         borderRadius: BorderRadius.circular(50),
                       ),
                       child: Icon(
-                        Icons.real_estate_agent_outlined,
-                        size: 48,
+                        Icons.chat_bubble_outline,
+                        size: 40,
                         color: isDark ? Colors.white54 : const Color(0xFF9CA3AF),
                       ),
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'No conversations yet',
+                      searchQuery.isEmpty ? 'No messages yet' : 'No chats found',
                       style: TextStyle(
                         color: isDark ? Colors.white : const Color(0xFF374151),
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Start chatting with property agents\nand sellers to find your perfect home',
+                      searchQuery.isEmpty 
+                          ? 'Start a conversation with someone'
+                          : 'Try a different search term',
                       style: TextStyle(
                         color: isDark ? Colors.white60 : const Color(0xFF6B7280),
                         fontSize: 14,
-                        height: 1.5,
                       ),
                       textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF3B82F6).withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            // Navigate to property listings or browse
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.search,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Browse Properties',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -278,280 +252,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
             );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: snapshot.data!.docs.length,
-            separatorBuilder: (context, index) => Container(
-              margin: const EdgeInsets.only(left: 72),
-              height: 1,
-              color: isDark ? const Color(0xFF374151) : const Color(0xFFF1F5F9),
-            ),
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: filteredChatRooms.length,
             itemBuilder: (context, index) {
-              final chatRoom = snapshot.data!.docs[index];
-              final data = chatRoom.data() as Map<String, dynamic>;
-              final participants = List<String>.from(data['participants'] ?? []);
-              final otherUserId = participants.firstWhere(
-                (id) => id != FirebaseAuth.instance.currentUser?.uid,
+              final chatRoom = filteredChatRooms[index];
+              final participants = Map<String, dynamic>.from(chatRoom['participants'] ?? {});
+              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+              final otherUserId = participants.keys.firstWhere(
+                (id) => id != currentUserId,
                 orElse: () => '',
               );
-
-              if (otherUserId.isEmpty) return const SizedBox.shrink();
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(otherUserId)
-                    .get(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 120,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  width: 200,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-                  final username = userData?['username'] ?? 'Unknown User';
-                  final profileImageUrl = userData?['profileImageUrl'] ?? '';
-                  final lastMessage = data['lastMessage'] ?? '';
-                  final isUnread = data['unreadCount'] != null && data['unreadCount'] > 0;
-
-                  // Filter by search query
-                  if (searchQuery.isNotEmpty &&
-                      !username.toLowerCase().contains(searchQuery.toLowerCase())) {
-                    return const SizedBox.shrink();
-                  }
-
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                otherUserId: otherUserId,
-                                otherUserName: username,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Stack(
-                                children: [
-                                  Container(
-                                    width: 52,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(26),
-                                      gradient: profileImageUrl.isEmpty
-                                          ? const LinearGradient(
-                                              colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            )
-                                          : null,
-                                    ),
-                                    child: profileImageUrl.isNotEmpty
-                                        ? ClipRRect(
-                                            borderRadius: BorderRadius.circular(26),
-                                            child: CachedNetworkImage(
-                                              imageUrl: profileImageUrl,
-                                              fit: BoxFit.cover,
-                                              placeholder: (context, url) => Container(
-                                                decoration: const BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
-                                                  ),
-                                                ),
-                                                child: Center(
-                                                  child: Text(
-                                                    username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 18,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              errorWidget: (context, url, error) => Container(
-                                                decoration: const BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
-                                                  ),
-                                                ),
-                                                child: Center(
-                                                  child: Text(
-                                                    username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 18,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        : Center(
-                                            child: Text(
-                                              username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                  ),
-                                  if (isUnread)
-                                    Positioned(
-                                      right: 0,
-                                      top: 0,
-                                      child: Container(
-                                        width: 16,
-                                        height: 16,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFEF4444),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-                                            width: 2,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            username,
-                                            style: TextStyle(
-                                              color: isDark ? Colors.white : const Color(0xFF1F2937),
-                                              fontSize: 16,
-                                              fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                        Text(
-                                          data['lastMessageTime'] != null
-                                              ? _formatTimestamp(data['lastMessageTime'] as Timestamp)
-                                              : '',
-                                          style: TextStyle(
-                                            color: isUnread
-                                                ? const Color(0xFF3B82F6)
-                                                : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
-                                            fontSize: 12,
-                                            fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            lastMessage.isEmpty ? 'No messages yet' : lastMessage,
-                                            style: TextStyle(
-                                              color: isUnread
-                                                  ? (isDark ? Colors.white.withOpacity(0.87) : const Color(0xFF374151))
-                                                  : (isDark ? Colors.white60 : const Color(0xFF6B7280)),
-                                              fontSize: 14,
-                                              fontWeight: isUnread ? FontWeight.w500 : FontWeight.w400,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (isUnread)
-                                          Container(
-                                            margin: const EdgeInsets.only(left: 8),
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF3B82F6),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              '${data['unreadCount']}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    );
-                },
-              );
+              return _buildChatItem(context, chatRoom, otherUserId, isDark);
             },
           );
         },
@@ -559,28 +271,241 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  String _formatTimestamp(Timestamp timestamp) {
-    final now = DateTime.now();
-    final date = timestamp.toDate();
-    final diff = now.difference(date);
+  Widget _buildChatItem(BuildContext context, Map<String, dynamic> chatRoom, String otherUserId, bool isDark) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _getUserData(otherUserId),
+      builder: (context, userSnapshot) {
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          return _buildChatItemShimmer(isDark);
+        }
 
-    if (diff.inDays == 0) {
-      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (diff.inDays == 1) {
-      return 'Yesterday';
-    } else if (diff.inDays < 7) {
-      switch (date.weekday) {
-        case 1: return 'Mon';
-        case 2: return 'Tue';
-        case 3: return 'Wed';
-        case 4: return 'Thu';
-        case 5: return 'Fri';
-        case 6: return 'Sat';
-        case 7: return 'Sun';
-        default: return '';
-      }
+        final otherUserData = userSnapshot.data;
+        debugPrint('Fetched user data for $otherUserId: $otherUserData');
+        final otherUsername = (otherUserData != null && otherUserData.containsKey('username'))
+            ? otherUserData['username']
+            : otherUserId; // fallback to UID if username missing
+        final profileImageUrl = otherUserData?['profileImageUrl'] ?? '';
+        final lastMessage = chatRoom['lastMessage'] ?? '';
+        final lastMessageTime = chatRoom['lastMessageTime'] ?? 0;
+        final lastSenderId = chatRoom['lastSenderId'] ?? '';
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+        // Show who sent the last message
+        String lastMessagePrefix = '';
+        if (lastSenderId == otherUserId) {
+          lastMessagePrefix = '$otherUsername: ';
+        } else {
+          lastMessagePrefix = 'You: ';
+        }
+
+        // Filter by search query
+        if (searchQuery.isNotEmpty &&
+            !otherUsername.toLowerCase().contains(searchQuery.toLowerCase())) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF23262F) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      otherUserId: otherUserId,
+                      otherUserName: otherUsername,
+                    ),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Profile Image
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: profileImageUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: profileImageUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                                  child: Icon(
+                                    Icons.person,
+                                    color: isDark ? Colors.white54 : const Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                                  child: Icon(
+                                    Icons.person,
+                                    color: isDark ? Colors.white54 : const Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                                child: Icon(
+                                  Icons.person,
+                                  color: isDark ? Colors.white54 : const Color(0xFF9CA3AF),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Chat Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  otherUsername, // Only show the other user's name as the room name
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (lastMessageTime > 0) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatTime(lastMessageTime),
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            // Show who sent the last message
+                            '$lastMessagePrefix$lastMessage',
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChatItemShimmer(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF23262F) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Shimmer profile image
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(24),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Shimmer text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 120,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 200,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _getUserData(String userId) async {
+    try {
+      return await _userService.getUserData(userId);
+    } catch (e) {
+      print('Error fetching user data: $e');
+      return null;
+    }
+  }
+
+  String _formatTime(int timestamp) {
+    final now = DateTime.now();
+    final messageTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final difference = now.difference(messageTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m';
     } else {
-      return '${date.day}/${date.month}/${date.year}';
+      return 'now';
     }
   }
 }

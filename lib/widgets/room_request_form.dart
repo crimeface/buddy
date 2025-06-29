@@ -12,6 +12,7 @@ import 'location_autocomplete_field.dart';
 import '../api/maptiler_autocomplete.dart';
 import 'validation_widgets.dart';
 import '../utils/user_utils.dart';
+import '../utils/cache_utils.dart';
 
 class RoomRequestForm extends StatefulWidget {
   const RoomRequestForm({Key? key}) : super(key: key);
@@ -350,6 +351,9 @@ class _RoomRequestFormState extends State<RoomRequestForm>
       await FirebaseFirestore.instance
           .collection('roomRequests')
           .add(requestData);
+
+      // Invalidate flatmate cache to ensure fresh data
+      await CacheUtils.invalidateFlatmateCache();
 
       if (mounted) {
         ValidationSnackBar.showSuccess(context, 'Room request submitted successfully!');

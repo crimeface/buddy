@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'theme.dart';
+import '../utils/cache_utils.dart';
+import '../utils/notification_test.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -168,6 +170,13 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           _buildNotificationSetting(isDark),
+          _buildMenuOption(
+            icon: Icons.notifications_active_outlined,
+            iconColor: Colors.green,
+            title: 'Test Notifications',
+            onTap: () => NotificationTest.showTestDialog(context),
+            isDark: isDark,
+          ),
           if (isEmailUser)
             _buildMenuOption(
               icon: Icons.email_outlined,
@@ -814,6 +823,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           .collection('user_settings')
                           .doc(user.uid)
                           .delete();
+
+                      // Clear all caches before account deletion
+                      await CacheUtils.clearAllCaches();
 
                       // Delete user account
                       await user.delete();

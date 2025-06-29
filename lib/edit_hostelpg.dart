@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/hostel_data.dart';
+import '../utils/cache_utils.dart';
 
 class EditHostelPGPage extends StatefulWidget {
   final Map<String, dynamic> hostelData;
@@ -237,9 +238,12 @@ class _EditHostelPGPageState extends State<EditHostelPGPage> {
               'expiryDate': expiryDate.toIso8601String(),
               'visibility': true, // Always set to true when resubmitting
             });        if (mounted) {
+          // Invalidate hostel cache to ensure fresh data
+          await CacheUtils.invalidateHostelCache();
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Hostel/PG details updated successfully!'),
+              content: const Text('Hostel details updated!'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(

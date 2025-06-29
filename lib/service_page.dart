@@ -4,6 +4,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'display pages/service_details.dart';
 import 'theme.dart';
+import 'services/search_cache_service.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({Key? key}) : super(key: key);
@@ -16,6 +17,7 @@ class _ServicesPageState extends State<ServicesPage> {
   String _selectedCategory = 'All Services';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  final SearchCacheService _cacheService = SearchCacheService();
 
   final List<String> _categories = [
     'All Services',
@@ -37,75 +39,9 @@ class _ServicesPageState extends State<ServicesPage> {
   Future<void> _fetchServices() async {
     setState(() => _isLoading = true);
     try {
-      final now = DateTime.now();
-      var query = FirebaseFirestore.instance
-          .collection('service_listings')
-          .where('visibility', isEqualTo: true);
-      final querySnapshot = await query.get();
-
-      final List<Map<String, dynamic>> loaded = [];
-      final batch = FirebaseFirestore.instance.batch();
-
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        DateTime? expiryDate;
-
-        // Handle different expiry date formats
-        if (data['expiryDate'] != null) {
-          if (data['expiryDate'] is Timestamp) {
-            expiryDate = (data['expiryDate'] as Timestamp).toDate();
-          } else if (data['expiryDate'] is String) {
-            expiryDate = DateTime.tryParse(data['expiryDate']);
-          }
-        }
-
-        // If expired, update visibility to false
-        if (expiryDate != null && expiryDate.isBefore(now)) {
-          batch.update(doc.reference, {'visibility': false});
-          continue; // Skip adding to loaded list since it's expired
-        }
-
-        // Only add to the list if not expired
-        if (expiryDate != null && expiryDate.isAfter(now)) {
-          data['key'] = doc.id;
-          // Defensive mapping for images
-          data['imageUrl'] =
-              data['coverPhoto'] ??
-              (data['additionalPhotos'] is List &&
-                      (data['additionalPhotos'] as List).isNotEmpty
-                  ? data['additionalPhotos'][0]
-                  : (data['imageUrl'] ?? ''));
-          loaded.add(data);
-        }
-      }
-
-      // Commit all visibility updates
-      await batch.commit();
-
-      // Sort services by createdAt timestamp, newest first
-      loaded.sort((a, b) {
-        var aTime = a['createdAt'];
-        var bTime = b['createdAt'];
-
-        // Convert to DateTime if needed
-        if (aTime is Timestamp) {
-          aTime = aTime.toDate();
-        } else if (aTime is String) {
-          aTime = DateTime.tryParse(aTime);
-        }
-
-        if (bTime is Timestamp) {
-          bTime = bTime.toDate();
-        } else if (bTime is String) {
-          bTime = DateTime.tryParse(bTime);
-        }
-
-        // Handle null cases and compare
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime);
-      });
-
+      // Use cached data instead of direct Firestore query
+      final loaded = await _cacheService.getServicesWithCache();
+      
       setState(() {
         _services = loaded;
         _isLoading = false;

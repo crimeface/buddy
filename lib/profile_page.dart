@@ -10,6 +10,7 @@ import 'wishlist_page.dart';
 import 'settings_page.dart';
 import 'banner_changing.dart';
 import 'chat_list_screen.dart';
+import '../utils/cache_utils.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -522,6 +523,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 setState(() {
                   _isLoggingOut = true;
                 });
+                
+                // Clear all caches before logout
+                await CacheUtils.clearAllCaches();
+                
                 await FirebaseAuth.instance.signOut();
                 setState(() {
                   _isLoggingOut = false;

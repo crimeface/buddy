@@ -13,6 +13,7 @@ import 'package:geoflutterfire2/geoflutterfire2.dart';
 import 'location_autocomplete_field.dart';
 import 'validation_widgets.dart';
 import '../utils/user_utils.dart';
+import '../utils/cache_utils.dart';
 
 class ListRoomForm extends StatefulWidget {
   const ListRoomForm({Key? key}) : super(key: key);
@@ -325,8 +326,6 @@ class _ListRoomFormState extends State<ListRoomForm>
           .add(data);
       final newRoomDocId = newRoomDocRef.id;
 
-      ValidationSnackBar.showSuccess(context, 'Room listing submitted successfully!');
-
       final geo = GeoFlutterFire();
       if (_pickedLocation != null) {
         final geoPoint = geo.point(
@@ -336,9 +335,15 @@ class _ListRoomFormState extends State<ListRoomForm>
         await FirebaseFirestore.instance
             .collection('room_listings')
             .doc(newRoomDocId)
-            .set({'position': geoPoint.data}, SetOptions(merge: true));
+            .set({
+              'position': geoPoint.data,
+            }, SetOptions(merge: true));
       }
 
+      // Invalidate room cache to ensure fresh data
+      await CacheUtils.invalidateRoomCache();
+
+      ValidationSnackBar.showSuccess(context, 'Room listing submitted successfully!');
       Navigator.pop(context);
     } catch (e) {
       ValidationSnackBar.showError(context, 'Failed to submit: $e');

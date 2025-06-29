@@ -12,6 +12,7 @@ import 'location_autocomplete_field.dart';
 import '../api/maptiler_autocomplete.dart';
 import 'validation_widgets.dart';
 import '../utils/user_utils.dart';
+import '../utils/cache_utils.dart';
 
 class ListServiceForm extends StatefulWidget {
   const ListServiceForm({Key? key}) : super(key: key);
@@ -418,6 +419,9 @@ class _ListServiceFormState extends State<ListServiceForm>
               'position': geoPoint.data,
             }, SetOptions(merge: true));
       }
+
+      // Invalidate service cache to ensure fresh data
+      await CacheUtils.invalidateServiceCache();
 
       ValidationSnackBar.showSuccess(context, 'Service listing submitted successfully!');
       Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);

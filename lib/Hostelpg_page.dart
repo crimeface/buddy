@@ -3,46 +3,43 @@ import 'theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'display pages/hostelpg_details.dart';
+import 'services/search_cache_service.dart';
 
-class HostelPgPage extends StatefulWidget {
-  const HostelPgPage({Key? key}) : super(key: key);
+class HostelpgPage extends StatefulWidget {
+  const HostelpgPage({Key? key}) : super(key: key);
 
   @override
-  State<HostelPgPage> createState() => _HostelPgPageState();
+  State<HostelpgPage> createState() => _HostelpgPageState();
 }
 
-class _HostelPgPageState extends State<HostelPgPage> {
+class _HostelpgPageState extends State<HostelpgPage> {
   String _selectedLocation = 'All Cities';
   String _selectedPriceRange = 'All Prices';
   String _selectedRoomType = 'All Types';
   String _searchQuery = '';
 
-  final List<String> _locations = [
-    'All Cities',
-    'Downtown, NY',
-    'Uptown, NY',
-    'Brooklyn, NY',
-    'Queens, NY',
-  ];
+  List<String> _locations = ['All Cities'];
 
   final List<String> _priceRanges = [
     'All Prices',
-    '<\ 6000',
-    '<\ 7500',
-    '<\ 9000',
-    '<\ 11000',
-    '\ 12000+',
+    '< \₹3000',
+    '< \₹5000',
+    '< \₹7000',
+    '< \₹9000',
+    '\₹9000+',
   ];
 
   final List<String> _roomTypes = [
     'All Types',
-    '1 Bed Room (Private)',
-    '2 Bed Room',
-    '3 Bed Room',
-    '4+ Bed Room',
+    'Single Room',
+    'Double Room',
+    'Triple Room',
+    'Dormitory',
   ];
 
   final TextEditingController _searchController = TextEditingController();
+  final SearchCacheService _cacheService = SearchCacheService();
 
   List<Map<String, dynamic>> _hostels = [];
   bool _isLoading = true;
@@ -50,108 +47,28 @@ class _HostelPgPageState extends State<HostelPgPage> {
   @override
   void initState() {
     super.initState();
+    _selectedLocation = 'All Cities';
     _fetchHostels();
   }
 
   Future<void> _fetchHostels() async {
     setState(() => _isLoading = true);
     try {
-      final now = DateTime.now();
-      var query = FirebaseFirestore.instance
-          .collection('hostel_listings')
-          .where('visibility', isEqualTo: true);
-      final querySnapshot = await query.get();
-
-      final List<Map<String, dynamic>> loadedHostels = [];
-      final batch = FirebaseFirestore.instance.batch();
-
-      for (var doc in querySnapshot.docs) {
-        final v = doc.data();
-        bool isExpired = false;
-
-        // Check if listing is expired
-        DateTime? expiryDate;
-        if (v['expiryDate'] != null) {
-          if (v['expiryDate'] is Timestamp) {
-            expiryDate = (v['expiryDate'] as Timestamp).toDate();
-          } else if (v['expiryDate'] is String) {
-            expiryDate = DateTime.tryParse(v['expiryDate']);
-          }
+      // Use cached data instead of direct Firestore query
+      final loadedHostels = await _cacheService.getHostelsWithCache();
+      
+      // Extract unique locations from cached data
+      final Set<String> dynamicLocations = {'All Cities'};
+      for (final hostel in loadedHostels) {
+        if (hostel['location'] != null &&
+            hostel['location'].toString().isNotEmpty) {
+          dynamicLocations.add(hostel['location'].toString());
         }
-
-        // If expired, mark for visibility update
-        if (expiryDate != null && expiryDate.isBefore(now)) {
-          isExpired = true;
-          if (v['visibility'] == true) {
-            // Only update if currently visible
-            batch.update(doc.reference, {'visibility': false});
-          }
-        }
-
-        // Only add to display list if not expired and visible
-        if (!isExpired && v['visibility'] == true) {
-          loadedHostels.add({
-            ...v,
-            'key': doc.id,
-            // Aliases for filtering and display
-            'location': v['address'] ?? '',
-            'type': v['hostelType'] ?? '',
-            'amenities': v['facilities'] ?? [],
-            'imageUrl':
-                (v['uploadedPhotos'] is Map &&
-                        (v['uploadedPhotos'] as Map).containsKey(
-                          'Building Front',
-                        ))
-                    ? (v['uploadedPhotos'] as Map)['Building Front']
-                    : (v['uploadedPhotos'] is Map &&
-                        (v['uploadedPhotos'] as Map).isNotEmpty)
-                    ? (v['uploadedPhotos'] as Map).values.first
-                    : (v['uploadedPhotos'] is List &&
-                        (v['uploadedPhotos'] as List).isNotEmpty)
-                    ? v['uploadedPhotos'][0]
-                    : '',
-            // ... existing fields ...
-            'createdAt': v['createdAt'] ?? '',
-          });
-        }
-      }
-
-      // Sort hostels by createdAt timestamp, newest first
-      loadedHostels.sort((a, b) {
-        var aTime = a['createdAt'];
-        var bTime = b['createdAt'];
-
-        // Convert to DateTime if needed
-        if (aTime is Timestamp) {
-          aTime = aTime.toDate();
-        } else if (aTime is String) {
-          aTime = DateTime.tryParse(aTime);
-        }
-
-        if (bTime is Timestamp) {
-          bTime = bTime.toDate();
-        } else if (bTime is String) {
-          bTime = DateTime.tryParse(bTime);
-        }
-
-        // Handle null cases
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-
-        // Sort in descending order (newest first)
-        return bTime.compareTo(aTime);
-      });
-
-      // Commit all visibility updates in one batch
-      try {
-        await batch.commit();
-      } catch (e) {
-        print('Error updating expired listings: $e');
       }
 
       setState(() {
         _hostels = loadedHostels;
+        _locations = dynamicLocations.toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -159,12 +76,11 @@ class _HostelPgPageState extends State<HostelPgPage> {
         _hostels = [];
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load hostels: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load hostels: $e')),
+        );
+      }
     }
   }
 

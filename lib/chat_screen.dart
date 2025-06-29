@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/chat_service.dart';
 import 'models/chat_message.dart';
 import 'theme.dart';
+import 'api/firebase_api.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
@@ -19,17 +19,69 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final ChatService _chatService = ChatService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FirebaseApi _firebaseApi = FirebaseApi.instance;
   bool _isLoading = false;
+  String? _currentChatRoomId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _setupChatRoom();
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
+    // Clear chat room tracking when leaving
+    _firebaseApi.setCurrentChatRoom(null);
+    _firebaseApi.setChatScreenState(false);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App came to foreground
+        _firebaseApi.setChatScreenState(true);
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        // App went to background or was closed
+        _firebaseApi.setChatScreenState(false);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _setupChatRoom() {
+    // Create chat room ID
+    final List<String> ids = [FirebaseAuth.instance.currentUser!.uid, widget.otherUserId];
+    ids.sort();
+    _currentChatRoomId = ids.join('_');
+    
+    // Set current chat room in notification service
+    _firebaseApi.setCurrentChatRoom(_currentChatRoomId);
+    _firebaseApi.setChatScreenState(true);
+    
+    // Mark messages as read when entering chat
+    _markMessagesAsRead();
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    if (_currentChatRoomId != null) {
+      await _chatService.markMessagesAsRead(_currentChatRoomId!);
+    }
   }
 
   void _sendMessage() async {
@@ -43,6 +95,11 @@ class _ChatScreenState extends State<ChatScreen> {
         content: _messageController.text.trim(),
       );
       _messageController.clear();
+      
+      // Mark messages as read when sending
+      if (_currentChatRoomId != null) {
+        await _chatService.markMessagesAsRead(_currentChatRoomId!);
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -131,6 +188,31 @@ class _ChatScreenState extends State<ChatScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.notifications,
+              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+              size: 22,
+            ),
+            onPressed: () async {
+              try {
+                await _firebaseApi.showTestNotification();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Test notification sent!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          ),
           IconButton(
             icon: Icon(
               Icons.phone_outlined,

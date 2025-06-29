@@ -24,10 +24,19 @@ import 'phone_verification.dart'; // Added import for phone verification
 import 'api/firebase_api.dart'; // Import Firebase API for notifications
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'splash_screen_wrapper.dart'; // Import the new splash screen wrapper
+import 'chat_screen.dart'; // Import chat screen for notification navigation
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
     RouteObserver<ModalRoute<void>>();
+
+// Background message handler
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print('Handling a background message: ${message.messageId}');
+  print('Message data: ${message.data}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,14 +44,17 @@ void main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  final firebaseApi = FirebaseApi();
+  // Set background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  final firebaseApi = FirebaseApi.instance;
   await firebaseApi.initNotifications();
 
   runApp(const BuddyApp());
 }
 
 Future<void> _setupFirebaseNotifications() async {
-  final firebaseApi = FirebaseApi();
+  final firebaseApi = FirebaseApi.instance;
   await firebaseApi.initNotifications();
 
   // Handle background/terminated message tapping
@@ -63,6 +75,7 @@ class BuddyApp extends StatelessWidget {
       darkTheme: BuddyTheme.darkTheme,
       themeMode: ThemeMode.dark, // Use system theme by default
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey, // Use global navigator key
       navigatorObservers: [routeObserver], // Add route observer
       home: AuthStateHandler(),
       routes: {
@@ -77,6 +90,18 @@ class BuddyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/editProfile': (context) => const EditProfilePage(),
         '/myListings': (context) => const MyListingsPage(),
+        '/chat': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          if (args == null) {
+            return const Scaffold(
+              body: Center(child: Text('Invalid chat data')),
+            );
+          }
+          return ChatScreen(
+            otherUserId: args['otherUserId'] as String,
+            otherUserName: args['otherUserName'] as String,
+          );
+        },
         '/editProperty': (context) {
           final args =
               ModalRoute.of(context)?.settings.arguments

@@ -13,6 +13,7 @@ import 'location_autocomplete_field.dart';
 import '../api/maptiler_autocomplete.dart';
 import 'validation_widgets.dart';
 import '../utils/user_utils.dart';
+import '../utils/cache_utils.dart';
 
 class ListHostelForm extends StatefulWidget {
   ListHostelForm({Key? key}) : super(key: key) {}
@@ -393,6 +394,9 @@ class _ListHostelFormState extends State<ListHostelForm>
               'position': geoPoint.data,
             }, SetOptions(merge: true));
       }
+
+      // Invalidate hostel cache to ensure fresh data
+      await CacheUtils.invalidateHostelCache();
 
       ValidationSnackBar.showSuccess(context, 'Hostel listing submitted successfully!');
       Navigator.pop(context);

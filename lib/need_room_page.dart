@@ -5,6 +5,7 @@ import 'theme.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'main.dart'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'services/search_cache_service.dart';
 
 class NeedRoomPage extends StatefulWidget {
   const NeedRoomPage({Key? key}) : super(key: key);
@@ -57,6 +58,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   final List<String> _genderPreferences = ['Male Only', 'Female Only', 'Mixed'];
 
   final TextEditingController _searchController = TextEditingController();
+  final SearchCacheService _cacheService = SearchCacheService();
 
   List<Map<String, dynamic>> _rooms = []; // <-- Now fetched from Firebase
   bool _isLoading = true;
@@ -100,78 +102,17 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       _isLoading = true;
     });
     try {
-      final now = DateTime.now();
-      var query = FirebaseFirestore.instance
-          .collection('room_listings')
-          .where('visibility', isEqualTo: true);
-      final querySnapshot = await query.get();
-
-      final List<Map<String, dynamic>> loadedRooms = [];
-      final batch = FirebaseFirestore.instance.batch();
+      // Use cached data instead of direct Firestore query
+      final loadedRooms = await _cacheService.getRoomsWithCache();
+      
+      // Extract unique locations from cached data
       final Set<String> dynamicLocations = {'All Cities'};
-
-      for (var doc in querySnapshot.docs) {
-        final room = doc.data();
-        DateTime? expiryDate;
-
-        // Handle different expiry date formats
-        if (room['expiryDate'] != null) {
-          if (room['expiryDate'] is Timestamp) {
-            expiryDate = (room['expiryDate'] as Timestamp).toDate();
-          } else if (room['expiryDate'] is String) {
-            expiryDate = DateTime.tryParse(room['expiryDate']);
-          }
-        }
-
-        // Check if listing is expired
-        if (expiryDate != null && expiryDate.isBefore(now)) {
-          // If expired, update visibility to false
-          batch.update(doc.reference, {'visibility': false});
-          continue; // Skip adding to loaded list since it's expired
-        }
-
-        // If not expired, add to the list to display
-        if (expiryDate != null && expiryDate.isAfter(now)) {
-          room['id'] = doc.id;
-          room['key'] = doc.id;
-          loadedRooms.add(room);
-          // Collect unique locations dynamically
-          if (room['location'] != null &&
-              room['location'].toString().isNotEmpty) {
-            dynamicLocations.add(room['location'].toString());
-          }
+      for (final room in loadedRooms) {
+        if (room['location'] != null &&
+            room['location'].toString().isNotEmpty) {
+          dynamicLocations.add(room['location'].toString());
         }
       }
-
-      // Sort the rooms by createdAt timestamp, newest first
-      loadedRooms.sort((a, b) {
-        var aTime = a['createdAt'];
-        var bTime = b['createdAt'];
-
-        // Convert to DateTime if needed
-        if (aTime is Timestamp) {
-          aTime = aTime.toDate();
-        } else if (aTime is String) {
-          aTime = DateTime.tryParse(aTime);
-        }
-
-        if (bTime is Timestamp) {
-          bTime = bTime.toDate();
-        } else if (bTime is String) {
-          bTime = DateTime.tryParse(bTime);
-        }
-
-        // Handle null cases
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-
-        // Sort in descending order (newest first)
-        return bTime.compareTo(aTime);
-      });
-
-      // Commit all visibility updates in one batch
-      await batch.commit();
 
       setState(() {
         _rooms = loadedRooms;

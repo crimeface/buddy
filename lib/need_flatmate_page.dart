@@ -6,6 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'theme.dart';
 import 'display pages/flatmate_details.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'services/search_cache_service.dart';
 
 class NeedFlatmatePage extends StatefulWidget {
   const NeedFlatmatePage({super.key});
@@ -16,6 +17,7 @@ class NeedFlatmatePage extends StatefulWidget {
 
 class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
   final TextEditingController _searchController = TextEditingController();
+  final SearchCacheService _cacheService = SearchCacheService();
   String _searchQuery = '';
   String _selectedLocation = 'All Cities';
   String _selectedAge = 'All Ages';
@@ -66,68 +68,9 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
       _isLoading = true;
     });
     try {
-      final now = DateTime.now();
-      var query = FirebaseFirestore.instance
-          .collection('roomRequests')
-          .where('visibility', isEqualTo: true);
-      final querySnapshot = await query.get();
-
-      final List<Map<String, dynamic>> loaded = [];
-      final batch = FirebaseFirestore.instance.batch();
-
-      for (var doc in querySnapshot.docs) {
-        final flatmate = doc.data();
-        DateTime? expiryDate;
-
-        // Handle different expiry date formats
-        if (flatmate['expiryDate'] != null) {
-          if (flatmate['expiryDate'] is Timestamp) {
-            expiryDate = (flatmate['expiryDate'] as Timestamp).toDate();
-          } else if (flatmate['expiryDate'] is String) {
-            expiryDate = DateTime.tryParse(flatmate['expiryDate']);
-          }
-        }
-
-        // If expired, update visibility to false
-        if (expiryDate != null && expiryDate.isBefore(now)) {
-          batch.update(doc.reference, {'visibility': false});
-          continue; // Skip adding to loaded list since it's expired
-        }
-
-        // If not expired and visible, add to the list to display
-        if (flatmate['visibility'] == true) {
-          flatmate['key'] = doc.id;
-          loaded.add(flatmate);
-        }
-      }
-
-      // Commit all visibility updates in one batch
-      await batch.commit();
-
-      // Sort flatmates by createdAt timestamp, newest first
-      loaded.sort((a, b) {
-        var aTime = a['createdAt'];
-        var bTime = b['createdAt'];
-
-        // Convert to DateTime if needed
-        if (aTime is Timestamp) {
-          aTime = aTime.toDate();
-        } else if (aTime is String) {
-          aTime = DateTime.tryParse(aTime);
-        }
-
-        if (bTime is Timestamp) {
-          bTime = bTime.toDate();
-        } else if (bTime is String) {
-          bTime = DateTime.tryParse(bTime);
-        }
-
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime);
-      });
-
+      // Use cached data instead of direct Firestore query
+      final loaded = await _cacheService.getFlatmatesWithCache();
+      
       setState(() {
         _flatmates = loaded;
         _isLoading = false;
@@ -137,9 +80,11 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
         _flatmates = [];
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load flatmates: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load flatmates: $e')),
+        );
+      }
     }
   }
 
