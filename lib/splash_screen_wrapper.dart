@@ -19,13 +19,26 @@ class _SplashScreenWrapperState extends State<SplashScreenWrapper> {
   void initState() {
     super.initState();
     _loadBanners();
+    
+    // Add a safety timeout to prevent getting stuck
+    Future.delayed(const Duration(seconds: 15), () {
+      if (mounted && _showSplash) {
+        print('Splash screen timeout - forcing navigation to home');
+        setState(() {
+          _showSplash = false;
+          _bannersLoaded = true;
+        });
+      }
+    });
   }
 
   Future<void> _loadBanners() async {
     try {
+      // Add a timeout to prevent getting stuck
       final bannersSnap = await FirebaseFirestore.instance
           .collection('promo_banners')
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 10));
       
       if (mounted) {
         setState(() {
@@ -77,6 +90,7 @@ class _SplashScreenWrapperState extends State<SplashScreenWrapper> {
         }
       }
     } catch (e) {
+      print('Error loading banners: $e');
       // If there's an error, still proceed with default banners
       if (mounted) {
         setState(() {

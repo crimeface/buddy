@@ -47,10 +47,25 @@ void main() async {
   // Set background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  final firebaseApi = FirebaseApi.instance;
-  await firebaseApi.initNotifications();
+  // Initialize notifications in the background to prevent blocking app startup
+  _initializeNotificationsInBackground();
 
   runApp(const BuddyApp());
+}
+
+// Initialize notifications in background to prevent blocking app startup
+void _initializeNotificationsInBackground() {
+  Future.delayed(const Duration(milliseconds: 100), () async {
+    try {
+      print('Starting background notification initialization...');
+      final firebaseApi = FirebaseApi.instance;
+      await firebaseApi.initNotifications();
+      print('Background notification initialization completed');
+    } catch (e) {
+      print('Error in background notification initialization: $e');
+      // Don't block app startup - notifications will be disabled
+    }
+  });
 }
 
 Future<void> _setupFirebaseNotifications() async {

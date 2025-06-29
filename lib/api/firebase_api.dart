@@ -54,129 +54,201 @@ class FirebaseApi {
     _isInChatScreen = isInChat;
   }
 
+  // Method to check if notifications are initialized
+  bool _notificationsInitialized = false;
+  bool get notificationsInitialized => _notificationsInitialized;
+
+  // Method to reinitialize notifications if needed
+  Future<void> reinitializeNotifications() async {
+    print('Reinitializing notifications...');
+    _notificationsInitialized = false;
+    await initNotifications();
+  }
+
   Future<void> initNotifications() async {
-    // Request permissions
-    final settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
+    try {
+      print('Initializing notifications...');
+      
+      // Request permissions with timeout
+      final settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      ).timeout(const Duration(seconds: 5));
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('User granted permission');
-    } else {
-      print('User declined or has not accepted permission');
-    }
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('User granted permission');
+      } else {
+        print('User declined or has not accepted permission');
+      }
 
-    // Get FCM token
-    final fCMToken = await _firebaseMessaging.getToken();
-    print("FCM Token: $fCMToken");
+      // Get FCM token with timeout
+      String? fCMToken;
+      try {
+        fCMToken = await _firebaseMessaging.getToken().timeout(const Duration(seconds: 10));
+        print("FCM Token: $fCMToken");
+      } catch (e) {
+        print('Error getting FCM token: $e');
+        fCMToken = null;
+      }
 
-    // Save FCM token to user's profile
-    if (fCMToken != null && _auth.currentUser != null) {
-      await _saveFCMToken(fCMToken);
-    }
+      // Save FCM token to user's profile (non-blocking)
+      if (fCMToken != null && _auth.currentUser != null) {
+        _saveFCMToken(fCMToken).catchError((e) {
+          print('Error saving FCM token: $e');
+        });
+      }
 
-    // Create notification channels
-    await _createNotificationChannels();
+      // Create notification channels (non-blocking)
+      _createNotificationChannels().catchError((e) {
+        print('Error creating notification channels: $e');
+      });
 
-    // Initialize local notifications
-    await _initializeLocalNotifications();
+      // Initialize local notifications (non-blocking)
+      _initializeLocalNotifications().catchError((e) {
+        print('Error initializing local notifications: $e');
+      });
 
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      // Set up message handlers (non-blocking)
+      _setupMessageHandlers();
 
-    // Handle background message taps
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+      // Listen for token refresh
+      _firebaseMessaging.onTokenRefresh.listen(_saveFCMToken);
 
-    // Handle notification taps when app is terminated
-    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) {
-      _handleNotificationTap(initialMessage);
-    }
+      // Listen for authentication state changes
+      _auth.authStateChanges().listen(_handleAuthStateChange);
 
-    // Listen for token refresh
-    _firebaseMessaging.onTokenRefresh.listen(_saveFCMToken);
-
-    // Listen for authentication state changes
-    _auth.authStateChanges().listen(_handleAuthStateChange);
-
-    // Set up chat message listeners if user is already authenticated
-    if (_auth.currentUser != null) {
-      _setupChatMessageListeners();
+      // Set up chat message listeners if user is already authenticated
+      if (_auth.currentUser != null) {
+        _setupChatMessageListeners();
+      }
+      
+      print('Notifications initialized successfully');
+      _notificationsInitialized = true;
+    } catch (e) {
+      print('Error initializing notifications: $e');
+      _notificationsInitialized = false;
+      // Don't rethrow - let the app continue without notifications
     }
   }
 
   Future<void> _createNotificationChannels() async {
-    // Chat notifications channel (high priority)
-    final androidChatChannel = AndroidNotificationChannel(
-      _chatChannelId,
-      _chatChannelName,
-      description: _chatChannelDescription,
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
-      showBadge: true,
-    );
+    try {
+      // Chat notifications channel (high priority)
+      final androidChatChannel = AndroidNotificationChannel(
+        _chatChannelId,
+        _chatChannelName,
+        description: _chatChannelDescription,
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+        showBadge: true,
+      );
 
-    // General notifications channel
-    final androidGeneralChannel = AndroidNotificationChannel(
-      _generalChannelId,
-      _generalChannelName,
-      description: _generalChannelDescription,
-      importance: Importance.high,
-      playSound: true,
-      enableVibration: true,
-      showBadge: true,
-    );
+      // General notifications channel
+      final androidGeneralChannel = AndroidNotificationChannel(
+        _generalChannelId,
+        _generalChannelName,
+        description: _generalChannelDescription,
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      );
 
-    // Create channels
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidChatChannel);
+      // Create channels
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(androidChatChannel);
 
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidGeneralChannel);
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(androidGeneralChannel);
+          
+      print('Notification channels created successfully');
+    } catch (e) {
+      print('Error creating notification channels: $e');
+    }
   }
 
   Future<void> _initializeLocalNotifications() async {
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    
-    const initializationSettings = InitializationSettings(
-      android: androidInit,
-      iOS: iosInit,
-    );
+    try {
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosInit = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      
+      const initializationSettings = InitializationSettings(
+        android: androidInit,
+        iOS: iosInit,
+      );
 
-    await _localNotifications.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
+      await _localNotifications.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+      
+      print('Local notifications initialized successfully');
+    } catch (e) {
+      print('Error initializing local notifications: $e');
+    }
   }
 
   Future<void> _saveFCMToken(String token) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        // Save to Realtime Database
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        // Save to Realtime Database with timeout
         await _database.child('users').child(user.uid).update({
           'fcmToken': token,
           'lastTokenUpdate': DateTime.now().millisecondsSinceEpoch,
-        });
+        }).timeout(const Duration(seconds: 5));
+
+        // Save to Firestore for Cloud Functions
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({
+          'fcmToken': token,
+          'lastTokenUpdate': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
         // Save to SharedPreferences for offline access
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', token);
-      } catch (e) {
-        print('Error saving FCM token: $e');
+        
+        print('FCM token saved successfully');
       }
+    } catch (e) {
+      print('Error saving FCM token: $e');
+      // Don't rethrow - this is not critical for app functionality
+    }
+  }
+
+  void _setupMessageHandlers() {
+    try {
+      // Handle foreground messages
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+      // Handle background message taps
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+
+      // Handle notification taps when app is terminated
+      FirebaseMessaging.instance.getInitialMessage().then((initialMessage) {
+        if (initialMessage != null) {
+          _handleNotificationTap(initialMessage);
+        }
+      }).catchError((e) {
+        print('Error getting initial message: $e');
+      });
+
+      print('Message handlers set up successfully');
+    } catch (e) {
+      print('Error setting up message handlers: $e');
     }
   }
 
@@ -345,26 +417,36 @@ class FirebaseApi {
   }
 
   void _setupChatMessageListeners() {
-    final user = _auth.currentUser;
-    if (user == null) return;
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
 
-    _database.child('chat_rooms').onValue.listen(
-      (event) async {
-        if (event.snapshot.value != null) {
-          final chatRooms = event.snapshot.value as Map<dynamic, dynamic>;
-          for (final entry in chatRooms.entries) {
-            final chatRoomId = entry.key;
-            final chatRoomData = entry.value;
-            if (chatRoomData is Map) {
-              final metadata = chatRoomData['metadata'] as Map<dynamic, dynamic>?;
-              if (metadata != null) {
-                final participants = Map<String, dynamic>.from(metadata['participants'] ?? {});
-                if (participants[user.uid] == true) {
-                  final lastSenderId = metadata['lastSenderId'] as String?;
-                  final lastMessage = metadata['lastMessage'] as String?;
-                  final lastMessageTime = metadata['lastMessageTime'] as int?;
-                  if (lastSenderId != null && lastSenderId != user.uid) {
-                    if (lastMessageTime != null && DateTime.now().millisecondsSinceEpoch - lastMessageTime < 30000) {
+      _database.child('chat_rooms').onValue.listen(
+        (event) async {
+          if (event.snapshot.value != null) {
+            final chatRooms = event.snapshot.value as Map<dynamic, dynamic>;
+            for (final entry in chatRooms.entries) {
+              final chatRoomId = entry.key;
+              final chatRoomData = entry.value;
+              if (chatRoomData is Map) {
+                final metadata = chatRoomData['metadata'] as Map<dynamic, dynamic>?;
+                if (metadata != null) {
+                  final participants = Map<String, dynamic>.from(metadata['participants'] ?? {});
+                  if (participants[user.uid] == true) {
+                    final lastSenderId = metadata['lastSenderId'] as String?;
+                    final lastMessage = metadata['lastMessage'] as String?;
+                    final lastMessageTime = metadata['lastMessageTime'] as int?;
+                    
+                    // Only show notification if:
+                    // 1. Last sender is not the current user (not our own message)
+                    // 2. Message is recent (within last 10 seconds)
+                    // 3. User is not currently in this chat
+                    if (lastSenderId != null && 
+                        lastSenderId != user.uid && 
+                        lastMessageTime != null && 
+                        DateTime.now().millisecondsSinceEpoch - lastMessageTime < 10000 &&
+                        !_isUserInChat(chatRoomId.toString())) {
+                      
                       // Fetch sender's username from Firestore
                       String senderName = 'User';
                       try {
@@ -374,6 +456,8 @@ class FirebaseApi {
                           senderName = data?['username'] ?? data?['displayName'] ?? 'User';
                         }
                       } catch (_) {}
+                      
+                      print('Showing notification for message from $senderName: $lastMessage');
                       _checkAndShowNotification(
                         senderId: lastSenderId,
                         senderName: senderName,
@@ -386,12 +470,16 @@ class FirebaseApi {
               }
             }
           }
-        }
-      },
-      onError: (error) {
-        print('Error listening to chat rooms: $error');
-      },
-    );
+        },
+        onError: (error) {
+          print('Error listening to chat rooms: $error');
+        },
+      );
+      
+      print('Chat message listeners set up successfully');
+    } catch (e) {
+      print('Error setting up chat message listeners: $e');
+    }
   }
 
   void _handleAuthStateChange(User? user) {
@@ -427,14 +515,7 @@ class FirebaseApi {
     try {
       print('Attempting to send chat notification to $receiverId');
       
-      // Check if current user is the receiver (don't show notification to sender)
-      final currentUser = _auth.currentUser;
-      if (currentUser != null && currentUser.uid == receiverId) {
-        print('Not showing notification to sender');
-        return;
-      }
-      
-      // Show local notification
+      // Show local notification (for testing purposes)
       await _checkAndShowNotification(
         senderId: receiverId,
         senderName: senderName,

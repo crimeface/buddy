@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_message.dart';
 import '../api/firebase_api.dart';
 import '../services/user_service.dart';
@@ -72,11 +73,11 @@ class ChatService {
       'lastMessageId': messageRef.key,
     });
 
-    // Send notification to receiver
-    await _sendNotificationToReceiver(receiverId, content, chatRoomId);
+    // Trigger server-side notification
+    await _triggerServerNotification(receiverId, content, chatRoomId);
   }
 
-  Future<void> _sendNotificationToReceiver(
+  Future<void> _triggerServerNotification(
     String receiverId, 
     String message, 
     String chatRoomId
@@ -85,17 +86,23 @@ class ChatService {
       // Get sender's name
       final senderName = await _getCurrentUserName();
       
-      // Send notification immediately
-      await _firebaseApi.sendChatNotification(
-        receiverId: receiverId,
-        senderName: senderName,
-        message: message,
-        chatRoomId: chatRoomId,
-      );
+      // Write to Firestore to trigger Cloud Function
+      await FirebaseFirestore.instance
+          .collection('notification_requests')
+          .add({
+        'receiverId': receiverId,
+        'senderId': currentUserId,
+        'senderName': senderName,
+        'message': message,
+        'chatRoomId': chatRoomId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'chat_message',
+        'status': 'pending',
+      });
       
-      print('Notification sent to $receiverId from $senderName: $message');
+      print('Server notification triggered for $receiverId');
     } catch (e) {
-      print('Error sending notification: $e');
+      print('Error triggering server notification: $e');
     }
   }
 

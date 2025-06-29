@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../api/firebase_api.dart';
 
 class NotificationTest {
@@ -26,6 +27,38 @@ class NotificationTest {
     }
   }
 
+  /// Test server-side notification
+  static Future<void> testServerNotification(BuildContext context) async {
+    try {
+      // Get current user ID
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in to test notifications'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // For now, just show a message that server notifications need to be deployed
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Server notifications require Cloud Functions deployment'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error testing server notification: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   /// Test notification settings
   static Future<void> testNotificationSettings(BuildContext context) async {
     try {
@@ -42,6 +75,7 @@ class NotificationTest {
               Text('Chat Notifications: ${settings['chatNotifications']}'),
               Text('Sound Enabled: ${settings['soundEnabled']}'),
               Text('Vibration Enabled: ${settings['vibrationEnabled']}'),
+              Text('Notifications Initialized: ${_firebaseApi.notificationsInitialized}'),
             ],
           ),
           actions: [
@@ -123,6 +157,13 @@ class NotificationTest {
               testLocalNotification(context);
             },
             child: const Text('Test Local Notification'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              testServerNotification(context);
+            },
+            child: const Text('Test Server Notification'),
           ),
           TextButton(
             onPressed: () {

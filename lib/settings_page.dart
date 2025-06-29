@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'theme.dart';
 import '../utils/cache_utils.dart';
 import '../utils/notification_test.dart';
+import '../api/firebase_api.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -206,6 +207,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildNotificationSetting(bool isDark) {
+    final firebaseApi = FirebaseApi.instance;
+    
     return Column(
       children: [
         ListTile(
@@ -237,6 +240,45 @@ class _SettingsPageState extends State<SettingsPage> {
           contentPadding: const EdgeInsets.symmetric(
             horizontal: BuddyTheme.spacingMd,
             vertical: BuddyTheme.spacingXs,
+          ),
+        ),
+        // Notification status indicator
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: BuddyTheme.spacingMd),
+          child: Row(
+            children: [
+              Icon(
+                firebaseApi.notificationsInitialized 
+                    ? Icons.check_circle 
+                    : Icons.error_outline,
+                color: firebaseApi.notificationsInitialized 
+                    ? Colors.green 
+                    : Colors.orange,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                firebaseApi.notificationsInitialized 
+                    ? 'Notifications ready' 
+                    : 'Notifications initializing...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: firebaseApi.notificationsInitialized 
+                      ? Colors.green 
+                      : Colors.orange,
+                ),
+              ),
+              if (!firebaseApi.notificationsInitialized) ...[
+                const Spacer(),
+                TextButton(
+                  onPressed: () async {
+                    await firebaseApi.reinitializeNotifications();
+                    setState(() {}); // Refresh UI
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ],
           ),
         ),
         Divider(
